@@ -1,7 +1,7 @@
 # Roadmap: Project Multiverse
 
 **Total phases:** 3
-**Requirements covered:** 46 / 46 ✓
+**Requirements covered:** 50 / 50 ✓
 **Structure:** Vertical MVP — each phase delivers a demoable user capability
 
 ---
@@ -10,7 +10,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
-| 1 | Live Session Shell | Working multi-user session with real-time chat and mobile layout | LAYOUT-01–06, SESS-01–09, CHAT-01–06, AI-01–02 | 5 criteria |
+| 1 | Live Session Shell | Working multi-user session with real-time chat and mobile layout | LAYOUT-01–06, SESS-01–11, CHAT-01–06, AI-01–02, AI-10, AI-11 | 5 criteria |
 | 2 | AI + Analytics | Full split-screen: Claude responds, panel renders widgets, reactions work | AI-03–08, PANEL-01–04, REACT-01–05, PERSONA-01–03 | 5 criteria |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
@@ -24,16 +24,16 @@
 
 **Requirements:**
 - LAYOUT-01, LAYOUT-02, LAYOUT-03, LAYOUT-04, LAYOUT-05, LAYOUT-06
-- SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06, SESS-07, SESS-08, SESS-09
+- SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06, SESS-07, SESS-08, SESS-09, SESS-10, SESS-11
 - CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
-- AI-01, AI-02 (key storage and server-side routing only — no active AI calls)
+- AI-01, AI-02 (key storage + server routing), AI-10 (upfront key verification), AI-11 (prompt caching architecture)
 
 **Success Criteria:**
 1. A session creator can sign in via OAuth, create a session, and view a live QR code that guests can scan to enter with only a display name
 2. 3+ guests can send and receive messages simultaneously with < 200ms perceived delivery; typing indicators appear correctly
 3. The 40/60 layout holds its proportions when the virtual keyboard opens on iOS Safari and Android Chrome — the analytics panel does not compress
 4. The Branch Navigator sticky bar renders between panel and chat with the correct structural position; creator can freeze and manually close a session
-5. Auto-freeze triggers after 15 minutes of creator inactivity; API key encrypted and never visible in network requests; blank-titled sessions auto-update their room name after 3 messages via flash model
+5. Auto-freeze triggers after 15 min sustained absence (30s de-bounce prevents flicker on brief disconnects); submitting an invalid API key shows an immediate error before saving; a guest who reloads their browser re-enters the session without the identity-claim screen; blank-titled sessions auto-name after 3 messages; prompt array structure achieves > 80% cache hit rate under concurrent multi-user load
 
 ---
 
