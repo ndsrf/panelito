@@ -35,6 +35,17 @@
 4. The Branch Navigator sticky bar renders between panel and chat with the correct structural position; creator can freeze and manually close a session
 5. Auto-freeze triggers after 15 min sustained absence (30s de-bounce prevents flicker on brief disconnects); submitting an invalid API key shows an immediate error before saving; a guest who reloads their browser re-enters the session without the identity-claim screen; blank-titled sessions auto-name after 3 messages; prompt array structure achieves > 80% cache hit rate under concurrent multi-user load
 
+**Plans:** 7 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Walking Skeleton scaffold: Turborepo monorepo, Next.js + Hono apps, Supabase local + initial migration
+- [ ] 01-02-PLAN.md — Vertical slice 1: Creator Google OAuth sign-in + protected layout + Playwright E2E (SESS-01)
+- [ ] 01-03-PLAN.md — Vertical slice 2: Session CRUD + QR share + branded guest join + SESS-10 persistence (SESS-02..06, SESS-08, SESS-10)
+- [ ] 01-04-PLAN.md — Vertical slice 3: Mobile-resilient 40/60 workspace shell with Branch Navigator + Error Boundary (LAYOUT-01..05, LAYOUT-07)
+- [ ] 01-05-PLAN.md — Vertical slice 4: Realtime chat + presence + LAYOUT-06 gesture scaffolds (CHAT-01..06, LAYOUT-06)
+- [ ] 01-06-PLAN.md — BYOK: onboarding gate, encrypted key storage, upfront verification, prompt caching scaffold, /settings (AI-01, AI-02, AI-10, AI-11)
+- [ ] 01-07-PLAN.md — Lifecycle hardening: auto-freeze (SESS-07/11), auto-name (SESS-09), AI cap (SESS-12), rate limits
+
 ---
 
 ### Phase 2: AI + Analytics
