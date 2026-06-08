@@ -90,15 +90,21 @@ Exceptions:
 
 Font: **Inter** loaded via `next/font/google`. Fallback: `system-ui, -apple-system, sans-serif`.
 
+**Declared component type scale — 2 weights only:**
+
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 15px | 400 (Regular) | 1.5 | Chat message text, form labels, settings copy |
-| Label | 13px | 500 (Medium) | 1.4 | Avatars, branch chips, typing indicators, badge text, input placeholder |
+| Label | 13px | 400 (Regular) | 1.4 | Avatars, branch chips, typing indicators, badge text, input placeholder |
 | Heading | 20px | 600 (Semibold) | 1.2 | Modal titles, page section headers, session title in workspace header |
-| Display | 28px | 700 (Bold) | 1.15 | Product logo/wordmark on onboarding gate and sign-in page only |
+| Display | 28px | 600 (Semibold) | 1.15 | Product logo/wordmark on onboarding gate and sign-in page only |
+
+**Design asset exceptions (outside the component type system):**
+- The logo wordmark may be rendered at a visually heavier weight (700) as a one-off design asset — this is not part of the component type scale and must not be applied to any other element.
+- Dense chip and badge label text may use a CSS `font-weight: 500` override as a rendering micro-adjustment only — this is not a declared system weight and must not propagate to other components.
 
 Rules:
-- Only two weights enter components: **Regular (400)** and **Semibold (600)**. Medium (500) is used strictly for dense label-class text (chips, badges). Bold (700) is used strictly for the logo display element.
+- Only two weights enter components: **Regular (400)** and **Semibold (600)**.
 - No italic or uppercase transforms in component text. Brand wordmark may use letter-spacing 0.02em.
 - Error and destructive text inherits body size — never smaller.
 
@@ -186,13 +192,14 @@ No third-party registry components in Phase 1.
 
 **Route:** `/auth/sign-in`
 **Layout:** Full page, vertically + horizontally centered, dominant background.
+**Primary focal point:** Google CTA button — first interactive element a new user sees; must be visually unambiguous.
 
 Elements (top to bottom, centered column, max-width 360px):
-1. Product logo/wordmark — Display size (28px Bold). Center-aligned.
+1. Product logo/wordmark — Display size (28px Semibold). Center-aligned.
 2. Tagline — Body size (15px Regular), Muted Foreground color. 1 line max. Below logo, 8px gap.
 3. "Continue with Google" button — full-width, height 48px, Secondary surface background + Border, Google icon (Lucide or inline SVG) + label. Not accent-colored.
 4. "Continue with GitHub" button — same styling as Google button. 8px gap between the two.
-5. Legal note — Label size (13px), Muted Foreground, centered. "By continuing you agree to our terms."
+5. Legal note — Label size (13px Regular), Muted Foreground, centered. "By continuing you agree to our terms."
 
 No navigation. No header. No footer links in Phase 1.
 
@@ -209,15 +216,16 @@ No navigation. No header. No footer links in Phase 1.
 
 **Route:** Intercepts `/` after first OAuth sign-in. Implemented as a middleware redirect to `/onboarding/api-key`.
 **Layout:** Full page, no navigation, no sidebar. Single centered column max-width 440px. Dominant background. Comparable to a payment terminal — focused, nothing else visible.
+**Primary focal point:** API key input and "Verify & Save" CTA — the gate that unlocks the product.
 
 Elements (top to bottom):
-1. Product logo — Display (28px Bold). Center-aligned. 64px top margin.
-2. Step indicator — Label (13px Medium), Muted Foreground. "Step 1 of 1 — Connect your AI key". 24px below logo.
+1. Product logo — Display (28px Semibold). Center-aligned. 64px top margin.
+2. Step indicator — Label (13px Regular), Muted Foreground. "Step 1 of 1 — Connect your AI key". 24px below logo.
 3. Explanation copy — Body (15px Regular), Foreground. Max 2 lines. 16px below step indicator.
-4. `label` + masked `input` — "Anthropic API Key", type=password, full-width, placeholder "sk-ant-...". 24px below explanation.
+4. `label` + masked `input` — "Anthropic API Key", type=password, full-width, placeholder "sk-ant-...". 24px below explanation. Eye toggle: `aria-label="Show API key"` when masked; `aria-label="Hide API key"` when revealed.
 5. "Verify & Save" button — full-width, height 48px, Accent (Indigo 500) fill.
-6. Error state inline below button (Destructive color, 13px, 8px gap): shown only when key fails verification.
-7. Help link — "Where do I find my key?" in Label (13px), Muted Foreground, underline on hover, points to Anthropic console docs. 16px below button.
+6. Error state inline below button (Destructive color, 13px Regular, 8px gap): shown only when key fails verification.
+7. Help link — "Where do I find my key?" in Label (13px Regular), Muted Foreground, underline on hover, points to Anthropic console docs. 16px below button.
 
 **Copywriting:**
 - Explanation: "Multiverse uses your Anthropic API key to power AI analysis. Your key is encrypted and never shared."
@@ -227,7 +235,7 @@ Elements (top to bottom):
 - Error (network): "Couldn't reach Anthropic. Check your connection and retry."
 
 **Interaction:**
-- Input shows/hides toggle (eye icon, Lucide `Eye`/`EyeOff`).
+- Input shows/hides toggle (eye icon, Lucide `Eye`/`EyeOff`). `aria-label` as declared above.
 - "Verify & Save" shows spinner in button during verification (Lucide `Loader2`, animate-spin).
 - On success: toast fires, redirect to `/` (session creation or dashboard).
 - On failure: button returns to idle, error inline below.
@@ -238,13 +246,14 @@ Elements (top to bottom):
 
 **Route:** `/sessions/new`
 **Layout:** Centered card (max-width 480px) on dominant background. Card surface: Secondary (`--card`). Padding: 24px. No navigation rail in Phase 1 (full page focus).
+**Primary focal point:** "Start session" CTA — the trigger that creates a live collaborative room.
 
 Elements:
 1. Page heading — Heading (20px Semibold): "New Session"
 2. `label` + `input` — "Session title", placeholder "e.g. Q3 Strategy Review". Full-width.
-3. `label` + mode selector — "Mode" with 3 radio-style cards: "Strategy", "Debate", "Red Team". Each card: 16px padding, Secondary surface, Border. Selected state: Accent border ring (2px Indigo 500). Label (13px Medium) + 1-line description body text.
+3. `label` + mode selector — "Mode" with 3 radio-style cards: "Strategy", "Debate", "Red Team". Each card: 16px padding, Secondary surface, Border. Selected state: Accent border ring (2px Indigo 500). Label (13px Regular) + 1-line description body text.
 4. "Start session" button — full-width, height 48px, Accent fill. Primary CTA.
-5. Cancel link — "Back" in Label (13px), Muted Foreground, below button, 16px gap.
+5. Cancel link — "Back" in Label (13px Regular), Muted Foreground, below button, 16px gap.
 
 **Copywriting:**
 - Page heading: "New Session"
@@ -262,6 +271,7 @@ Elements:
 
 **Route:** `/sessions/[id]`
 **Layout:** Fixed full-screen container using `--app-height`. Three vertical segments: Analytics Panel, Branch Navigator, Chat Column.
+**Primary focal point:** Chat input and send button — the primary interaction surface for the session.
 
 #### 4a. Analytics Panel (top 40%)
 
@@ -289,10 +299,10 @@ Background: chromatic gradient derived from active branch color. Phase 1 "Main" 
 Contents (horizontal flex, vertical center, 16px left padding, 8px right padding):
 
 Left side:
-- "Main" chip — `badge` variant pill. Background: Indigo 500 at 20% opacity. Border: 1px solid Indigo 500. Text: "Main" in Label (13px Medium) Indigo 300. Left dot: 6px circle filled Indigo 500. 8px gap between chip elements. Touch target: 44px tall (chip itself may be shorter; hit area extended).
+- "Main" chip — `badge` variant pill. Background: Indigo 500 at 20% opacity. Border: 1px solid Indigo 500. Text: "Main" in Label (13px Regular) Indigo 300. Left dot: 6px circle filled Indigo 500. 8px gap between chip elements. Touch target: 44px tall (chip itself may be shorter; hit area extended).
 
 Right side (pushed to flex-end):
-- Typing indicator area — Label (13px), Muted Foreground. Shows "Lau está escribiendo..." when CHAT-06 presence fires. Hidden when no one is typing. Max 1 line, truncates with ellipsis. Icon: Lucide `PenLine` 14px, 4px gap.
+- Typing indicator area — Label (13px Regular), Muted Foreground. Shows "Lau está escribiendo..." when CHAT-06 presence fires. Hidden when no one is typing. Max 1 line, truncates with ellipsis. Icon: Lucide `PenLine` 14px, 4px gap.
 
 #### 4c. Chat Stream
 
@@ -303,7 +313,7 @@ Background: `--background` (Zinc 950). `overflow-y: auto`. Scroll behavior: `smo
 - Container: flex row, 16px horizontal padding, 8px vertical padding per bubble.
 - Avatar: 32px circle, initial letter, background from author palette (6 slots above). `flex-shrink: 0`.
 - Content column: 8px gap from avatar.
-  - Author row: author name (Label 13px Medium, Foreground) + timestamp (Label 13px Regular, Muted Foreground, 8px gap).
+  - Author row: author name (Label 13px Regular, Foreground) + timestamp (Label 13px Regular, Muted Foreground, 8px gap).
   - Message text: Body (15px Regular, Foreground, line-height 1.5).
   - Left border accent: 2px solid, author palette color, `border-radius: 0 4px 4px 0`, applied to content column only.
 - Own messages: same layout, no visual distinction beyond author name. No right-aligned bubbles (CHAT-02 specifies consistent color-coding, not position-based distinction).
@@ -317,7 +327,7 @@ Background: `--background` (Zinc 950). `overflow-y: auto`. Scroll behavior: `smo
 
 **Auto-scroll behavior:**
 - When user scrolled to bottom (<40px from bottom): new messages auto-scroll into view.
-- When user scrolled up: no auto-scroll. Show a "↓ New messages" floating badge (accent color, 13px Label, 4px 8px padding, `border-radius: 999px`) anchored 16px above input box. Dismisses when user scrolls back to bottom.
+- When user scrolled up: no auto-scroll. Show a "↓ New messages" floating badge (accent color, 13px Regular, 4px 8px padding, `border-radius: 999px`) anchored 16px above input box. Dismisses when user scrolls back to bottom.
 
 #### 4d. Input Box (LAYOUT-04)
 
@@ -327,7 +337,7 @@ Background: `--muted` (Zinc 800). Top border: 1px `--border`.
 
 Contents (flex row, 8px gap, 8px left padding, 8px right padding, vertically centered):
 - `input` (flex-grow): type=text, placeholder "Message...", background transparent, no border, Body (15px Regular). `max-height: 120px` for multiline expansion (textarea behavior).
-- Send button: 44px × 44px, `border-radius: 8px`, Accent fill when input non-empty, `--muted` fill when empty. Icon: Lucide `ArrowUp` 18px.
+- Send button: 44px × 44px, `border-radius: 8px`, Accent fill when input non-empty, `--muted` fill when empty. Icon: Lucide `ArrowUp` 18px. `aria-label="Send message"`.
 
 **Locked state (AI streaming / CHAT-06 soft lock):**
 - Input opacity: 0.5.
@@ -336,7 +346,7 @@ Contents (flex row, 8px gap, 8px left padding, 8px right padding, vertically cen
 
 **Frozen/Closed session state (SESS-05/06, D-03):**
 - Input remains visible but fully disabled. Background: `--background`. Placeholder: "Session is paused — input disabled." (frozen) or "Session has ended." (closed).
-- Full-width banner above input (inside input area, height 36px): background Destructive at 10% opacity, text Destructive color, Label (13px): "This session is frozen." / "This session has ended."
+- Full-width banner above input (inside input area, height 36px): background Destructive at 10% opacity, text Destructive color, Label (13px Regular): "This session is frozen." / "This session has ended."
 
 ---
 
@@ -344,14 +354,15 @@ Contents (flex row, 8px gap, 8px left padding, 8px right padding, vertically cen
 
 **Component:** `dialog` (shadcn). Triggered by "Share" button in workspace header.
 **Layout:** Centered modal, max-width 360px, Secondary surface (`--card`), 24px padding.
+**Primary focal point:** QR code and session code — the shareable artifact guests scan or copy.
 
 Elements:
 1. Dialog title — Heading (20px Semibold): "Invite guests"
 2. QR code — 200px × 200px centered, white background (for QR scan contrast), 8px border-radius.
-3. Session code label — Label (13px Medium, Muted Foreground) centered below QR: "Session code"
+3. Session code label — Label (13px Regular, Muted Foreground) centered below QR: "Session code"
 4. Session code value — Heading (20px Semibold) centered: 6-character alphanumeric code, `font-variant-numeric: tabular-nums`, letter-spacing 0.08em.
 5. Copy link button — full-width, height 44px, outline variant (Border background, `--foreground` text, no accent fill). Icon: Lucide `Copy` 16px. On click: copies URL, icon swaps to `Check` for 2s, toast fires.
-6. Dismiss — 24px below copy button: text "Close" in Label (13px), Muted Foreground, center-aligned. Not a button element — `button` with ghost/no-style variant.
+6. Dismiss — 24px below copy button: text "Close" in Label (13px Regular), Muted Foreground, center-aligned. Not a button element — `button` with ghost/no-style variant.
 
 **Copywriting:**
 - Title: "Invite guests"
@@ -365,15 +376,16 @@ Elements:
 
 **Route:** `/join/[code]`
 **Layout:** Full page, vertically centered single column, max-width 400px, dominant background. No navigation. (D-01)
+**Primary focal point:** "Join session" CTA — the entry point for guests arriving via shared link or QR.
 
 Elements (top to bottom):
-1. Product wordmark — Display (28px Bold): "Multiverse". Center-aligned.
+1. Product wordmark — Display (28px Semibold): "Multiverse". Center-aligned.
 2. Session info card — Secondary surface (`--card`), Border, `border-radius: 12px`, 24px padding. Contents:
    - Session title — Heading (20px Semibold). Loaded from server (SSR).
-   - Creator name row — Label (13px), Muted Foreground: "by [creator display name]". Lucide `User` 13px, 4px gap.
+   - Creator name row — Label (13px Regular), Muted Foreground: "by [creator display name]". Lucide `User` 13px, 4px gap.
 3. Display name input — `label` "Your name" + `input` full-width, placeholder "e.g. Laura". 24px below session card.
 4. "Join session" button — full-width, height 48px, Accent fill. Primary CTA.
-5. Guest note — Label (13px), Muted Foreground, centered. Below button, 16px gap.
+5. Guest note — Label (13px Regular), Muted Foreground, centered. Below button, 16px gap.
 
 **Copywriting:**
 - Wordmark: "Multiverse"
@@ -393,13 +405,14 @@ Elements (top to bottom):
 
 **Route:** `/settings`
 **Layout:** Full page, max-width 640px centered on dominant background. No sidebar. Standard top navigation bar (48px, Secondary surface, product wordmark left, back arrow right). (D-05, D-06)
+**Primary focal point:** API key update field — the highest-stakes action on this screen.
 
-Sections (separated by `separator` + Label section heading 13px Medium, Muted Foreground):
+Sections (separated by `separator` + Label section heading 13px Regular, Muted Foreground):
 
 **Section: AI Connection**
 - `card` container, Secondary surface, 24px padding.
 - Section label: "AI Connection"
-- API key field: `label` "Anthropic API Key" + masked `input` (type=password, current value shown as `sk-ant-••••••••[last4]`). Full-width.
+- API key field: `label` "Anthropic API Key" + masked `input` (type=password, current value shown as `sk-ant-••••••••[last4]`). Full-width. Eye toggle: `aria-label="Show API key"` when masked; `aria-label="Hide API key"` when revealed.
 - Update button: "Update key" — outline variant, width auto, right-aligned. Height 40px.
 - Status indicator below input: Lucide `CheckCircle2` (14px, Emerald author color) + Label "Key verified" when key is valid.
 - On "Update key" click: input clears, same verification flow as Screen 2.
@@ -407,9 +420,9 @@ Sections (separated by `separator` + Label section heading 13px Medium, Muted Fo
 **Section: AI Response Limits**
 - `card` container, Secondary surface, 24px padding.
 - Section label: "AI Response Limits"
-- Row: label "Response cap per session" (Body 15px) + `input` type=number, width 80px, right-aligned. Default value: 150.
-- Helper text below (Label 13px, Muted Foreground): "Sessions auto-freeze when this limit is reached. Applies to all sessions."
-- Save button: "Save" — Accent fill, height 40px, right-aligned.
+- Row: label "Response cap per session" (Body 15px Regular) + `input` type=number, width 80px, right-aligned. Default value: 150.
+- Helper text below (Label 13px Regular, Muted Foreground): "Sessions auto-freeze when this limit is reached. Applies to all sessions."
+- Save button: "Save limits" — Accent fill, height 40px, right-aligned.
 
 **Copywriting:**
 - Section: "AI Connection"
@@ -420,7 +433,7 @@ Sections (separated by `separator` + Label section heading 13px Medium, Muted Fo
 - Section: "AI Response Limits"
 - Cap label: "Response cap per session"
 - Cap helper: "Sessions auto-freeze when this limit is reached. Applies to all sessions."
-- Cap save CTA: "Save"
+- Cap save CTA: "Save limits"
 - Save success toast: "Settings saved."
 
 ---
@@ -428,6 +441,7 @@ Sections (separated by `separator` + Label section heading 13px Medium, Muted Fo
 ### Screen 8: Read-Only Mode
 
 **Applies to:** Workspace screen (Screen 4) when a guest opens a join link for a frozen or closed session (D-03).
+**Primary focal point:** Status bar between Branch Navigator and chat — the signal that immediately communicates the session is not live.
 
 This is not a separate route — it is the workspace screen with a modified state layer:
 
@@ -435,7 +449,7 @@ This is not a separate route — it is the workspace screen with a modified stat
 1. Branch Navigator background gradient: Destructive red tone for frozen (`linear-gradient(90deg, #450a0a 0%, #09090b 60%)`); Zinc gradient for closed (fully muted: `linear-gradient(90deg, #18181b 0%, #09090b 60%)`).
 2. "Main" chip border changes: frozen → Destructive Red 800 border with label "Main (paused)"; closed → Muted border with label "Main (ended)".
 3. Input box disabled state — see 4d above.
-4. Full-width status bar between Branch Navigator and chat stream: height 36px, Label (13px Medium), centered.
+4. Full-width status bar between Branch Navigator and chat stream: height 36px, Label (13px Regular), centered.
    - Frozen: Destructive at 10% opacity bg + text: "This session is paused. The creator can resume it."
    - Closed: `--muted` bg + `--muted-foreground` text: "This session has ended. The conversation is read-only."
 5. Chat history loads normally and is scrollable.
@@ -466,7 +480,7 @@ Toast (bottom-center, `--card` surface, 4px left border Destructive):
 Guest join page (`/join/[bad-code]`) renders the join form layout but replaces the session info card with:
 - Lucide `SearchX`, 24px, Muted Foreground.
 - Heading (20px Semibold): "Session not found"
-- Body (15px, Muted Foreground): "Check the link or code and try again."
+- Body (15px Regular, Muted Foreground): "Check the link or code and try again."
 - No join button rendered.
 
 ---
@@ -489,13 +503,28 @@ Guest join page (`/join/[bad-code]`) renders the join form layout but replaces t
 | Error — Session not found | "Session not found. Check the link or code and try again." |
 | Destructive — Freeze session | "Freeze session": confirmation inline: "Guests will not be able to send messages. You can unfreeze at any time." + "Freeze" (Destructive button) / "Cancel" |
 | Destructive — Close session | "End session": confirmation inline: "This ends the session permanently. Guests can still view the chat." + "End session" (Destructive button) / "Cancel" |
-| System — AI cap at 90% | "⚠ 15 AI responses remaining. The session will auto-freeze when the cap is reached." (injected as system message in chat) |
+| System — AI cap at 90% | "15 AI responses remaining. The session will auto-freeze when the cap is reached." (injected as system message in chat) |
 | System — AI cap at 100% | "The AI response limit has been reached. This session is now frozen." (injected as system message in chat) |
 | Status — Session frozen | "This session is paused. The creator can resume it." |
 | Status — Session ended | "This session has ended. The conversation is read-only." |
 | Toast — Link copied | "Link copied to clipboard" |
 | Toast — Settings saved | "Settings saved." |
 | Toast — Key connected | "API key connected. You're ready." |
+| Settings — Cap save CTA | "Save limits" |
+
+---
+
+## Accessibility: Icon-Only Interactive Elements
+
+Declared `aria-label` values for all icon-only interactive elements:
+
+| Element | Screen | `aria-label` |
+|---------|--------|-------------|
+| Send button (ArrowUp icon) | Screen 4d | `"Send message"` |
+| API key eye toggle — masked state | Screens 2, 7 | `"Show API key"` |
+| API key eye toggle — revealed state | Screens 2, 7 | `"Hide API key"` |
+
+These values are required. Do not substitute generic labels ("Toggle", "Button", etc.).
 
 ---
 
@@ -598,4 +627,5 @@ No third-party registries declared in Phase 1.
 
 *Phase: 1 — Live Session Shell*
 *UI-SPEC created: 2026-06-08*
+*UI-SPEC revised: 2026-06-08 — collapsed typography to 2 declared weights; fixed Settings cap CTA copy; added primary focal point annotations to all 8 screens; added accessibility aria-label table*
 *Sources: 01-CONTEXT.md (D-01 through D-12), REQUIREMENTS.md (LAYOUT-01–07, SESS-01–12, CHAT-01–06, AI-01/02/10/11), CLAUDE.md*
