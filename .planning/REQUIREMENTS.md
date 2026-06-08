@@ -15,6 +15,7 @@
 - [ ] **LAYOUT-04**: Input box is anchored via `position: absolute` to the dynamic bottom of `window.visualViewport.height`, gliding flush on top of the virtual keyboard
 - [ ] **LAYOUT-05**: The Branch Navigator is a sticky horizontal bar that acts as the physical divider between the analytics panel (top 40%) and the chat stream (bottom 60%); it displays the active branch label and a chromatic gradient of the branch's assigned color so users always have ambient awareness of which timeline they are in
 - [ ] **LAYOUT-06**: Touch gesture protocol on message bubbles: double-tap opens an ephemeral quick-reaction popover (🧠🔥📌🎯); long press (500ms, with light haptic feedback) opens the contextual action menu with "Fork" and "Pin to Panel" options
+- [ ] **LAYOUT-07**: The analytics panel (`[TOP_CANVAS]`) is wrapped in a React Error Boundary; if any widget component throws during render (e.g. Recharts crashes on unexpected input that passed Zod), the error is contained to the top segment and replaced with a clean fallback card ("⚠️ Error de visualización. El Analista está recalculando..."); the chat stream below remains 100% operational
 
 ### Session & Auth
 
@@ -29,6 +30,7 @@
 - [ ] **SESS-09**: Dynamic Room Naming — if the creator leaves the session title blank at creation (`SESS-02`), the system assigns a temporary placeholder; after the first 3 messages are sent, a background flash model call analyzes the conversation and automatically updates the room title with a short, topic-derived name
 - [ ] **SESS-10**: Guest Session Persistence — the guest's ephemeral token and `user_id` are stored in `localStorage` on their device at join time; on browser reload or WebSocket reconnection, the app silently restores the guest's active session without showing the identity-claim screen (`SESS-04`) again, preventing duplicate user entries in Supabase
 - [ ] **SESS-11**: Anti-Flicker Connection De-bounce — the 15-minute auto-freeze timer (`SESS-07`) applies a 30-second grace buffer before treating an admin disconnect as a real absence; if the creator's device reconnects and emits presence within that window, the timer resets silently without altering the guest interface; only a sustained absence beyond the grace period triggers the freeze
+- [ ] **SESS-12**: Global Room AI Hard Cap — each session has a server-enforced ceiling on total AI responses (default: 150); at 90% of the cap a system message is injected into the chat informing participants of remaining capacity; at 100% the session auto-freezes irreversibly (`SESS-05`) to prevent runaway API spend; the cap value is configurable by the creator at session creation
 
 ### Real-Time Chat
 
@@ -146,6 +148,7 @@
 | LAYOUT-04 | Phase 1 | Pending |
 | LAYOUT-05 | Phase 1 | Pending |
 | LAYOUT-06 | Phase 1 | Pending |
+| LAYOUT-07 | Phase 1 | Pending |
 | SESS-01 | Phase 1 | Pending |
 | SESS-02 | Phase 1 | Pending |
 | SESS-03 | Phase 1 | Pending |
@@ -174,6 +177,7 @@
 | SESS-09 | Phase 1 | Pending |
 | SESS-10 | Phase 1 | Pending |
 | SESS-11 | Phase 1 | Pending |
+| SESS-12 | Phase 1 | Pending |
 | PANEL-01 | Phase 2 | Pending |
 | PANEL-02 | Phase 2 | Pending |
 | PANEL-03 | Phase 2 | Pending |
@@ -194,8 +198,8 @@
 | PERSONA-03 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 50 total
-- Mapped to phases: 50
+- v1 requirements: 54 total
+- Mapped to phases: 54
 - Unmapped: 0 ✓
 
 ---

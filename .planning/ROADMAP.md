@@ -1,7 +1,7 @@
 # Roadmap: Project Multiverse
 
 **Total phases:** 3
-**Requirements covered:** 50 / 50 ✓
+**Requirements covered:** 54 / 54 ✓
 **Structure:** Vertical MVP — each phase delivers a demoable user capability
 
 ---
@@ -10,7 +10,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
-| 1 | Live Session Shell | Working multi-user session with real-time chat and mobile layout | LAYOUT-01–06, SESS-01–11, CHAT-01–06, AI-01–02, AI-10, AI-11 | 5 criteria |
+| 1 | Live Session Shell | Working multi-user session with real-time chat and mobile layout | LAYOUT-01–07, SESS-01–12, CHAT-01–06, AI-01–02, AI-10, AI-11 | 5 criteria |
 | 2 | AI + Analytics | Full split-screen: Claude responds, panel renders widgets, reactions work | AI-03–08, PANEL-01–04, REACT-01–05, PERSONA-01–03 | 5 criteria |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
@@ -23,8 +23,8 @@
 **Mode:** mvp
 
 **Requirements:**
-- LAYOUT-01, LAYOUT-02, LAYOUT-03, LAYOUT-04, LAYOUT-05, LAYOUT-06
-- SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06, SESS-07, SESS-08, SESS-09, SESS-10, SESS-11
+- LAYOUT-01, LAYOUT-02, LAYOUT-03, LAYOUT-04, LAYOUT-05, LAYOUT-06, LAYOUT-07
+- SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06, SESS-07, SESS-08, SESS-09, SESS-10, SESS-11, SESS-12
 - CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
 - AI-01, AI-02 (key storage + server routing), AI-10 (upfront key verification), AI-11 (prompt caching architecture)
 
