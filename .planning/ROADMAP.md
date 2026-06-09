@@ -23,12 +23,14 @@
 **Mode:** mvp
 
 **Requirements:**
+
 - LAYOUT-01, LAYOUT-02, LAYOUT-03, LAYOUT-04, LAYOUT-05, LAYOUT-06, LAYOUT-07
 - SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06, SESS-07, SESS-08, SESS-09, SESS-10, SESS-11, SESS-12
 - CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
 - AI-01, AI-02 (key storage + server routing), AI-10 (upfront key verification), AI-11 (prompt caching architecture)
 
 **Success Criteria:**
+
 1. A session creator can sign in via OAuth, create a session, and view a live QR code that guests can scan to enter with only a display name
 2. 3+ guests can send and receive messages simultaneously with < 200ms perceived delivery; typing indicators appear correctly
 3. The 40/60 layout holds its proportions when the virtual keyboard opens on iOS Safari and Android Chrome — the analytics panel does not compress
@@ -38,12 +40,29 @@
 **Plans:** 7 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 01-01-PLAN.md — Walking Skeleton scaffold: Turborepo monorepo, Next.js + Hono apps, Supabase local + initial migration
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 01-02-PLAN.md — Vertical slice 1: Creator Google OAuth sign-in + protected layout + Playwright E2E (SESS-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 01-03-PLAN.md — Vertical slice 2: Session CRUD + QR share + branded guest join + SESS-10 persistence (SESS-02..06, SESS-08, SESS-10)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 01-04-PLAN.md — Vertical slice 3: Mobile-resilient 40/60 workspace shell with Branch Navigator + Error Boundary (LAYOUT-01..05, LAYOUT-07)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 01-05-PLAN.md — Vertical slice 4: Realtime chat + presence + LAYOUT-06 gesture scaffolds (CHAT-01..06, LAYOUT-06)
 - [ ] 01-06-PLAN.md — BYOK: onboarding gate, encrypted key storage, upfront verification, prompt caching scaffold, /settings (AI-01, AI-02, AI-10, AI-11)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 01-07-PLAN.md — Lifecycle hardening: auto-freeze (SESS-07/11), auto-name (SESS-09), AI cap (SESS-12), rate limits
 
 ---
@@ -55,12 +74,14 @@ Plans:
 **Mode:** mvp
 
 **Requirements:**
+
 - AI-03, AI-04, AI-05, AI-06, AI-07, AI-08
 - PANEL-01, PANEL-02, PANEL-03, PANEL-04
 - REACT-01, REACT-02, REACT-03, REACT-04, REACT-05
 - PERSONA-01, PERSONA-02, PERSONA-03
 
 **Success Criteria:**
+
 1. The AI streams a response only when a participant uses `@analista` or applies 🔥📌🎯 reactions — it does not auto-respond to every message; response is withheld if a human is currently typing
 2. The AI selects and renders the correct widget type for the conversation content (e.g. multi-axis topic → radar chart; key points → bento grid); widget is visible and well-formatted
 3. A deliberately malformed AI panel payload is silently blocked and the last stable panel state is preserved without crashing the UI or breaking the chat stream
@@ -76,10 +97,12 @@ Plans:
 **Mode:** mvp
 
 **Requirements:**
+
 - BRANCH-01, BRANCH-02, BRANCH-03, BRANCH-04, BRANCH-05, BRANCH-06
 - AI-09 (Branch Auto-Labeling — flash model names each new branch automatically)
 
 **Success Criteria:**
+
 1. A participant can long-press any historical message and fork from it; within 200ms a flash model call returns a 2–3 word semantic label that automatically names the branch — no user input required for naming
 2. Two parallel branches can each accumulate independent AI conversations; a Claude call in Branch B never contains any content from Branch A (verified by inspecting server-side context assembly)
 3. Switching between branches in the Navigator instantly re-renders the analytics panel to the latest snapshot of the selected branch and updates the bar's gradient to the new branch color
