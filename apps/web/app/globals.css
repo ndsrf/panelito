@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  /* Zinc dark palette — war room aesthetic */
+  --color-background: oklch(9.4% 0.005 286);        /* Zinc 950 — #09090b */
+  --color-card: oklch(13.7% 0.005 286);             /* Zinc 900 — #18181b */
+  --color-muted: oklch(18.7% 0.005 286);            /* Zinc 800 — #27272a */
+  --color-primary: oklch(60.7% 0.234 264);          /* Indigo 500 — #6366f1 */
+  --color-accent: oklch(31.5% 0.163 264);           /* Indigo 950 — #312e81 */
+  --color-foreground: oklch(98.5% 0.001 106);       /* Zinc 50 — #fafafa */
+  --color-muted-foreground: oklch(63.2% 0.011 286); /* Zinc 400 — #a1a1aa */
+  --color-destructive: oklch(62.7% 0.209 27);       /* Red 500 — #ef4444 */
+  --color-border: oklch(32.1% 0.008 286);           /* Zinc 700 — #3f3f46 */
+
+  /* Semantic aliases for shadcn/ui compatibility */
+  --background: oklch(9.4% 0.005 286);
+  --card: oklch(13.7% 0.005 286);
+  --muted: oklch(18.7% 0.005 286);
+  --primary: oklch(60.7% 0.234 264);
+  --accent: oklch(31.5% 0.163 264);
+  --foreground: oklch(98.5% 0.001 106);
+  --muted-foreground: oklch(63.2% 0.011 286);
+  --destructive: oklch(62.7% 0.209 27);
+  --border: oklch(32.1% 0.008 286);
+  --input: oklch(18.7% 0.005 286);
+  --ring: oklch(60.7% 0.234 264);
+  --radius: 0.5rem;
+
+  /* Branch navigator gradient variables */
+  --branch-main-start: #6366f1;
+  --branch-main-end: #8b5cf6;
+}
+
+/* Base layer */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
