@@ -9,20 +9,27 @@ node_modules/
 .pnp
 .pnp.js
 
-# Testing
-coverage/
-
-# Next.js
+# Build outputs
 .next/
 out/
 build/
+dist/
+.turbo/
 
-# Production
-build/
+# Testing
+coverage/
+
+# Supabase local dev
+supabase/.branches
+supabase/.temp
 
 # Misc
 .DS_Store
 *.pem
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Environment variables
 .env
@@ -37,3 +44,9 @@ build/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Debug logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
