@@ -10,7 +10,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
-| 1 | Live Session Shell | Working multi-user session with real-time chat and mobile layout | LAYOUT-01–07, SESS-01–12, CHAT-01–06, AI-01–02, AI-10, AI-11 | 5 criteria |
+| 1 | Live Session Shell | 1/7 | In Progress|  |
 | 2 | AI + Analytics | Full split-screen: Claude responds, panel renders widgets, reactions work | AI-03–08, PANEL-01–04, REACT-01–05, PERSONA-01–03 | 5 criteria |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
@@ -37,12 +37,12 @@
 4. The Branch Navigator sticky bar renders between panel and chat with the correct structural position; creator can freeze and manually close a session
 5. Auto-freeze triggers after 15 min sustained absence (30s de-bounce prevents flicker on brief disconnects); submitting an invalid API key shows an immediate error before saving; a guest who reloads their browser re-enters the session without the identity-claim screen; blank-titled sessions auto-name after 3 messages; prompt array structure achieves > 80% cache hit rate under concurrent multi-user load
 
-**Plans:** 7 plans
+**Plans:** 1/7 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Walking Skeleton scaffold: Turborepo monorepo, Next.js + Hono apps, Supabase local + initial migration
+- [x] 01-01-PLAN.md — Walking Skeleton scaffold: Turborepo monorepo, Next.js + Hono apps, Supabase local + initial migration
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
