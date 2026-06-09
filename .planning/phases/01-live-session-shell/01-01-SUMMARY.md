@@ -71,7 +71,7 @@ key-decisions:
   - "Zod v4 uses .issues not .errors on ZodError — env.ts updated accordingly"
   - "parseCookieHeader type guard added in middleware.ts (value?: string → string filter for @supabase/ssr@0.10.3)"
   - "next.config.ts: typedRoutes moved from experimental to top-level (Next.js 15.5.x migration)"
-  - "Supabase local stack requires Docker socket access (jgm user needs docker group or chmod 666 /var/run/docker.sock)"
+  - "Supabase local stack running via sg docker (WSL2 + Docker Desktop integration)"
 
 patterns-established:
   - "All shared types in packages/types/src/*.ts; both apps import via @panelito/types"
@@ -96,7 +96,7 @@ completed: 2026-06-09
 - **Duration:** ~13 min
 - **Started:** 2026-06-09T06:32:47Z
 - **Completed:** 2026-06-09T06:46:07Z
-- **Tasks:** 3/4 (Task 4 is human verification checkpoint — paused)
+- **Tasks:** 4/4 complete
 - **Files modified:** 32
 
 ## Accomplishments
@@ -112,7 +112,7 @@ completed: 2026-06-09
 1. **Task 1: Initialize Turborepo monorepo and shared types** — `6bad25d` (feat)
 2. **Task 2: Scaffold apps/web and apps/api** — `deb8dd5` (feat)
 3. **Task 3: Supabase local CLI + initial migration** — `f27b4a3` (feat)
-4. **Task 4: Human verification checkpoint** — PENDING (paused for developer verification)
+4. **Task 4: Human verification checkpoint** — `7e54117` (verified: supabase start, db reset, API /health, next build all pass)
 
 ## Files Created/Modified
 
@@ -180,29 +180,29 @@ completed: 2026-06-09
 
 ## Issues Encountered
 
-- Docker socket not accessible by current user (`jgm` not in `docker` group). `supabase start` fails with permission denied. Migration SQL verified to be syntactically correct; actual DB bring-up deferred to Task 4 human verification. Developer needs to run `sudo usermod -aG docker $USER && newgrp docker` or `sudo chmod 666 /var/run/docker.sock` before Task 4.
+- Docker socket not accessible by current user initially. Fixed via WSL2 Docker Desktop integration (`sg docker` workaround until terminal restart).
+- `apps/api` dev script missing `--env-file .env` — tsx doesn't auto-load dotenv. Fixed in `7e54117`.
 
 ## Known Stubs
 
 - `apps/web/app/page.tsx` — Minimal placeholder "Panelito v0.1.0" page. Intentional: this plan's goal is the scaffold, not user-visible features. Plan 02 replaces this with actual routes.
-- `supabase/migrations/0001_initial_schema.sql` — Not verified against a live DB (Docker permission issue). SQL syntax is correct; the live verification is the Task 4 checkpoint.
 
-## User Setup Required
+## Verification Results (Task 4)
 
-Before Task 4 verification can proceed:
-1. Ensure Docker socket is accessible: `sudo usermod -aG docker $USER && newgrp docker`
-2. Run `supabase start` to boot local stack
-3. Create `apps/web/.env.local` and `apps/api/.env` from `.env.example` with values from `supabase status`
-4. Optionally: set up Google OAuth client in Google Cloud Console (required for Plan 02)
-5. Run `pnpm dev` and verify http://localhost:3000, http://localhost:8787/health, http://localhost:54323
+- `pnpm install` — ✓ exits 0
+- `supabase start` — ✓ running (Docker via sg docker on WSL2)
+- `supabase db reset --local` — ✓ migration applied, "No schema changes found" after diff
+- `curl http://localhost:8787/health` — ✓ `{"ok":true,"ts":"..."}`
+- `pnpm --filter @panelito/web exec next build` — ✓ exits 0
+- `apps/web/.env.local` + `apps/api/.env` — ✓ created with local Supabase credentials
 
 ## Next Phase Readiness
 
-- Monorepo scaffold: ready for all subsequent plans
-- @panelito/types: complete type contract established; Plans 02-07 import as-is
-- apps/web + apps/api: compile clean, build passes; ready for feature implementation
-- Supabase schema: migration authored and correct; needs `supabase start` + `supabase db reset` to apply
-- **Blocked until Task 4 approved**: Supabase local stack not running (Docker permission); Plan 02 requires Supabase Auth to be available
+- Monorepo scaffold: ✓ ready for all subsequent plans
+- @panelito/types: ✓ complete type contract established; Plans 02-07 import as-is
+- apps/web + apps/api: ✓ compile clean, build passes, API health responds
+- Supabase schema: ✓ migration applied, tables + RLS live in local DB
+- Google OAuth: pending (developer to configure before Plan 02 verification)
 
 ---
 *Phase: 01-live-session-shell*
