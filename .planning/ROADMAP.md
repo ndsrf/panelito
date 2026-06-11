@@ -10,7 +10,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
-| 1 | Live Session Shell | 1/7 | In Progress|  |
+| 1 | Live Session Shell | 3/7 | In Progress|  |
 | 2 | AI + Analytics | Full split-screen: Claude responds, panel renders widgets, reactions work | AI-03–08, PANEL-01–04, REACT-01–05, PERSONA-01–03 | 5 criteria |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
@@ -37,7 +37,7 @@
 4. The Branch Navigator sticky bar renders between panel and chat with the correct structural position; creator can freeze and manually close a session
 5. Auto-freeze triggers after 15 min sustained absence (30s de-bounce prevents flicker on brief disconnects); submitting an invalid API key shows an immediate error before saving; a guest who reloads their browser re-enters the session without the identity-claim screen; blank-titled sessions auto-name after 3 messages; prompt array structure achieves > 80% cache hit rate under concurrent multi-user load
 
-**Plans:** 1/7 plans executed
+**Plans:** 3/7 plans executed
 
 Plans:
 **Wave 1**
@@ -46,11 +46,11 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Vertical slice 1: Creator Google OAuth sign-in + protected layout + Playwright E2E (SESS-01)
+- [x] 01-02-PLAN.md — Vertical slice 1: Creator Google OAuth sign-in + protected layout + Playwright E2E (SESS-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Vertical slice 2: Session CRUD + QR share + branded guest join + SESS-10 persistence (SESS-02..06, SESS-08, SESS-10)
+- [x] 01-03-PLAN.md — Vertical slice 2: Session CRUD + QR share + branded guest join + SESS-10 persistence (SESS-02..06, SESS-08, SESS-10)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
