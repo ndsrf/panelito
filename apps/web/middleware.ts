@@ -54,8 +54,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Auth gate: if not authenticated AND not on an /auth/* path, redirect to sign-in
-  if (!user && !pathname.startsWith("/auth/")) {
+  // Auth gate: if not authenticated AND not on an /auth/* or /join/* path, redirect to sign-in
+  // /join/* is the public guest entry point — guests do not have a Supabase session
+  // until after they submit the join form (D-01, SESS-04).
+  if (!user && !pathname.startsWith("/auth/") && !pathname.startsWith("/join/")) {
     const signInUrl = new URL("/auth/sign-in", request.url);
     return NextResponse.redirect(signInUrl);
   }

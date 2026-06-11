@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./lib/env";
+import sessionsRouter from "./routes/sessions";
 
 const app = new Hono();
 
@@ -31,6 +32,11 @@ app.use(
 app.get("/health", (c) => {
   return c.json({ ok: true, ts: new Date().toISOString() });
 });
+
+// -------------------------------------------------------
+// Session CRUD routes (SESS-02..06, SESS-08, SESS-10)
+// -------------------------------------------------------
+app.route("/api/sessions", sessionsRouter);
 
 // -------------------------------------------------------
 // Start server
