@@ -33,6 +33,13 @@
 
 /* Base layer */
 @layer base {
+  :root {
+    /* --app-height is set by the inline <script> in layout.tsx BEFORE first paint.
+     * Fallback to a safe value for SSR / non-mobile environments.
+     * --keyboard-height defaults to 0 — updated live by useViewport hook. */
+    --keyboard-height: 0px;
+  }
+
   * {
     border-color: var(--border);
   }
@@ -41,4 +48,56 @@
     background-color: var(--background);
     color: var(--foreground);
   }
+}
+
+/* ============================================================
+ * Workspace Layout Shell — LAYOUT-01 through LAYOUT-04
+ *
+ * These classes are the load-bearing mobile constraints.
+ * CONTRACT VIOLATIONS (DO NOT ADD):
+ *   - 100vh, 100dvh, 100svh, min-h-svh, min-h-dvh, min-h-screen
+ *     (iOS Safari includes browser chrome → analytics panel gets compressed)
+ *
+ * --app-height is locked once from window.innerHeight on mount.
+ * --keyboard-height is updated live from visualViewport size delta.
+ * ============================================================ */
+
+/* Full-screen workspace container anchored to locked app height (LAYOUT-01) */
+.workspace-shell {
+  height: var(--app-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Analytics panel: exactly 40% of locked height, insulated from keyboard (LAYOUT-02) */
+.analytics-panel {
+  height: calc(var(--app-height) * 0.40);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Branch Navigator: 48px sticky divider between analytics and chat (LAYOUT-05) */
+.branch-navigator {
+  height: 48px;
+  flex-shrink: 0;
+  position: sticky;
+  z-index: 20;
+}
+
+/* Chat stream: fills remaining space, scrollable, keyboard-aware padding (LAYOUT-03) */
+.chat-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 52px; /* input box height */
+}
+
+/* Input box: absolutely positioned, keyboard-aware bottom offset (LAYOUT-04) */
+.input-box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--keyboard-height, 0px));
+  height: 52px;
+  z-index: 30;
 }
