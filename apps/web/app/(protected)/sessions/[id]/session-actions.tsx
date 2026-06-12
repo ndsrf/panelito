@@ -67,7 +67,7 @@ export function SessionActions({ sessionId, status }: SessionActionsProps) {
           className="h-9 gap-2"
         >
           <Snowflake className="h-4 w-4" />
-          {freezePending ? 'Pausando...' : 'Pausar'}
+          {freezePending ? 'Congelando...' : 'Congelar'}
         </Button>
       )}
 
