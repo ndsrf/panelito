@@ -43,6 +43,24 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
+  // Polling fallback: merges new messages every 2s when Supabase Realtime
+  // is unavailable (e.g. Docker port not forwarded in WSL2 dev environment).
+  // Only adds messages not already in the store; does NOT replace existing ones.
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const msgs = await apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
+        const knownIds = new Set(useSessionStore.getState().messages.map((m) => m.id))
+        msgs.filter((m) => !knownIds.has(m.id)).forEach(useSessionStore.getState().addMessage)
+      } catch {
+        // ignore — network errors during polling are non-fatal
+      }
+    }
+    const id = setInterval(poll, 2000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
+
   // CHAT-03: Snapshot scroll position BEFORE render (on each messages change)
   useEffect(() => {
     const container = containerRef.current

@@ -107,14 +107,11 @@ messagesRouter.post('/', async (c) => {
     return c.json({ error: 'insert_failed', message: insertError?.message ?? 'Unknown error' }, 500)
   }
 
-  // Broadcast fire-and-forget — do NOT await; return before broadcast settles
+  // Broadcast fire-and-forget via REST — httpSend() is the explicit REST path,
+  // avoiding the deprecated auto-fallback in send() for server-side delivery.
   supabase
     .channel(`session:${sessionId}`)
-    .send({
-      type: 'broadcast',
-      event: 'new_message',
-      payload: row,
-    })
+    .httpSend('new_message', row)
     .catch((err) => console.error('[messages] broadcast failed', err))
 
   return c.json(row, 201)
