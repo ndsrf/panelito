@@ -4,6 +4,9 @@ import { cors } from "hono/cors";
 import { env } from "./lib/env";
 import sessionsRouter from "./routes/sessions";
 import messagesRouter from "./routes/messages";
+import keysRouter from "./routes/keys";
+import settingsRouter from "./routes/settings";
+import aiRouter from "./routes/ai";
 
 const app = new Hono();
 
@@ -44,6 +47,24 @@ app.route("/api/sessions", sessionsRouter);
 // POST + GET /api/sessions/:id/messages
 // -------------------------------------------------------
 app.route("/api/sessions/:id/messages", messagesRouter);
+
+// -------------------------------------------------------
+// BYOK API key routes (AI-01, AI-02, AI-10)
+// POST /api/keys/verify, GET /api/keys/status, DELETE /api/keys
+// -------------------------------------------------------
+app.route("/api/keys", keysRouter);
+
+// -------------------------------------------------------
+// Creator settings routes (D-05, D-06)
+// GET/PUT /api/settings
+// -------------------------------------------------------
+app.route("/api/settings", settingsRouter);
+
+// -------------------------------------------------------
+// AI prompt-assembly scaffold (AI-11)
+// POST /api/sessions/:id/invoke
+// -------------------------------------------------------
+app.route("/api/sessions", aiRouter);
 
 // -------------------------------------------------------
 // Start server
