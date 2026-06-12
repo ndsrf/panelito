@@ -52,3 +52,5 @@ yarn-debug.log*
 yarn-error.log*
 apps/api/node_modules
 apps/api/node_modules_link
+apps/web/node_modules
+packages/types/node_modules

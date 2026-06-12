@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { requireUser, getUser } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase/server'
 import { apiFetch } from '@/lib/api'
+import { getCreatorSettings } from '@/lib/creator-settings'
 import type { Session } from '@panelito/types'
 import { Workspace } from './workspace'
 
@@ -37,6 +38,9 @@ export default async function WorkspacePage({
   const { data: { session: authSession } } = await supabase.auth.getSession()
   const accessToken = authSession?.access_token
 
+  // Plan 06: fetch real creator settings to wire hasApiKey (replaces hardcoded false)
+  const creatorSettings = await getCreatorSettings()
+
   let session: Session | null = null
   try {
     session = await apiFetch<Session>(`/api/sessions/${id}`, {}, accessToken)
@@ -59,7 +63,7 @@ export default async function WorkspacePage({
   return (
     <Workspace
       session={session}
-      hasApiKey={false}
+      hasApiKey={creatorSettings.has_api_key}
       currentUserId={user?.id ?? ''}
       currentUserDisplayName={displayName}
       shortCode={session.short_code}
