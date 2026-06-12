@@ -29,11 +29,14 @@ export type Message = z.infer<typeof MessageSchema>;
 // -------------------------------------------------------
 
 export const MessageInsertInputSchema = z.object({
-  session_id: z.string().uuid(),
+  /** Optional — server overrides with the :id route param */
+  session_id: z.string().uuid().optional(),
   parent_id: z.string().uuid().nullable().optional(),
   /** Defaults to "main" — Phase 3 will set the active branch path */
   path_id: z.string().optional().default("main"),
   content: z.string().min(1).max(4000),
+  /** Required for anonymous/guest users; ignored for authenticated creators */
+  display_name: z.string().min(1).max(60).optional(),
 });
 
 export type MessageInsertInput = z.infer<typeof MessageInsertInputSchema>;

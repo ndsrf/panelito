@@ -48,11 +48,21 @@ export default async function WorkspacePage({
     notFound()
   }
 
+  // Derive display name from user metadata (Plan 05: typing presence CHAT-06)
+  const meta = user?.user_metadata as Record<string, unknown> | undefined
+  const displayName =
+    (meta?.full_name as string | undefined)?.trim() ||
+    (meta?.name as string | undefined)?.trim() ||
+    user?.email?.split('@')[0] ||
+    'User'
+
   return (
     <Workspace
       session={session}
       hasApiKey={false}
       currentUserId={user?.id ?? ''}
+      currentUserDisplayName={displayName}
+      shortCode={session.short_code}
     />
   )
 }

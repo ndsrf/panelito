@@ -1,10 +1,11 @@
-import { defineConfig, loadEnv } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 import path from 'path'
 import { readFileSync } from 'fs'
 
 /**
  * Load .env from the canonical location (main repo, gitignored).
  * The worktree shares the pnpm-lock.yaml but not .env files.
+ * The worktree symlinks node_modules -> main project's node_modules.
  */
 function loadDotEnv(): Record<string, string> {
   // Try the worktree location first, then fall back to main repo

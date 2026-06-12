@@ -11,8 +11,7 @@
  * visualViewport listener for --keyboard-height.
  *
  * Plan 04: Renders the UI shell (textarea + Send button).
- *          Send onClick is a no-op (wired in Plan 05).
- * Plan 05: Replaces no-op with Supabase Realtime broadcast.
+ * Plan 05: Wired — sends via POST /api/sessions/:id/messages; sets typing presence.
  *
  * Session status handling (D-03, SESS-05/06):
  *   - active: input enabled, send button active when non-empty
@@ -24,32 +23,70 @@ import { useState, type ReactNode } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useViewport } from '@/hooks/use-viewport'
+import { useTypingPresence } from '@/hooks/use-typing-presence'
+import { apiFetch } from '@/lib/api'
+import { loadGuestSession } from '@/lib/guest-session'
 import type { SessionStatus } from '@panelito/types'
 
 interface InputBoxProps {
   sessionId: string
   sessionStatus: SessionStatus
+  userId: string
+  displayName: string
+  shortCode?: string
 }
 
 /**
  * InputBox — chat message input anchored to the keyboard-aware visual viewport.
  */
-export function InputBox({ sessionId: _sessionId, sessionStatus }: InputBoxProps): ReactNode {
-  const [value, setValue] = useState('')
+export function InputBox({
+  sessionId,
+  sessionStatus,
+  userId,
+  displayName,
+  shortCode,
+}: InputBoxProps): ReactNode {
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
 
   // This is the single mount point for useViewport.
   // Sets --app-height once and wires --keyboard-height live updates.
   useViewport()
 
+  // Typing presence hook — throttled to <=1 track()/sec (CHAT-06)
+  const { setTyping } = useTypingPresence(sessionId, userId, displayName)
+
   const isReadOnly = sessionStatus !== 'active'
   const isFrozen = sessionStatus === 'frozen'
   const isClosed = sessionStatus === 'closed'
 
-  const handleSend = () => {
-    if (!value.trim() || isReadOnly) return
-    // Plan 05 wires the actual send action via Supabase Realtime
-    console.warn('[InputBox] send wired in Plan 05')
-    setValue('')
+  const handleSend = async () => {
+    if (!draft.trim() || isReadOnly || sending) return
+
+    const content = draft.trim()
+    setDraft('')
+    setTyping(false)
+    setSending(true)
+
+    try {
+      // Load guest session display_name if applicable
+      const guestSession = shortCode ? loadGuestSession(shortCode) : null
+      const guestDisplayName = guestSession?.display_name
+
+      await apiFetch(`/api/sessions/${sessionId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          content,
+          ...(guestDisplayName ? { display_name: guestDisplayName } : {}),
+        }),
+      })
+    } catch (err) {
+      console.error('[InputBox] send failed', err)
+      // Restore draft on error so user does not lose their message
+      setDraft(content)
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -57,6 +94,13 @@ export function InputBox({ sessionId: _sessionId, sessionStatus }: InputBoxProps
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setDraft(val)
+    // Trigger typing presence (throttled internally to 1/sec — CHAT-06)
+    setTyping(val.length > 0)
   }
 
   return (
@@ -90,8 +134,8 @@ export function InputBox({ sessionId: _sessionId, sessionStatus }: InputBoxProps
           )}
           placeholder={isReadOnly ? 'Session is paused — input disabled.' : 'Message...'}
           disabled={isReadOnly}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          value={draft}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           rows={1}
           aria-label="Message input"
@@ -99,11 +143,11 @@ export function InputBox({ sessionId: _sessionId, sessionStatus }: InputBoxProps
         <button
           type="button"
           aria-label="Send message"
-          disabled={!value.trim() || isReadOnly}
+          disabled={!draft.trim() || isReadOnly || sending}
           onClick={handleSend}
           className={cn(
             'w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
-            value.trim() && !isReadOnly
+            draft.trim() && !isReadOnly && !sending
               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}

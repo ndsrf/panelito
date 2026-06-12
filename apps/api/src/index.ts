@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./lib/env";
 import sessionsRouter from "./routes/sessions";
+import messagesRouter from "./routes/messages";
 
 const app = new Hono();
 
@@ -37,6 +38,12 @@ app.get("/health", (c) => {
 // Session CRUD routes (SESS-02..06, SESS-08, SESS-10)
 // -------------------------------------------------------
 app.route("/api/sessions", sessionsRouter);
+
+// -------------------------------------------------------
+// Message routes (CHAT-01, CHAT-04, CHAT-05)
+// POST + GET /api/sessions/:id/messages
+// -------------------------------------------------------
+app.route("/api/sessions/:id/messages", messagesRouter);
 
 // -------------------------------------------------------
 // Start server
