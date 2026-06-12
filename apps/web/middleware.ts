@@ -62,6 +62,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
+  // Set x-pathname header so Server Components can read the current path
+  // without importing next/headers cookies() — used by (protected)/layout.tsx
+  // to detect /settings and skip the BYOK gate for that route (D-04).
+  response.headers.set("x-pathname", pathname);
+
   return response;
 }
 
