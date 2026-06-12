@@ -12,10 +12,11 @@
  *
  * Plan 04: Renders the UI shell (textarea + Send button).
  * Plan 05: Wired — sends via POST /api/sessions/:id/messages; sets typing presence.
+ * Plan 07: Reads live status from session store; shows auto-freeze reason banner.
  *
- * Session status handling (D-03, SESS-05/06):
+ * Session status handling (D-03, SESS-05/06, SESS-07):
  *   - active: input enabled, send button active when non-empty
- *   - frozen: input disabled + "frozen" banner
+ *   - frozen: input disabled + frozen banner (with reason if auto_freeze)
  *   - closed: input disabled + "ended" banner
  */
 
@@ -24,16 +25,20 @@ import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useViewport } from '@/hooks/use-viewport'
 import { useTypingPresence } from '@/hooks/use-typing-presence'
+import { useSessionStore } from '@/store/session-store'
 import { apiFetch } from '@/lib/api'
 import { loadGuestSession } from '@/lib/guest-session'
 import type { SessionStatus } from '@panelito/types'
 
 interface InputBoxProps {
   sessionId: string
+  /** Initial status from server component — overridden by live store value. */
   sessionStatus: SessionStatus
   userId: string
   displayName: string
   shortCode?: string
+  /** Reason set when auto-freeze fires, from the session_status_change broadcast. */
+  autoFreezeReason?: string
 }
 
 /**
@@ -45,6 +50,7 @@ export function InputBox({
   userId,
   displayName,
   shortCode,
+  autoFreezeReason,
 }: InputBoxProps): ReactNode {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -56,9 +62,16 @@ export function InputBox({
   // Typing presence hook — throttled to <=1 track()/sec (CHAT-06)
   const { setTyping } = useTypingPresence(sessionId, userId, displayName)
 
-  const isReadOnly = sessionStatus !== 'active'
-  const isFrozen = sessionStatus === 'frozen'
-  const isClosed = sessionStatus === 'closed'
+  // SESS-07/11/12: read live status from store; fall back to prop if store not yet set
+  const liveSession = useSessionStore((s) => s.session)
+  const status = liveSession?.status ?? sessionStatus
+
+  const isReadOnly = status !== 'active'
+  const isFrozen = status === 'frozen'
+  const isClosed = status === 'closed'
+
+  // SESS-07: Use auto-freeze reason from broadcast payload if available
+  const isAutoFreeze = autoFreezeReason === 'auto_freeze_creator_absent'
 
   const handleSend = async () => {
     if (!draft.trim() || isReadOnly || sending) return
@@ -103,6 +116,12 @@ export function InputBox({
     setTyping(val.length > 0)
   }
 
+  const frozenBannerText = isFrozen
+    ? isAutoFreeze
+      ? 'Esta sesion se congelo automaticamente por inactividad del creador.'
+      : 'Esta sesion esta congelada — no puedes enviar mensajes.'
+    : null
+
   return (
     <div className="input-box bg-muted border-t border-border flex flex-col">
       {/* Read-only banner — shown when session is frozen or closed */}
@@ -117,9 +136,9 @@ export function InputBox({
           aria-live="polite"
         >
           {isFrozen
-            ? 'Esta sesión está congelada — no puedes enviar mensajes.'
+            ? frozenBannerText
             : isClosed
-              ? 'Esta sesión ha finalizado — no puedes enviar mensajes.'
+              ? 'Esta sesion ha finalizado — no puedes enviar mensajes.'
               : null}
         </div>
       )}
@@ -132,7 +151,7 @@ export function InputBox({
             'placeholder:text-muted-foreground py-2',
             isReadOnly && 'opacity-50 cursor-not-allowed'
           )}
-          placeholder={isReadOnly ? 'Sesión pausada — entrada deshabilitada.' : 'Mensaje...'}
+          placeholder={isReadOnly ? 'Sesion pausada — entrada deshabilitada.' : 'Mensaje...'}
           disabled={isReadOnly}
           value={draft}
           onChange={handleChange}

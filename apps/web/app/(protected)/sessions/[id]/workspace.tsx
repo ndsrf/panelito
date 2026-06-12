@@ -20,6 +20,8 @@
  *
  * CreatorControls is overlayed at the top-right of the analytics panel
  * when the current user is the session creator.
+ *
+ * Plan 07: Wires useSessionStatus + useCreatorPresence for live session state.
  */
 
 import type { ReactNode } from 'react'
@@ -28,6 +30,9 @@ import { BranchNavigator } from '@/components/workspace/BranchNavigator'
 import { ChatStream } from '@/components/workspace/ChatStream'
 import { InputBox } from '@/components/workspace/InputBox'
 import { CreatorControls } from '@/components/workspace/CreatorControls'
+import { useSessionStatus } from '@/hooks/use-session-status'
+import { useCreatorPresence } from '@/hooks/use-creator-presence'
+import { useSessionStore } from '@/store/session-store'
 import type { Session } from '@panelito/types'
 
 interface WorkspaceProps {
@@ -57,6 +62,15 @@ export function Workspace({
 }: WorkspaceProps): ReactNode {
   const isCreator = currentUserId === session.creator_id
 
+  // SESS-07/09/11/12: Subscribe to live session_status_change broadcasts
+  useSessionStatus(session.id, session)
+
+  // SESS-07: Publish creator presence heartbeats (creator only; no-op for guests)
+  useCreatorPresence(session.id, isCreator)
+
+  // Read live session from store; fall back to server-fetched session if not yet set
+  const liveSession = useSessionStore((s) => s.session) ?? session
+
   return (
     <div className="workspace-shell relative">
       {/* Top 40%: Analytics Panel with Error Boundary (LAYOUT-02, LAYOUT-07) */}
@@ -66,7 +80,7 @@ export function Workspace({
         {/* Creator controls: overlayed at top-right of analytics panel */}
         {isCreator && (
           <div className="absolute top-3 right-3 z-10">
-            <CreatorControls session={session} />
+            <CreatorControls session={liveSession} />
           </div>
         )}
       </div>
@@ -77,16 +91,17 @@ export function Workspace({
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}
       <div className="flex-1 relative overflow-hidden">
         {/* Chat stream fills remaining space (LAYOUT-03, CHAT-01..05) */}
-        <ChatStream sessionId={session.id} currentUserId={currentUserId} />
+        <ChatStream sessionId={liveSession.id} currentUserId={currentUserId} />
 
         {/* Input box anchored to keyboard-aware visual viewport (LAYOUT-04) */}
         {/* InputBox mounts useViewport() — single hook consumer for the workspace */}
         <InputBox
-          sessionId={session.id}
-          sessionStatus={session.status}
+          sessionId={liveSession.id}
+          sessionStatus={liveSession.status}
           userId={currentUserId}
           displayName={currentUserDisplayName}
           shortCode={shortCode}
+          autoFreezeReason={liveSession.status === 'frozen' ? (liveSession as Session & { auto_freeze_reason?: string }).auto_freeze_reason : undefined}
         />
       </div>
     </div>

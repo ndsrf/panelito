@@ -60,6 +60,15 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
+    env: {
+      // Auto-freeze timing overrides for E2E tests (SESS-07 fast-forward).
+      // WARNING: These MUST NOT be set in production (T-07-03).
+      // Grace: 200ms (default: 30s), Freeze delay: 500ms (default: 15min).
+      AUTO_FREEZE_GRACE_MS: '200',
+      AUTO_FREEZE_AFTER_MS: '500',
+      // Lifecycle tests API port (worktree API with new lifecycle middleware)
+      LIFECYCLE_API_URL: 'http://localhost:8788',
+    },
   },
   projects: [
     {

@@ -7,6 +7,8 @@ import messagesRouter from "./routes/messages";
 import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
+import { startAutoFreezeTracker, clearAllTrackers } from "./lib/auto-freeze";
+import { createServiceClient } from "./lib/supabase";
 
 const app = new Hono();
 
@@ -77,7 +79,19 @@ serve(
   (info) => {
     console.log(`[panelito/api] Server listening on port ${info.port}`);
     console.log(`[panelito/api] Health: http://localhost:${info.port}/health`);
+
+    // SESS-07: Start auto-freeze tracker after server is ready
+    startAutoFreezeTracker(createServiceClient()).catch((err) =>
+      console.error("[panelito/api] auto-freeze tracker startup error:", err)
+    );
   }
 );
+
+// Clean up all timers on graceful shutdown (SIGTERM)
+process.on("SIGTERM", () => {
+  console.log("[panelito/api] SIGTERM received — clearing auto-freeze timers");
+  clearAllTrackers();
+  process.exit(0);
+});
 
 export default app;

@@ -15,6 +15,8 @@ import { z } from 'zod'
 import { requireAuth } from '../middleware/auth'
 import { createServiceClient } from '../lib/supabase'
 import type { AuthVariables } from '../middleware/auth'
+import { rateLimit } from '../lib/rate-limit'
+import { maybeAutoName } from '../lib/auto-name'
 
 /**
  * Body schema for POST /api/sessions/:id/messages
@@ -33,11 +35,18 @@ const messagesRouter = new Hono<{ Variables: AuthVariables }>()
 // Apply auth middleware to all routes
 messagesRouter.use('*', requireAuth)
 
+// T-05-05: per-author message rate limit (60/min) — defends against spam
+const messageRateLimit = rateLimit({
+  keyFn: (c) => `${(c.get('user') as { id: string }).id}:messages`,
+  limit: 60,
+  windowMs: 60_000,
+})
+
 // -----------------------------------------------------------------------
 // POST /api/sessions/:id/messages — Insert a message + broadcast
 // -----------------------------------------------------------------------
 
-messagesRouter.post('/', async (c) => {
+messagesRouter.post('/', messageRateLimit, async (c) => {
   const sessionId = c.req.param('id')
   const user = c.get('user')
   const supabase = createServiceClient()
@@ -113,6 +122,13 @@ messagesRouter.post('/', async (c) => {
     .channel(`session:${sessionId}`)
     .httpSend('new_message', row)
     .catch((err) => console.error('[messages] broadcast failed', err))
+
+  // SESS-09: Auto-name session after 3rd message (fire-and-forget)
+  if (sessionId) {
+    maybeAutoName(supabase, sessionId).catch((err) =>
+      console.error('[messages] maybeAutoName error:', err)
+    )
+  }
 
   return c.json(row, 201)
 })
