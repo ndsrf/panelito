@@ -5,19 +5,24 @@
  *
  * LAYOUT-05: Physical divider with chromatic gradient + branch chip.
  * D-09: Renders a single "Main" chip from Phase 1.
+ * CHAT-06: Right slot shows typing indicator from Presence state.
  *
  * Left side: "Main" chip — Indigo 500 at 20% opacity background, 1px Indigo 500 border,
  *            Indigo 300 text, 6px Indigo 500 left dot.
  *
- * Right side: typing indicator placeholder (wired in Plan 05).
+ * Right side: "X esta escribiendo..." or "Varios estan escribiendo..." (CHAT-06)
  *
  * The gradient: linear-gradient(90deg, #312e81 0%, #09090b 60%)
  * = Indigo 900 fading into Zinc 950 — establishes ambient branch color awareness.
  */
 
 import type { ReactNode } from 'react'
+import { PenLine } from 'lucide-react'
+import { useSessionStore } from '@/store/session-store'
 
 export function BranchNavigator(): ReactNode {
+  const typingUsers = useSessionStore((s) => s.typingUsers)
+
   return (
     <div
       className="branch-navigator flex items-center px-4 gap-2"
@@ -47,8 +52,19 @@ export function BranchNavigator(): ReactNode {
         </span>
       </div>
 
-      {/* Right side: typing indicator area (wired in Plan 05) */}
-      <div className="ml-auto" aria-hidden="true" />
+      {/* CHAT-06: Typing indicator right slot */}
+      <div className="ml-auto flex items-center gap-1.5 max-w-[180px] overflow-hidden">
+        {typingUsers.length > 0 && (
+          <>
+            <PenLine className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
+            <span className="text-[13px] text-muted-foreground truncate">
+              {typingUsers.length === 1
+                ? `${typingUsers[0]?.displayName ?? ''} esta escribiendo...`
+                : 'Varios estan escribiendo...'}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -5,7 +5,9 @@
  * 5 calls within 100ms => track() invoked exactly 1 time
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
 describe('useTypingPresence throttle', () => {
   beforeEach(() => {
@@ -59,9 +61,7 @@ describe('useTypingPresence throttle', () => {
   it('uses 1000ms as the throttle constant (verifiable in hook source)', () => {
     // This test verifies the hook file contains the 1000ms constant
     // It is a contract test that ensures the file was not changed to a different value
-    const { readFileSync } = require('fs')
-    const path = require('path')
-    const hookPath = path.resolve(
+    const hookPath = resolve(
       __dirname,
       '../hooks/use-typing-presence.ts'
     )

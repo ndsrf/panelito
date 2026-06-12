@@ -5,6 +5,7 @@ import { readFileSync } from 'fs'
 /**
  * Load .env from the canonical location (main repo, gitignored).
  * The worktree shares the pnpm-lock.yaml but not .env files.
+ * The worktree symlinks node_modules -> main project's node_modules.
  */
 function loadDotEnv(): Record<string, string> {
   // Try the worktree location first, then fall back to main repo
@@ -33,20 +34,7 @@ function loadDotEnv(): Record<string, string> {
 
 const dotEnv = loadDotEnv()
 
-// When running from a worktree, node_modules lives in the main repo.
-// Resolve package IDs against the main project's node_modules.
-const MAIN_NODE_MODULES = '/home/jgm/dev/projects/web-projects/panelito/apps/api/node_modules'
-
 export default defineConfig({
-  resolve: {
-    alias: [
-      // Route bare specifiers through the main project's node_modules
-      {
-        find: /^([^./].*)$/,
-        replacement: path.join(MAIN_NODE_MODULES, '$1'),
-      },
-    ],
-  },
   test: {
     env: dotEnv,
     environment: 'node',

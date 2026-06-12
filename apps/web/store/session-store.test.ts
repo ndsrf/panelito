@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import type { Message } from '@panelito/types'
+import { useSessionStore } from './session-store'
 
 // Helper: create a minimal Message for testing
 function makeMessage(overrides: Partial<Message> = {}): Message {
@@ -26,13 +27,11 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
 describe('useSessionStore', () => {
   beforeEach(() => {
     // Reset the store before each test
-    const { useSessionStore } = require('./session-store')
     useSessionStore.getState().setMessages([])
     useSessionStore.getState().setTypingUsers([])
   })
 
   it('addMessage deduplicates by id — adding same message twice keeps length === 1', () => {
-    const { useSessionStore } = require('./session-store')
     const msg = makeMessage({ id: 'dedup-test-id' })
 
     useSessionStore.getState().addMessage(msg)
@@ -43,7 +42,6 @@ describe('useSessionStore', () => {
   })
 
   it('addMessage appends distinct messages', () => {
-    const { useSessionStore } = require('./session-store')
     const msg1 = makeMessage({ id: 'id-1' })
     const msg2 = makeMessage({ id: 'id-2' })
 
@@ -55,7 +53,6 @@ describe('useSessionStore', () => {
   })
 
   it('setMessages replaces the entire messages array', () => {
-    const { useSessionStore } = require('./session-store')
     const msgs = [makeMessage(), makeMessage()]
 
     useSessionStore.getState().setMessages(msgs)
@@ -64,7 +61,6 @@ describe('useSessionStore', () => {
   })
 
   it('setTypingUsers updates the typing users list', () => {
-    const { useSessionStore } = require('./session-store')
     const typingUsers = [{ userId: 'u1', displayName: 'Alice' }]
 
     useSessionStore.getState().setTypingUsers(typingUsers)

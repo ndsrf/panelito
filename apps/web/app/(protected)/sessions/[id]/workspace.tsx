@@ -34,6 +34,8 @@ interface WorkspaceProps {
   session: Session
   hasApiKey: boolean
   currentUserId: string
+  currentUserDisplayName: string
+  shortCode?: string
 }
 
 /**
@@ -42,9 +44,17 @@ interface WorkspaceProps {
  * @param session - The fetched session object from the server component.
  * @param hasApiKey - Whether the creator has a verified Anthropic API key.
  *                   Plan 04: hardcoded false. Plan 06: wires real value from creator_settings.
- * @param currentUserId - The authenticated user's ID (for creator gate).
+ * @param currentUserId - The authenticated user's ID (for creator gate + isOwn bubbles).
+ * @param currentUserDisplayName - The user's display name for typing presence (CHAT-06).
+ * @param shortCode - Session short code for guest session localStorage lookup.
  */
-export function Workspace({ session, hasApiKey, currentUserId }: WorkspaceProps): ReactNode {
+export function Workspace({
+  session,
+  hasApiKey,
+  currentUserId,
+  currentUserDisplayName,
+  shortCode,
+}: WorkspaceProps): ReactNode {
   const isCreator = currentUserId === session.creator_id
 
   return (
@@ -61,17 +71,23 @@ export function Workspace({ session, hasApiKey, currentUserId }: WorkspaceProps)
         )}
       </div>
 
-      {/* 48px sticky Branch Navigator divider (LAYOUT-05) */}
+      {/* 48px sticky Branch Navigator divider (LAYOUT-05, CHAT-06) */}
       <BranchNavigator />
 
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Chat stream fills remaining space (LAYOUT-03) */}
-        <ChatStream sessionId={session.id} />
+        {/* Chat stream fills remaining space (LAYOUT-03, CHAT-01..05) */}
+        <ChatStream sessionId={session.id} currentUserId={currentUserId} />
 
         {/* Input box anchored to keyboard-aware visual viewport (LAYOUT-04) */}
         {/* InputBox mounts useViewport() — single hook consumer for the workspace */}
-        <InputBox sessionId={session.id} sessionStatus={session.status} />
+        <InputBox
+          sessionId={session.id}
+          sessionStatus={session.status}
+          userId={currentUserId}
+          displayName={currentUserDisplayName}
+          shortCode={shortCode}
+        />
       </div>
     </div>
   )
