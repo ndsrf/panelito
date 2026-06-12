@@ -87,7 +87,10 @@ keysRouter.post('/verify', async (c) => {
   // Handshake BEFORE persistence (AI-10)
   const result = await verifyApiKey(key)
   if (!result.ok) {
-    return c.json({ success: false, error: result.error }, 400)
+    const status = result.error === 'invalid_key' ? 400
+      : result.error === 'rate_limited' ? 429
+      : 502 // network_error — server-side failure reaching Anthropic
+    return c.json({ success: false, error: result.error }, status)
   }
 
   // Encrypt

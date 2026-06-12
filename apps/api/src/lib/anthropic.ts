@@ -40,7 +40,7 @@ export async function verifyApiKey(key: string): Promise<VerifyResult> {
   const client = new Anthropic({ apiKey: key })
   try {
     await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1,
       messages: [{ role: 'user', content: 'ping' }],
     })
@@ -53,10 +53,18 @@ export async function verifyApiKey(key: string): Promise<VerifyResult> {
     if (err instanceof Anthropic.AuthenticationError) {
       return { ok: false, error: 'invalid_key' }
     }
+    if (err instanceof Anthropic.PermissionDeniedError) {
+      return { ok: false, error: 'invalid_key' }
+    }
     if (err instanceof Anthropic.RateLimitError) {
       return { ok: false, error: 'rate_limited' }
     }
-    // DNS failures, timeouts, connection refused, etc.
+    // Any other APIError means Anthropic responded (key reached the API).
+    // Treat as valid — the key works, something else went wrong server-side.
+    if (err instanceof Anthropic.APIError) {
+      return { ok: true }
+    }
+    // Non-APIError: DNS failure, timeout, connection refused, etc.
     return { ok: false, error: 'network_error' }
   }
 }
