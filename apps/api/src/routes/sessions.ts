@@ -3,53 +3,25 @@ import { z } from 'zod'
 import { SessionCreateInputSchema } from '@panelito/types'
 import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
+import { rateLimit } from '../lib/rate-limit'
 
 // -----------------------------------------------------------------------
 // Rate limiting (T-03-05, T-03-06)
-// In-memory token buckets keyed by user ID or IP.
-// Phase 1 uses in-memory; Redis-backed is post-MVP.
+// Uses the shared rateLimit middleware from lib/rate-limit.ts.
 // -----------------------------------------------------------------------
 
-interface TokenBucket {
-  tokens: number
-  lastRefill: number
-}
+const sessionCreateRateLimit = rateLimit({
+  keyFn: (c) => `${(c.get('user') as { id: string }).id}:sessions-create`,
+  limit: 10,
+  windowMs: 60_000,
+})
 
-const sessionCreateBuckets = new Map<string, TokenBucket>()
-const guestJoinBuckets = new Map<string, TokenBucket>()
-
-const MAX_SESSION_CREATES_PER_MINUTE = 10
-const MAX_GUEST_JOINS_PER_MINUTE = 20
-const MINUTE_MS = 60_000
-
-function checkRateLimit(
-  buckets: Map<string, TokenBucket>,
-  key: string,
-  maxPerMinute: number
-): boolean {
-  const now = Date.now()
-  let bucket = buckets.get(key)
-
-  if (!bucket) {
-    bucket = { tokens: maxPerMinute - 1, lastRefill: now }
-    buckets.set(key, bucket)
-    return true
-  }
-
-  // Refill tokens if a minute has passed
-  const elapsed = now - bucket.lastRefill
-  if (elapsed >= MINUTE_MS) {
-    bucket.tokens = maxPerMinute
-    bucket.lastRefill = now
-  }
-
-  if (bucket.tokens <= 0) {
-    return false // Rate limited
-  }
-
-  bucket.tokens--
-  return true
-}
+const guestJoinRateLimit = rateLimit({
+  keyFn: (c) =>
+    `${c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown'}:guests`,
+  limit: 20,
+  windowMs: 60_000,
+})
 
 // -----------------------------------------------------------------------
 // Error helper (T-03-07)
@@ -79,13 +51,8 @@ export const sessionsRouter = new Hono<{ Variables: AuthVariables }>()
  *
  * Rate limit: max 10 creates/minute per user (T-03-05).
  */
-sessionsRouter.post('/', requireAuth, async (c) => {
+sessionsRouter.post('/', requireAuth, sessionCreateRateLimit, async (c) => {
   const user = c.get('user')
-
-  // T-03-05: per-user rate limit on session creation
-  if (!checkRateLimit(sessionCreateBuckets, user.id, MAX_SESSION_CREATES_PER_MINUTE)) {
-    return c.json({ error: 'rate_limited' }, 429)
-  }
 
   let body: unknown
   try {
@@ -274,6 +241,74 @@ sessionsRouter.post('/:id/close', requireAuth, async (c) => {
 })
 
 /**
+ * POST /api/sessions/:id/unfreeze
+ * Reactivates a frozen session. Only the creator can unfreeze.
+ *
+ * SESS-07 / SESS-11: Creator can explicitly override an auto-freeze.
+ * Note: Unfreeze leaves ai_response_count intact — only status is reset to 'active'.
+ *
+ * T-07-05: Unfreeze is an explicit creator action; the system message from the
+ * auto-freeze remains in the chat as an audit trail (CHAT-05 immutability).
+ */
+sessionsRouter.post('/:id/unfreeze', requireAuth, async (c) => {
+  const { id } = c.req.param()
+  const user = c.get('user')
+  const supabase = createServiceClient()
+
+  const UnfreezeBodySchema = z.object({
+    reason: z.string().min(1).max(200).optional(),
+  })
+
+  try {
+    // Fetch the session first to verify creator_id (T-03-02)
+    const { data: session, error: fetchError } = await supabase
+      .from('sessions')
+      .select('id, creator_id, status')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !session) {
+      return c.json({ error: 'not_found' }, 404)
+    }
+
+    // T-03-02: Elevation of Privilege protection
+    if (session.creator_id !== user.id) {
+      return c.json({ error: 'forbidden' }, 403)
+    }
+
+    if (session.status !== 'frozen') {
+      return c.json({ error: 'session_not_frozen', status: session.status }, 409)
+    }
+
+    // Parse optional reason from body
+    const rawBody = await c.req.json().catch(() => ({}))
+    const parsed = UnfreezeBodySchema.safeParse(rawBody)
+    const reason = parsed.success && parsed.data.reason ? parsed.data.reason : 'creator_unfreeze'
+
+    const { data: updated, error: updateError } = await supabase
+      .from('sessions')
+      .update({ status: 'active' })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError || !updated) {
+      return c.json({ error: toClientError(updateError) }, 500)
+    }
+
+    // Broadcast status change to all clients
+    supabase
+      .channel(`session:${id}`)
+      .httpSend('session_status_change', { status: 'active', reason })
+      .catch((err: unknown) => console.error('[sessions] unfreeze broadcast error:', err))
+
+    return c.json(updated, 200)
+  } catch (err) {
+    return c.json({ error: toClientError(err) }, 500)
+  }
+})
+
+/**
  * GET /api/sessions/by-code/:code
  * Public endpoint — no auth required.
  * Returns limited session info for the guest join landing page.
@@ -336,14 +371,8 @@ sessionsRouter.get('/by-code/:code', async (c) => {
  * T-03-01: Anonymous tokens have a unique `sub` claim; RLS on messages INSERT
  * requires auth.uid() = author_id, so guests cannot impersonate each other.
  */
-sessionsRouter.post('/by-code/:code/guests', async (c) => {
+sessionsRouter.post('/by-code/:code/guests', guestJoinRateLimit, async (c) => {
   const { code } = c.req.param()
-
-  // T-03-06: per-IP rate limit on guest joins
-  const clientIp = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown'
-  if (!checkRateLimit(guestJoinBuckets, clientIp, MAX_GUEST_JOINS_PER_MINUTE)) {
-    return c.json({ error: 'rate_limited' }, 429)
-  }
 
   const GuestJoinSchema = z.object({
     display_name: z.string().min(1).max(40).trim(),

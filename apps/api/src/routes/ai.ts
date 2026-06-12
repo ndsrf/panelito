@@ -15,6 +15,7 @@ import { Hono } from 'hono'
 import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { assemblePromptArray, type Message } from '../lib/anthropic'
+import { checkCap, incrementCount } from '../lib/cap-guard'
 
 // ---------------------------------------------------------------------------
 // Phase 1 static prefix constants
@@ -68,6 +69,12 @@ aiRouter.post('/:id/invoke', async (c) => {
     return c.json({ error: 'forbidden' }, 403)
   }
 
+  // SESS-12: Check cap before invocation — return 429 if cap reached
+  const capCheck = await checkCap(supabase, sessionId)
+  if (!capCheck.ok) {
+    return c.json({ error: capCheck.reason }, 429)
+  }
+
   // Fetch last 8 messages of the session for the dynamic tail (AI-11)
   const { data: messagesData } = await supabase
     .from('messages')
@@ -111,12 +118,19 @@ aiRouter.post('/:id/invoke', async (c) => {
     }
   }
 
+  // SESS-12: Increment count after (successful) invocation scaffold
+  // Phase 2: increment is called after the real Claude call completes.
+  // Phase 1: increment here to allow E2E cap testing against the scaffold route.
+  const countResult = await incrementCount(supabase, sessionId)
+
   // Phase 2 replaces this body with the streaming SSE call to Anthropic.
   return c.json(
     {
       status: 'scaffolded',
       prompt_array_length: promptArray.length,
       cache_breakpoint_position: cbpIdx,
+      ai_response_count: countResult.count,
+      threshold_crossed: countResult.threshold_crossed,
     },
     501
   )

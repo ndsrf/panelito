@@ -18,37 +18,17 @@ import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { encryptKey, decryptKey } from '../lib/crypto'
 import { verifyApiKey } from '../lib/anthropic'
 import { env } from '../lib/env'
+import { rateLimit } from '../lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // Rate limiting — T-06-07: 5 verify attempts per minute per user
 // ---------------------------------------------------------------------------
 
-interface TokenBucket {
-  tokens: number
-  lastRefill: number
-}
-
-const verifyBuckets = new Map<string, TokenBucket>()
-const MAX_VERIFY_PER_MINUTE = 5
-const MINUTE_MS = 60_000
-
-function checkVerifyRateLimit(userId: string): boolean {
-  const now = Date.now()
-  let bucket = verifyBuckets.get(userId)
-  if (!bucket) {
-    bucket = { tokens: MAX_VERIFY_PER_MINUTE - 1, lastRefill: now }
-    verifyBuckets.set(userId, bucket)
-    return true
-  }
-  const elapsed = now - bucket.lastRefill
-  if (elapsed >= MINUTE_MS) {
-    bucket.tokens = MAX_VERIFY_PER_MINUTE
-    bucket.lastRefill = now
-  }
-  if (bucket.tokens <= 0) return false
-  bucket.tokens--
-  return true
-}
+const verifyRateLimit = rateLimit({
+  keyFn: (c) => `${(c.get('user') as { id: string }).id}:verify`,
+  limit: 5,
+  windowMs: 60_000,
+})
 
 // ---------------------------------------------------------------------------
 // Router
@@ -67,13 +47,8 @@ keysRouter.use('/*', requireAuth)
  * 4. On ok: encrypt and upsert (cap-preserving logic).
  * 5. Return 200 { success: true } or 400 { success: false, error }.
  */
-keysRouter.post('/verify', async (c) => {
+keysRouter.post('/verify', verifyRateLimit, async (c) => {
   const user = c.get('user')
-
-  // Rate limit
-  if (!checkVerifyRateLimit(user.id)) {
-    return c.json({ success: false, error: 'rate_limited' }, 429)
-  }
 
   // Validate body
   const body = await c.req.json().catch(() => null)
