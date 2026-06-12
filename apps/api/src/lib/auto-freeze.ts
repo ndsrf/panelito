@@ -158,6 +158,24 @@ export function onCreatorPresenceChange(
 }
 
 /**
+ * registerSession — called when a new session is created to start tracking its
+ * creator presence immediately (without waiting for next server restart).
+ *
+ * This handles the "on session-create events" case from the spec.
+ *
+ * @param supabase - Service-role Supabase client.
+ * @param sessionId - The newly created session ID.
+ * @param creatorId - The creator's user ID.
+ */
+export function registerSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  creatorId: string
+): void {
+  subscribeToSessionPresence(supabase, sessionId, creatorId)
+}
+
+/**
  * clearAllTrackers — called on server shutdown (SIGTERM) to clean up all timers.
  */
 export function clearAllTrackers(): void {

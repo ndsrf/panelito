@@ -4,6 +4,7 @@ import { SessionCreateInputSchema } from '@panelito/types'
 import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { rateLimit } from '../lib/rate-limit'
+import { registerSession } from '../lib/auto-freeze'
 
 // -----------------------------------------------------------------------
 // Rate limiting (T-03-05, T-03-06)
@@ -86,6 +87,9 @@ sessionsRouter.post('/', requireAuth, sessionCreateRateLimit, async (c) => {
       console.error('[sessions] INSERT error:', error.message)
       return c.json({ error: toClientError(error) }, 500)
     }
+
+    // SESS-07: Register new session with the auto-freeze tracker
+    registerSession(supabase, data.id, user.id)
 
     return c.json(data, 201)
   } catch (err) {
