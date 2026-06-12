@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 import path from 'path'
 import { readFileSync } from 'fs'
 
@@ -33,7 +33,20 @@ function loadDotEnv(): Record<string, string> {
 
 const dotEnv = loadDotEnv()
 
+// When running from a worktree, node_modules lives in the main repo.
+// Resolve package IDs against the main project's node_modules.
+const MAIN_NODE_MODULES = '/home/jgm/dev/projects/web-projects/panelito/apps/api/node_modules'
+
 export default defineConfig({
+  resolve: {
+    alias: [
+      // Route bare specifiers through the main project's node_modules
+      {
+        find: /^([^./].*)$/,
+        replacement: path.join(MAIN_NODE_MODULES, '$1'),
+      },
+    ],
+  },
   test: {
     env: dotEnv,
     environment: 'node',
