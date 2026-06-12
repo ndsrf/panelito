@@ -7,6 +7,10 @@
  *          Preserves scroll position when the user has scrolled up to read history.
  * CHAT-01: Initial history loaded from GET /api/sessions/:id/messages on mount.
  *          Live updates delivered via useSessionChannel (broadcast subscription).
+ *
+ * Plan 07: Renders system messages (display_name === 'system') with distinct styling.
+ *          System messages: no avatar, italic text, muted-foreground color, centered.
+ *          Used for cap warnings (SESS-12), auto-freeze notices (SESS-07), auto-name (SESS-09).
  */
 
 import { useEffect, useRef, type ReactNode } from 'react'
@@ -16,9 +20,33 @@ import { apiFetch } from '@/lib/api'
 import { MessageBubble } from './MessageBubble'
 import type { Message } from '@panelito/types'
 
+/** Sentinel display_name used for system messages (set in API by sessions-helpers.ts). */
+const SYSTEM_DISPLAY_NAME = 'system'
+
+/** All-zeros UUID — system author sentinel (matches SYSTEM_AUTHOR_ID in API). */
+const SYSTEM_AUTHOR_ID = '00000000-0000-0000-0000-000000000000'
+
 interface MessageListProps {
   sessionId: string
   currentUserId: string
+}
+
+/**
+ * SystemMessageBubble — renders a system notification (cap warning, freeze notice, etc.)
+ * with no avatar, italic text, and muted foreground color.
+ */
+function SystemMessageBubble({ message }: { message: Message }): ReactNode {
+  return (
+    <div className="flex justify-center px-4 py-1">
+      <div
+        className="text-[13px] italic text-muted-foreground text-center max-w-[80%] px-3 py-1.5 rounded-md bg-muted/40"
+        role="status"
+        aria-live="polite"
+      >
+        {message.content}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -97,13 +125,20 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
         </div>
       ) : (
         <div className="py-2">
-          {messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isOwn={msg.author_id === currentUserId}
-            />
-          ))}
+          {messages.map((msg) => {
+            const isSystemMessage =
+              msg.display_name === SYSTEM_DISPLAY_NAME ||
+              msg.author_id === SYSTEM_AUTHOR_ID
+            return isSystemMessage ? (
+              <SystemMessageBubble key={msg.id} message={msg} />
+            ) : (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isOwn={msg.author_id === currentUserId}
+              />
+            )
+          })}
         </div>
       )}
     </div>
