@@ -35,10 +35,16 @@ export function useTypingPresence(
   const setTyping = useCallback(
     (isTyping: boolean) => {
       const now = Date.now()
-      // Throttle: at most 1 track() call per 1000ms (CHAT-06 protection)
-      if (isTyping && now - lastTrackRef.current < 1000) return
-      lastTrackRef.current = now
-      channelRef.current?.track({ typing: isTyping, displayName }).catch(() => {})
+      if (isTyping) {
+        // Throttle: at most 1 track() call per 1000ms (CHAT-06 protection)
+        if (now - lastTrackRef.current < 1000) return
+        lastTrackRef.current = now
+        channelRef.current?.track({ typing: true, displayName }).catch(() => {})
+      } else {
+        // Untrack immediately so the presence:leave event fires without waiting
+        // for the Presence heartbeat cycle (which can take ~10s on local Supabase)
+        channelRef.current?.untrack().catch(() => {})
+      }
     },
     [displayName]
   )
@@ -52,22 +58,25 @@ export function useTypingPresence(
 
     channelRef.current = channel
 
+    const syncTypingUsers = () => {
+      const state = channel.presenceState() as PresenceState
+
+      // Build typing users list: other participants who have typing: true
+      const typing = Object.entries(state)
+        .filter(([key]) => key !== userId) // filter self
+        .flatMap(([, payloads]) => payloads)
+        .filter((p) => p.typing === true && p.displayName)
+        .map((p) => ({
+          userId: '', // Presence key not exposed per-payload; displayName is sufficient
+          displayName: p.displayName!,
+        }))
+
+      setTypingUsers(typing)
+    }
+
     channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState() as PresenceState
-
-        // Build typing users list: other participants who have typing: true
-        const typing = Object.entries(state)
-          .filter(([key]) => key !== userId) // filter self
-          .flatMap(([, payloads]) => payloads)
-          .filter((p) => p.typing === true && p.displayName)
-          .map((p) => ({
-            userId: '', // Presence key not exposed per-payload; displayName is sufficient
-            displayName: p.displayName!,
-          }))
-
-        setTypingUsers(typing)
-      })
+      .on('presence', { event: 'sync' }, syncTypingUsers)
+      .on('presence', { event: 'leave' }, syncTypingUsers)
       .subscribe()
 
     return () => {
