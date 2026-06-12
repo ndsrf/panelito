@@ -20,18 +20,18 @@ type ModeOption = {
 const MODE_OPTIONS: ModeOption[] = [
   {
     value: 'strategy',
-    label: 'Strategy',
-    description: 'Structured exploration of a strategic question',
+    label: 'Estrategia',
+    description: 'Exploración estructurada de una pregunta estratégica',
   },
   {
     value: 'debate',
     label: 'Debate',
-    description: 'Deliberate challenge of competing positions',
+    description: 'Desafío deliberado de posiciones opuestas',
   },
   {
     value: 'red_team',
-    label: 'Red Team',
-    description: 'Adversarial stress-testing of an idea or plan',
+    label: 'Equipo Rojo',
+    description: 'Prueba de estrés adversarial de una idea o plan',
   },
 ]
 
@@ -74,16 +74,16 @@ export function NewSessionForm() {
       router.push(`/sessions/${session.id}`)
     } catch (err) {
       if (err instanceof ApiError) {
-        setServerError(`Failed to create session (${err.status})`)
+        setServerError(`Error al crear la sesión (${err.status})`)
       } else {
-        setServerError('Something went wrong. Please try again.')
+        setServerError('Algo salió mal. Inténtalo de nuevo.')
       }
     }
   }
 
   return (
     <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-      <h1 className="text-[20px] font-semibold text-foreground">New Session</h1>
+      <h1 className="text-[20px] font-semibold text-foreground">Nueva sesión</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Title field */}
@@ -92,16 +92,16 @@ export function NewSessionForm() {
             htmlFor="session-title"
             className="text-[15px] text-foreground"
           >
-            Session title
+            Título de la sesión
           </label>
           <Input
             id="session-title"
-            placeholder="e.g. Q3 Strategy Review"
+            placeholder="p. ej., Revisión de estrategia Q3"
             {...register('title')}
             className="h-10"
           />
           <p className="text-[13px] text-muted-foreground">
-            Leave blank to auto-name from the conversation.
+            Déjalo en blanco para nombrarla automáticamente a partir de la conversación.
           </p>
           {errors.title && (
             <p className="text-[13px] text-destructive">{errors.title.message}</p>
@@ -110,7 +110,7 @@ export function NewSessionForm() {
 
         {/* Mode selector — 3 radio cards */}
         <div className="space-y-2">
-          <label className="text-[15px] text-foreground">Mode</label>
+          <label className="text-[15px] text-foreground">Modo</label>
           <div className="space-y-2">
             {MODE_OPTIONS.map((option) => (
               <button
@@ -147,7 +147,7 @@ export function NewSessionForm() {
           className="w-full h-12 text-[15px]"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Creating...' : 'Create Session'}
+          {isSubmitting ? 'Creando...' : 'Crear sesión'}
         </Button>
 
         <div className="text-center">
@@ -155,7 +155,7 @@ export function NewSessionForm() {
             href="/"
             className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
           >
-            Back
+            Volver
           </Link>
         </div>
       </form>

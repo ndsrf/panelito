@@ -48,7 +48,7 @@ export function BranchNavigator(): ReactNode {
         <span
           style={{ color: '#a5b4fc', fontSize: 13 }}
         >
-          Main
+          Principal
         </span>
       </div>
 

@@ -132,17 +132,17 @@ export function InputBox({
             'placeholder:text-muted-foreground py-2',
             isReadOnly && 'opacity-50 cursor-not-allowed'
           )}
-          placeholder={isReadOnly ? 'Session is paused — input disabled.' : 'Message...'}
+          placeholder={isReadOnly ? 'Sesión pausada — entrada deshabilitada.' : 'Mensaje...'}
           disabled={isReadOnly}
           value={draft}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           rows={1}
-          aria-label="Message input"
+          aria-label="Entrada de mensaje"
         />
         <button
           type="button"
-          aria-label="Send message"
+          aria-label="Enviar mensaje"
           disabled={!draft.trim() || isReadOnly || sending}
           onClick={handleSend}
           className={cn(

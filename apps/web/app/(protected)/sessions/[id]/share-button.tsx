@@ -27,7 +27,7 @@ export function ShareButton({ shortCode, sessionTitle }: ShareButtonProps) {
         className="h-9 gap-2"
       >
         <Share2 className="h-4 w-4" />
-        Share
+        Compartir
       </Button>
 
       <ShareModal

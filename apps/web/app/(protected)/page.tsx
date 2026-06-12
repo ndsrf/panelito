@@ -18,15 +18,15 @@ export default async function ProtectedHomePage() {
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <div className="text-center space-y-3 max-w-sm">
         <h1 className="text-[20px] font-semibold text-foreground">
-          Welcome, {displayName}
+          Bienvenido, {displayName}
         </h1>
         <p className="text-[15px] text-muted-foreground">
-          Create a session to start a collaborative thinking room.
+          Crea una sesión para iniciar una sala de pensamiento colaborativo.
         </p>
       </div>
       <Link href="/sessions/new">
         <Button className="h-12 px-8 text-[15px]">
-          Create Session
+          Crear sesión
         </Button>
       </Link>
     </main>

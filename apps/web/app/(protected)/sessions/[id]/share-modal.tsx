@@ -43,10 +43,10 @@ export function ShareModal({ open, onOpenChange, shortCode, sessionTitle }: Shar
     try {
       await navigator.clipboard.writeText(joinUrl)
       setCopied(true)
-      toast('Copied', { description: 'Join link copied to clipboard' })
+      toast('Copiado', { description: 'Enlace de acceso copiado al portapapeles' })
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('Copy failed', { description: 'Please copy the URL manually' })
+      toast.error('Error al copiar', { description: 'Por favor, copia la URL manualmente' })
     }
   }
 
@@ -55,7 +55,7 @@ export function ShareModal({ open, onOpenChange, shortCode, sessionTitle }: Shar
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-[20px] font-semibold">
-            Share Session
+            Compartir sesión
           </DialogTitle>
         </DialogHeader>
 
@@ -80,7 +80,7 @@ export function ShareModal({ open, onOpenChange, shortCode, sessionTitle }: Shar
           {/* Copy URL */}
           <div className="space-y-2">
             <label className="text-[13px] text-muted-foreground">
-              Join link
+              Enlace de acceso
             </label>
             <div className="flex gap-2">
               <Input
@@ -93,7 +93,7 @@ export function ShareModal({ open, onOpenChange, shortCode, sessionTitle }: Shar
                 variant="outline"
                 onClick={handleCopy}
                 className="h-9 px-3 shrink-0"
-                aria-label="Copy join link"
+                aria-label="Copiar enlace de acceso"
               >
                 {copied ? (
                   <Check className="h-4 w-4 text-green-400" />
@@ -105,7 +105,7 @@ export function ShareModal({ open, onOpenChange, shortCode, sessionTitle }: Shar
           </div>
 
           <p className="text-[13px] text-muted-foreground text-center">
-            Guests scan the QR code or open the link — no account required.
+            Los invitados escanean el código QR o abren el enlace — sin cuenta requerida.
           </p>
         </div>
       </DialogContent>

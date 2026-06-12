@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 const DisplayNameSchema = z.object({
-  display_name: z.string().min(1, 'Name is required').max(40, 'Max 40 characters').trim(),
+  display_name: z.string().min(1, 'El nombre es requerido').max(40, 'Máximo 40 caracteres').trim(),
 })
 
 type DisplayNameInput = z.infer<typeof DisplayNameSchema>
@@ -100,7 +100,7 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
       // D-02: Instant redirect — no interstitial
       router.push(`/sessions/${result.session_id}`)
     } catch {
-      setServerError('Something went wrong. Please try again.')
+      setServerError('Algo salió mal. Inténtalo de nuevo.')
     }
   }
 
@@ -108,7 +108,7 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
   if (isCheckingSaved) {
     return (
       <div className="rounded-lg border border-border bg-card p-6 text-center">
-        <p className="text-[13px] text-muted-foreground">Loading...</p>
+        <p className="text-[13px] text-muted-foreground">Cargando...</p>
       </div>
     )
   }
@@ -118,8 +118,8 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
       {sessionStatus !== 'active' && (
         <p className="text-[13px] text-muted-foreground">
           {sessionStatus === 'frozen'
-            ? 'This session is paused — you can view the conversation but cannot send messages.'
-            : 'This session has ended — you can view the conversation in read-only mode.'}
+            ? 'Esta sesión está pausada — puedes ver la conversación pero no enviar mensajes.'
+            : 'Esta sesión ha finalizado — puedes ver la conversación en modo de solo lectura.'}
         </p>
       )}
 
@@ -129,11 +129,11 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
             htmlFor="display-name"
             className="text-[15px] text-foreground"
           >
-            Your display name
+            Tu nombre en la sesión
           </label>
           <Input
             id="display-name"
-            placeholder="Your display name"
+            placeholder="Tu nombre en la sesión"
             maxLength={40}
             {...register('display_name')}
             className="h-10"
@@ -152,7 +152,7 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
           className="w-full h-12 text-[15px]"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Joining...' : 'Join Session'}
+          {isSubmitting ? 'Uniéndose...' : 'Unirse a la sesión'}
         </Button>
       </form>
     </div>

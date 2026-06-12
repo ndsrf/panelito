@@ -24,7 +24,7 @@ pnpm dev
 
 | Service | URL |
 |---------|-----|
-| Web (Next.js) | http://localhost:3000 |
+| Web (Next.js) | http://localhost:4000 |
 | API (Hono) | http://localhost:8787 |
 | Supabase Studio | http://localhost:54323 |
 | Supabase API | http://localhost:54321 |

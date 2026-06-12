@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Panelito — Project Multiverse",
+  title: "Panelito — Proyecto Multiverso",
   description:
-    "A synchronous, multi-user collaborative workspace where groups debate and explore ideas alongside specialized AI personas.",
+    "Un espacio de trabajo colaborativo sincrónico y multiusuario donde grupos debaten y exploran ideas junto a personas de IA especializadas.",
 };
 
 export default function RootLayout({

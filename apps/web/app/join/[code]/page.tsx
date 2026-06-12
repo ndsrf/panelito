@@ -53,9 +53,9 @@ export default async function JoinPage({
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-[400px] rounded-lg border border-border bg-card p-6 text-center space-y-3">
-          <h1 className="text-[20px] font-semibold text-foreground">Session not found</h1>
+          <h1 className="text-[20px] font-semibold text-foreground">Sesión no encontrada</h1>
           <p className="text-[15px] text-muted-foreground">
-            This link may have expired or the session code is incorrect.
+            El enlace puede haber expirado o el código de sesión es incorrecto.
           </p>
         </div>
       </main>
@@ -68,12 +68,12 @@ export default async function JoinPage({
         {/* Session info card */}
         <div className="rounded-lg border border-border bg-card p-6 space-y-2">
           <h1 className="text-[20px] font-semibold text-foreground">
-            {session.title ?? 'Untitled Session'}
+            {session.title ?? 'Sesión sin título'}
           </h1>
           <div className="flex items-center gap-2 flex-wrap">
             {session.creator_display_name && (
               <span className="text-[13px] text-muted-foreground">
-                by {session.creator_display_name}
+                por {session.creator_display_name}
               </span>
             )}
             <Badge

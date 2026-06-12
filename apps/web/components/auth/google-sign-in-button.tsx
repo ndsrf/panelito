@@ -33,7 +33,7 @@ export function GoogleSignInButton() {
       onClick={handleSignIn}
     >
       <Mail className="h-4 w-4" />
-      Continue with Google
+      Continuar con Google
     </Button>
   )
 }

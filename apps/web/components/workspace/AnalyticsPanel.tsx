@@ -94,7 +94,7 @@ function StateNoKey(): ReactNode {
             href={'/settings' as Route}
             className="text-primary underline underline-offset-2 hover:text-primary/80"
           >
-            Settings
+            Configuración
           </Link>{' '}
           para activar el análisis de IA.
         </p>
