@@ -50,3 +50,5 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+apps/api/node_modules
+apps/api/node_modules_link
