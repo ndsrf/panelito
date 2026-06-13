@@ -50,17 +50,17 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
     const checkSavedSession = async () => {
       const saved = loadGuestSession(shortCode)
       if (saved) {
-        // Best-effort session restore — in WSL2 dev the browser may not reach
-        // Supabase directly; the workspace SSR will validate the session.
-        try {
-          const supabase = createClient()
-          await supabase.auth.setSession({
+        // Best-effort: try to hydrate the browser Supabase client from saved tokens.
+        // Times out after 2s so WSL2 (where the browser can't reach localhost:54321)
+        // never blocks the redirect. Workspace SSR validates the session independently.
+        const supabase = createClient()
+        await Promise.race([
+          supabase.auth.setSession({
             access_token: saved.access_token,
             refresh_token: saved.refresh_token,
-          })
-        } catch {
-          // ignore network errors — redirect anyway, workspace SSR handles auth
-        }
+          }).catch(() => undefined),
+          new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 2000)),
+        ])
         // Silent re-entry — no display name form shown (SESS-10)
         router.replace(`/sessions/${saved.session_id}`)
         return
@@ -82,17 +82,15 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
         return
       }
 
-      // Best-effort session set — in WSL2 dev the browser may not reach Supabase
-      // directly; workspace SSR will validate. Never block the join flow on this.
-      try {
-        const supabase = createClient()
-        await supabase.auth.setSession({
+      // Best-effort: hydrate browser Supabase client, 2s timeout for WSL2.
+      const supabase = createClient()
+      await Promise.race([
+        supabase.auth.setSession({
           access_token: result.access_token,
           refresh_token: result.refresh_token,
-        })
-      } catch {
-        // ignore — tokens saved to localStorage below; SSR will restore
-      }
+        }).catch(() => undefined),
+        new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 2000)),
+      ])
 
       // Persist to localStorage BEFORE router.push (RESEARCH.md Pitfall 8, SESS-10)
       saveGuestSession(shortCode, {
