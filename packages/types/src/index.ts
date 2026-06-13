@@ -24,3 +24,15 @@ export {
   ApiKeyVerifyResponseSchema,
   CreatorSettingsSchema,
 } from "./api-key";
+
+// Panel widget types + schemas (AI-05, PANEL-01)
+export type { PanelWidget, AIStreamEvent } from "./panel";
+export { PanelWidgetSchema } from "./panel";
+
+// Reaction types + schemas (REACT-01 through REACT-04)
+export type { Reaction, ReactionCount } from "./reaction";
+export { ReactionSchema, ReactionCountSchema } from "./reaction";
+
+// Persona types + library (PERSONA-01)
+export type { PersonaConfig, PersonaId } from "./persona";
+export { PersonaConfigSchema, PERSONA_LIBRARY, PERSONA_IDS } from "./persona";

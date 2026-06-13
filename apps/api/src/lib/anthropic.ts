@@ -138,3 +138,37 @@ export function assemblePromptArray(opts: AssembleOptions): MessageParam[] {
 
   return [staticPrefixMessage, ...dynamicTail]
 }
+
+// ---------------------------------------------------------------------------
+// compressHistory — AI-08 sliding window history compression
+// ---------------------------------------------------------------------------
+
+/**
+ * Compress older conversation history into a 3-5 sentence summary using
+ * a lighter/faster model (claude-haiku-4-5-20251001 — same model as verifyApiKey).
+ *
+ * Returns '' when messages is empty to short-circuit the API call.
+ * The summary is passed as historicalSummary in assemblePromptArray().
+ *
+ * AI-08: Sliding window — last 8 messages passed raw; older messages compressed here.
+ */
+export async function compressHistory(
+  client: Anthropic,
+  messages: Message[]
+): Promise<string> {
+  if (messages.length === 0) return ''
+
+  const result = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [
+      {
+        role: 'user',
+        content: `Summarize this conversation in 3–5 sentences, capturing the key points, decisions, and unresolved questions:\n${JSON.stringify(messages)}`,
+      },
+    ],
+  })
+
+  const firstBlock = result.content[0]
+  return firstBlock?.type === 'text' ? firstBlock.text : ''
+}
