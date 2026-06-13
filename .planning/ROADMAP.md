@@ -11,7 +11,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
-| 2 | AI + Analytics | Full split-screen: Claude responds, panel renders widgets, reactions work | AI-03–08, PANEL-01–04, REACT-01–05, PERSONA-01–03 | 5 criteria |
+| 2 | AI + Analytics | 1/6 | In Progress|  |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
 ---
@@ -88,12 +88,12 @@ Plans:
 4. All 4 power reactions (🧠🔥📌🎯) produce the correct AI behavior; reactions apply optimistically on the local client
 5. Each AI message is clearly labeled with "Analista Científico" persona badge; creator can toggle the persona off mid-session and the AI stops responding
 
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Foundation: migration (reactions table, active_personas, messages.role) + schema push + shared Zod types (panel/reaction/persona) + AIProvider interface + compressHistory (AI-04/05/08, PANEL-01/04, REACT-01..04, PERSONA-01)
+- [x] 02-01-PLAN.md — Foundation: migration (reactions table, active_personas, messages.role) + schema push + shared Zod types (panel/reaction/persona) + AIProvider interface + compressHistory (AI-04/05/08, PANEL-01/04, REACT-01..04, PERSONA-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
