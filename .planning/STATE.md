@@ -46,4 +46,13 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 - **2026-06-13** — Phase 1 approved. Post-checkpoint fixes: unfreeze 409 bug (hydration deps), unfreezeSession system message, Dev Sign In bypass for WSL2.
 
 ---
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260613-cnb | I cannot see the QR share functionality that in theory was added at phase 1 - wave 2 | 2026-06-13 | 6a19fb1 | [260613-cnb-i-cannot-see-the-qr-share-functionality-](./quick/260613-cnb-i-cannot-see-the-qr-share-functionality-/) |
+
+---
 *State initialized: 2026-06-08 · Phase 1 completed: 2026-06-13*
+Last activity: 2026-06-13 - Completed quick task 260613-cnb: I cannot see the QR share functionality that in theory was added at phase 1 - wave 2
