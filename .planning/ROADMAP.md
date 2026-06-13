@@ -88,6 +88,33 @@ Plans:
 4. All 4 power reactions (🧠🔥📌🎯) produce the correct AI behavior; reactions apply optimistically on the local client
 5. Each AI message is clearly labeled with "Analista Científico" persona badge; creator can toggle the persona off mid-session and the AI stops responding
 
+**Plans:** 6 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Foundation: migration (reactions table, active_personas, messages.role) + schema push + shared Zod types (panel/reaction/persona) + AIProvider interface + compressHistory (AI-04/05/08, PANEL-01/04, REACT-01..04, PERSONA-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — AI streaming backend: real streamSSE /invoke route (branch context, bot-activation, snapshot persist) + reactions CRUD route (AI-03/04/06/07/08, PANEL-04, REACT-01..04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-03-PLAN.md — Frontend AI slice: fetch SSE consumer hook + panelStore + AI bubble variant + presence soft-lock + @analista trigger (AI-03/04/05/07, PANEL-04, PERSONA-03)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 02-04-PLAN.md — Widget slice: 4 Recharts widgets + registry + AnalyticsPanel dynamic zone + AnimatePresence morph + branch badge (PANEL-01/02/03/04)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 02-05-PLAN.md — Reactions slice: optimistic popover POST + reaction badges + Realtime sync + reaction-triggered AI (REACT-01..05)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 02-06-PLAN.md — Persona slice: personas toggle route + creation-form picker + CreatorControls drawer with live Switch + OFF stops AI (PERSONA-01/02/03)
+
 ---
 
 ### Phase 3: The Multiverse
