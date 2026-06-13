@@ -75,14 +75,17 @@ app.route("/api/sessions", aiRouter);
 // -------------------------------------------------------
 app.use("/api/sessions/:id/*", async (c, next) => {
   await next();
-  
-  const user = c.get("user") as { id: string } | undefined;
-  const sessionId = c.req.param("id");
 
-  if (user && sessionId && c.req.method !== "GET") {
+  const sessionId = c.req.param("id");
+  const hasAuth = c.req.header("Authorization")?.startsWith("Bearer ");
+
+  if (hasAuth && sessionId && c.req.method !== "GET") {
     const supabase = createServiceClient();
-    // We don't await this to keep the response fast
-    supabase.rpc("update_session_activity", { session_id: sessionId }).catch(() => {});
+    void (async () => {
+      try {
+        await supabase.rpc("update_session_activity", { session_id: sessionId });
+      } catch {}
+    })();
   }
 });
 

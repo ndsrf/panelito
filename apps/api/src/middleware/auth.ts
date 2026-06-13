@@ -43,5 +43,5 @@ export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = asyn
   }
 
   c.set('user', user)
-  await next()
+  return next()
 }
