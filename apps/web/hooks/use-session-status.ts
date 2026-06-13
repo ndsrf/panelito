@@ -44,29 +44,46 @@ export function useSessionStatus(sessionId: string, initialSession: Session): vo
 
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase.channel(`session:${sessionId}`)
+    const channel = supabase.channel(`session-status:${sessionId}`)
 
     channel
       .on(
         'broadcast',
         { event: 'session_status_change' },
         ({ payload }: { payload: SessionStatusChangePayload }) => {
-          // Merge the broadcast payload into the current session state
           const current = useSessionStore.getState().session ?? initialSession
           const updated: Session = {
             ...current,
             ...(payload.status ? { status: payload.status } : {}),
             ...(payload.title !== undefined ? { title: payload.title } : {}),
-            // SESS-07: Track the reason for status change (e.g. auto_freeze_creator_absent)
             ...(payload.reason ? { auto_freeze_reason: payload.reason } : {}),
           } as Session
           setSession(updated)
         }
       )
+      // SESS-07/11/12: Fallback for guests via postgres_changes (backed by RLS)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const newSession = payload.new as Session
+          const current = useSessionStore.getState().session ?? initialSession
+          // Merge with current state to preserve any extra fields (like auto_freeze_reason)
+          setSession({
+            ...current,
+            ...newSession,
+          })
+        }
+      )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(channel).catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])

@@ -58,7 +58,16 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   const setMessages = useSessionStore((s) => s.setMessages)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const lastScrollHeightRef = useRef(0)
+  // Re-thinking: I'll use a ref to track if we should auto-scroll.
+  const shouldAutoScrollRef = useRef(true)
+
+  const handleScroll = () => {
+    const container = containerRef.current
+    if (!container) return
+    // If the user is within 100px of the bottom, we consider them "at the bottom"
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100
+    shouldAutoScrollRef.current = atBottom
+  }
 
   // Subscribe to live messages via Supabase Realtime broadcast
   useSessionChannel(sessionId, useSessionStore.getState().addMessage)
@@ -66,14 +75,18 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   // Load initial message history on mount
   useEffect(() => {
     apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
-      .then((msgs) => setMessages(msgs))
+      .then((msgs) => {
+        setMessages(msgs)
+        // Ensure we scroll to bottom after initial load
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight
+        }
+      })
       .catch((err) => console.error('[MessageList] history load failed', err))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  // Polling fallback: merges new messages every 2s when Supabase Realtime
-  // is unavailable (e.g. Docker port not forwarded in WSL2 dev environment).
-  // Only adds messages not already in the store; does NOT replace existing ones.
+  // Polling fallback
   useEffect(() => {
     const poll = async () => {
       try {
@@ -81,7 +94,7 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
         const knownIds = new Set(useSessionStore.getState().messages.map((m) => m.id))
         msgs.filter((m) => !knownIds.has(m.id)).forEach(useSessionStore.getState().addMessage)
       } catch {
-        // ignore — network errors during polling are non-fatal
+        // ignore
       }
     }
     const id = setInterval(poll, 2000)
@@ -89,24 +102,11 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  // CHAT-03: Auto-scroll to bottom if we were already at the bottom.
-  // We use useLayoutEffect so the scroll happens before the browser paints the new messages.
+  // CHAT-03: Auto-scroll to bottom if the flag is set.
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    // Check if we were at the bottom before this update.
-    // scrollTop + clientHeight is the current visible bottom.
-    // lastScrollHeightRef.current is the height BEFORE the new messages were added.
-    const wasAtBottom =
-      container.scrollTop + container.clientHeight >= lastScrollHeightRef.current - 64
-
-    if (wasAtBottom) {
-      container.scrollTop = container.scrollHeight
+    if (shouldAutoScrollRef.current && containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
-
-    // Update the height for the next render
-    lastScrollHeightRef.current = container.scrollHeight
   }, [messages])
 
   // Prevent re-adding addMessage to session channel subscription deps
@@ -116,6 +116,7 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   return (
     <div
       ref={containerRef}
+      onScroll={handleScroll}
       className="chat-stream flex-1 overflow-y-auto"
       style={{ overscrollBehavior: 'contain' }}
     >

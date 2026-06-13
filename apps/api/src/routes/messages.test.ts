@@ -71,7 +71,7 @@ beforeAll(async () => {
     body: JSON.stringify({ title: 'Messages Test Session', mode: 'strategy' }),
   })
   const res = await app.fetch(req)
-  const session = await res.json()
+  const session = (await res.json()) as any
   testSessionId = session.id
 
   // Create an anonymous guest user for Test 2
@@ -112,7 +112,7 @@ describe('POST /api/sessions/:id/messages', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(201)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.session_id).toBe(testSessionId)
     expect(body.author_id).toBe(testCreator.id)
     expect(body.display_name).toBeDefined()
@@ -133,7 +133,7 @@ describe('POST /api/sessions/:id/messages', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(201)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.display_name).toBe('Lau')
   })
 
@@ -159,7 +159,7 @@ describe('POST /api/sessions/:id/messages', () => {
       body: JSON.stringify({ title: 'Frozen Session Test', mode: 'debate' }),
     })
     const createRes = await app.fetch(createReq)
-    const frozenSession = await createRes.json()
+    const frozenSession = (await createRes.json()) as any
 
     // Freeze it
     const freezeReq = new Request(`http://localhost/api/sessions/${frozenSession.id}/freeze`, {
@@ -179,7 +179,7 @@ describe('POST /api/sessions/:id/messages', () => {
     })
     const msgRes = await app.fetch(msgReq)
     expect(msgRes.status).toBe(403)
-    const body = await msgRes.json()
+    const body = (await msgRes.json()) as any
     expect(body.error).toBe('session_not_active')
   })
 
@@ -255,7 +255,7 @@ describe('GET /api/sessions/:id/messages', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(Array.isArray(body)).toBe(true)
     // Verify ordering
     for (let i = 1; i < body.length; i++) {

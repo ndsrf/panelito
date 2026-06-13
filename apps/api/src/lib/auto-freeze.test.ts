@@ -11,11 +11,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // Hoisted mock for Supabase and freeze helper BEFORE importing module
 // -----------------------------------------------------------------------
 
-const mockEq = vi.fn().mockResolvedValue({ data: { id: 'session-1', status: 'frozen' }, error: null })
+const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'session-1', status: 'frozen' }, error: null })
+const mockSelect = vi.fn(() => ({ single: mockSingle }))
+const mockEq = vi.fn(() => ({ select: mockSelect }))
 const mockUpdate = vi.fn(() => ({ eq: mockEq }))
+const mockInsert = vi.fn(() => ({ select: mockSelect }))
 const mockHttpSend = vi.fn().mockResolvedValue({})
 const mockChannel = vi.fn(() => ({ httpSend: mockHttpSend }))
-const mockFrom = vi.fn(() => ({ update: mockUpdate }))
+const mockFrom = vi.fn((table: string) => {
+  if (table === 'sessions') return { update: mockUpdate }
+  if (table === 'messages') return { insert: mockInsert }
+  return {}
+})
 
 const mockSupabase = {
   from: mockFrom,
@@ -30,10 +37,16 @@ describe('auto-freeze tracker', () => {
     vi.useFakeTimers()
     mockFrom.mockClear()
     mockUpdate.mockClear()
+    mockInsert.mockClear()
     mockEq.mockClear()
+    mockSelect.mockClear()
+    mockSingle.mockClear()
     mockHttpSend.mockClear()
     mockUpdate.mockImplementation(() => ({ eq: mockEq }))
-    mockEq.mockResolvedValue({ data: { id: 'session-1', status: 'frozen' }, error: null })
+    mockEq.mockImplementation(() => ({ select: mockSelect }))
+    mockInsert.mockImplementation(() => ({ select: mockSelect }))
+    mockSelect.mockImplementation(() => ({ single: mockSingle }))
+    mockSingle.mockResolvedValue({ data: { id: 'session-1', status: 'frozen' }, error: null })
   })
 
   afterEach(() => {
@@ -64,8 +77,8 @@ describe('auto-freeze tracker', () => {
     // Flush microtasks from the async freeze
     await vi.runAllTimersAsync()
 
-    // Now freeze should have fired
-    expect(mockFrom).toHaveBeenCalledWith('sessions')
+    // Now freeze should have fired (twice: once for session status update, once for system message insert)
+    expect(mockFrom).toHaveBeenCalledTimes(2)
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'frozen' })
     )
@@ -125,8 +138,8 @@ describe('auto-freeze tracker', () => {
     vi.advanceTimersByTime(30_000 + 15 * 60_000 + 1_000)
     await vi.runAllTimersAsync()
 
-    // freeze should fire exactly once
-    expect(mockFrom).toHaveBeenCalledTimes(1)
+    // freeze should fire exactly once (but calls from() twice internally: session update + system message)
+    expect(mockFrom).toHaveBeenCalledTimes(2)
     expect(mockUpdate).toHaveBeenCalledTimes(1)
   })
 })

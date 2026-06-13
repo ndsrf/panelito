@@ -66,9 +66,9 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps): ReactNode
       {/* Content column */}
       <div className={cn('flex-1 min-w-0 flex flex-col', isOwn ? 'items-end' : 'items-start')}>
         {/* Author + timestamp */}
-        <div className={cn('flex items-baseline gap-2 mb-0.5', isOwn && 'flex-row-reverse')}>
-          <span className="text-[15px] font-medium text-foreground truncate">
-            {message.display_name}
+        <div className={cn('flex items-baseline gap-2 mb-0.5 flex-wrap', isOwn && 'flex-row-reverse')}>
+          <span className="text-[15px] font-medium text-foreground">
+            {message.display_name || 'Anónimo'}
           </span>
           <span className="text-[13px] text-muted-foreground flex-shrink-0">
             {formatTime(message.created_at)}

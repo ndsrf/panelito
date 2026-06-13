@@ -85,7 +85,7 @@ describe('POST /api/sessions', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(201)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.creator_id).toBe(testCreator.id)
     expect(body.short_code).toMatch(/^[A-HJ-NP-Z2-9]{6}$/)
     testSessionId = body.id
@@ -116,7 +116,7 @@ describe('POST /api/sessions/:id/freeze', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.status).toBe('frozen')
   })
 
@@ -144,7 +144,7 @@ describe('POST /api/sessions/:id/close', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.status).toBe('closed')
   })
 })
@@ -158,7 +158,7 @@ describe('GET /api/sessions/by-code/:code', () => {
     const req = new Request(`http://localhost/api/sessions/by-code/${testShortCode}`)
     const res = await app.fetch(req)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.id).toBeDefined()
     expect(body.title).toBeDefined()
     expect(body.status).toBeDefined()
@@ -192,7 +192,7 @@ describe('POST /api/sessions/by-code/:code/guests', () => {
       body: JSON.stringify({ title: 'Guest Test Session', mode: 'debate' }),
     })
     const createRes = await app.fetch(createReq)
-    const session = await createRes.json()
+    const session = (await createRes.json()) as any
     const code = session.short_code
 
     const req = new Request(`http://localhost/api/sessions/by-code/${code}/guests`, {
@@ -202,7 +202,7 @@ describe('POST /api/sessions/by-code/:code/guests', () => {
     })
     const res = await app.fetch(req)
     expect(res.status).toBe(201)
-    const body = await res.json()
+    const body = (await res.json()) as any
     expect(body.session_id).toBe(session.id)
     expect(body.guest_user_id).toBeDefined()
     expect(body.guest_user_id).not.toBe(testCreator.id)

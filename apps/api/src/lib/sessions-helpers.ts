@@ -45,7 +45,7 @@ export async function freezeSession(
 
   // Insert system message describing the freeze (T-07-07 audit trail)
   const systemContent = freezeReasonMessage(reason)
-  const { error: msgError } = await supabase
+  const { data: row, error: msgError } = await supabase
     .from('messages')
     .insert({
       session_id: sessionId,
@@ -58,8 +58,15 @@ export async function freezeSession(
     })
     .select()
     .single()
+
   if (msgError) {
     console.error('[sessions-helpers] system message insert error:', msgError.message)
+  } else if (row) {
+    // Broadcast the new system message to all participants in real-time
+    supabase
+      .channel(`session:${sessionId}`)
+      .httpSend('new_message', row)
+      .catch((err: unknown) => console.error('[sessions-helpers] message broadcast error:', err))
   }
 
   // Broadcast session_status_change to all clients
@@ -111,7 +118,7 @@ export async function unfreezeSession(
     return
   }
 
-  const { error: msgError } = await supabase
+  const { data: row, error: msgError } = await supabase
     .from('messages')
     .insert({
       session_id: sessionId,
@@ -124,8 +131,15 @@ export async function unfreezeSession(
     })
     .select()
     .single()
+
   if (msgError) {
     console.error('[sessions-helpers] system message insert error:', msgError.message)
+  } else if (row) {
+    // Broadcast the new system message to all participants in real-time
+    supabase
+      .channel(`session:${sessionId}`)
+      .httpSend('new_message', row)
+      .catch((err: unknown) => console.error('[sessions-helpers] message broadcast error:', err))
   }
 
   supabase
@@ -172,7 +186,7 @@ export async function closeSession(
     return
   }
 
-  const { error: msgError } = await supabase
+  const { data: row, error: msgError } = await supabase
     .from('messages')
     .insert({
       session_id: sessionId,
@@ -185,8 +199,15 @@ export async function closeSession(
     })
     .select()
     .single()
+
   if (msgError) {
     console.error('[sessions-helpers] system message insert error:', msgError.message)
+  } else if (row) {
+    // Broadcast the new system message to all participants in real-time
+    supabase
+      .channel(`session:${sessionId}`)
+      .httpSend('new_message', row)
+      .catch((err: unknown) => console.error('[sessions-helpers] message broadcast error:', err))
   }
 
   supabase
