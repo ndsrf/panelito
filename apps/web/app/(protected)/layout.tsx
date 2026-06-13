@@ -31,7 +31,7 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode
 }) {
-  await requireUser()
+  const user = await requireUser()
 
   // Read current pathname to implement the /settings exception
   const headersList = await headers()
@@ -41,7 +41,9 @@ export default async function ProtectedLayout({
   // /onboarding/* is outside this layout group — never matches here
   const isSettingsRoute = pathname.startsWith('/settings')
 
-  if (!isSettingsRoute) {
+  // BYOK gate (D-04): Only creators (non-anonymous users) are gated.
+  // Guests (anonymous users) do not need to provide their own API keys.
+  if (!isSettingsRoute && !user.is_anonymous) {
     // Check if the creator has an API key (D-04 gate)
     const settings = await getCreatorSettings()
     if (!settings.has_api_key) {

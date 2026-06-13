@@ -52,6 +52,11 @@ export default async function WorkspacePage({
     notFound()
   }
 
+  // BYOK logic: If the current user is a guest (anonymous), we don't want to show
+  // them the "Connect your API key" prompt in the analytics panel.
+  // We only enforce the missing key state for the creator.
+  const hasApiKey = user?.is_anonymous ? true : creatorSettings.has_api_key
+
   // Derive display name from user metadata (Plan 05: typing presence CHAT-06)
   const meta = user?.user_metadata as Record<string, unknown> | undefined
   const displayName =
@@ -63,7 +68,7 @@ export default async function WorkspacePage({
   return (
     <Workspace
       session={session}
-      hasApiKey={creatorSettings.has_api_key}
+      hasApiKey={hasApiKey}
       currentUserId={user?.id ?? ''}
       currentUserDisplayName={displayName}
       shortCode={session.short_code}
