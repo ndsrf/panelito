@@ -2,8 +2,8 @@
 phase: 01-live-session-shell
 plan: "07"
 subsystem: session-lifecycle
-status: checkpoint-pending
-completed_tasks: 3
+status: completed
+completed_tasks: 4
 total_tasks: 4
 tags:
   - auto-freeze
@@ -87,7 +87,7 @@ metrics:
 
 **One-liner:** Server-side auto-freeze tracker (30s grace + 15min timer), cap guard with 90%/100% thresholds, deterministic auto-name after 3rd message, in-memory rate limiting on 4 endpoints, with 6/6 E2E lifecycle tests passing.
 
-**Status: 3/4 tasks complete — awaiting human verification (Task 4 is a checkpoint:human-verify gate)**
+**Status: 4/4 tasks complete — Phase 1 approved by creator 2026-06-13**
 
 ## Tasks Completed
 
@@ -96,7 +96,7 @@ metrics:
 | 1 | Lifecycle server libs + unit tests | dac88ec | auto-freeze.ts, auto-name.ts, cap-guard.ts, rate-limit.ts, sessions-helpers.ts, 0003_ai_count_helpers.sql |
 | 2 | Web hooks + live status + system messages | db42136 | use-session-status.ts, use-creator-presence.ts, InputBox.tsx, CreatorControls.tsx, MessageList.tsx, workspace.tsx |
 | 3 | E2E lifecycle test suite | 98ee49e | e2e/lifecycle.spec.ts, playwright.config.ts |
-| 4 | Human verification (Phase 1 acceptance gate) | PENDING | n/a |
+| 4 | Human verification (Phase 1 acceptance gate) | APPROVED | n/a |
 
 ## Architecture
 
@@ -189,17 +189,12 @@ All 6 tests pass against worktree API on port 8788.
 - `apps/api/src/lib/auto-name.ts`: deterministic word-frequency stub. Phase 2 replaces with flash Claude call (AI-09). Function signature (`maybeAutoName(supabase, sessionId)`) stays stable. Comment in file documents the replacement point.
 - `apps/api/src/routes/ai.ts`: `/invoke` route still returns 501 scaffold. Cap check and increment wired, but actual Claude invocation is Phase 2.
 
-## Awaiting: Task 4 (Human Verification)
+## Phase 1 Acceptance: APPROVED (2026-06-13)
 
-Task 4 is a `checkpoint:human-verify` gate. The developer must manually walk through the Phase 1 demo acceptance criteria:
-
-1. OAuth + QR + guest entry (3 browsers)
-2. Real-time chat with < 1s latency
-3. 40/60 layout holds under mobile virtual keyboard
-4. Branch Navigator + manual freeze/unfreeze/close
-5. Lifecycle edges: auto-name after 3 messages, BYOK invalid key error, cap freeze via DB override
-
-Resume signal: type **"approved"** if all 5 criteria pass, or paste specific failure notes.
+Human verification passed. Post-checkpoint fixes applied before closing:
+- **fix(session):** unfreeze button 409 + stale UI after router.refresh — hydration deps bug in `use-session-status.ts`, idempotent unfreeze route
+- **feat(session):** `unfreezeSession()` helper — system message "El creador ha reactivado la sesion." symmetric with freeze audit trail
+- **fix(dev):** Dev Sign In button added to bypass Google OAuth in WSL2
 
 ## Self-Check: PASSED
 
