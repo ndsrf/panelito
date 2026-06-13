@@ -80,7 +80,11 @@ export function Workspace({
         {/* Creator controls: overlayed at top-right of analytics panel */}
         {isCreator && (
           <div className="absolute top-3 right-3 z-10">
-            <CreatorControls session={liveSession} />
+            <CreatorControls
+              session={liveSession}
+              shortCode={shortCode ?? liveSession.short_code}
+              sessionTitle={liveSession.title}
+            />
           </div>
         )}
       </div>

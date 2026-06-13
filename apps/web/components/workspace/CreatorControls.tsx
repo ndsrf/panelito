@@ -37,10 +37,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { apiFetch, ApiError } from '@/lib/api'
+import { ShareButton } from '@/app/(protected)/sessions/[id]/share-button'
 import type { Session } from '@panelito/types'
 
 interface CreatorControlsProps {
   session: Session
+  shortCode: string
+  sessionTitle: string | null
 }
 
 interface ActionButtonsProps {
@@ -210,11 +213,12 @@ function CloseButton({ sessionId, status, onAction }: ActionButtonsProps): React
  * - Unfreeze / Reactivar: only when status === 'frozen'
  * - Close: always except when already closed
  */
-export function CreatorControls({ session }: CreatorControlsProps): ReactNode {
+export function CreatorControls({ session, shortCode, sessionTitle }: CreatorControlsProps): ReactNode {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const actionButtons = (
     <div className="flex items-center gap-2">
+      <ShareButton shortCode={shortCode} sessionTitle={sessionTitle} />
       <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
       <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
       <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
@@ -241,6 +245,7 @@ export function CreatorControls({ session }: CreatorControlsProps): ReactNode {
               <SheetTitle>Opciones de sesion</SheetTitle>
             </SheetHeader>
             <div className="flex flex-col gap-3 pt-4 pb-6">
+              <ShareButton shortCode={shortCode} sessionTitle={sessionTitle} />
               <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
               <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
               <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
