@@ -11,7 +11,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
-| 2 | AI + Analytics | 2/6 | In Progress|  |
+| 2 | AI + Analytics | 3/6 | In Progress|  |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
 ---
@@ -88,7 +88,7 @@ Plans:
 4. All 4 power reactions (🧠🔥📌🎯) produce the correct AI behavior; reactions apply optimistically on the local client
 5. Each AI message is clearly labeled with "Analista Científico" persona badge; creator can toggle the persona off mid-session and the AI stops responding
 
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -101,7 +101,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03-PLAN.md — Frontend AI slice: fetch SSE consumer hook + panelStore + AI bubble variant + presence soft-lock + @analista trigger (AI-03/04/05/07, PANEL-04, PERSONA-03)
+- [x] 02-03-PLAN.md — Frontend AI slice: fetch SSE consumer hook + panelStore + AI bubble variant + presence soft-lock + @analista trigger (AI-03/04/05/07, PANEL-04, PERSONA-03)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
