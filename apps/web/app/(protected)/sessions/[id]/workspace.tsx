@@ -92,7 +92,7 @@ export function Workspace({
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
   // The session-wide isAIStreaming (all participants) is derived in InputBox from presence.
-  const { isAIStreaming: localAIStreaming, streamingText, openAIStream } = useAIStream(liveSession.id)
+  const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream } = useAIStream(liveSession.id)
 
   /**
    * handleAfterSend — called by InputBox after a successful message POST.
@@ -107,6 +107,13 @@ export function Workspace({
       })
     }
   }
+
+  // Map AI stream error states to user-visible messages (shown briefly below the input)
+  const aiErrorMessage =
+    aiStatus === 'no_api_key' ? 'Conecta tu API key de Anthropic en Configuración para activar el Analista.' :
+    aiStatus === 'no_persona' ? 'El Analista está desactivado. Actívalo en los controles de sesión.' :
+    aiStatus === 'error' ? 'El Analista no pudo responder. Verifica tu conexión e inténtalo de nuevo.' :
+    null
 
   // Build an ephemeral streaming AI message object for the bubble (D-02).
   // While localAIStreaming is true, this ephemeral bubble renders below the message list.
@@ -164,6 +171,13 @@ export function Workspace({
               isStreaming={true}
               streamingText={streamingText}
             />
+          </div>
+        )}
+
+        {/* AI stream error feedback (no_api_key, error, no_persona) */}
+        {aiErrorMessage && (
+          <div className="px-4 pb-1 text-[13px] text-destructive" role="alert">
+            {aiErrorMessage}
           </div>
         )}
 

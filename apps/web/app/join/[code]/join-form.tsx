@@ -50,19 +50,20 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
     const checkSavedSession = async () => {
       const saved = loadGuestSession(shortCode)
       if (saved) {
+        // Best-effort session restore — in WSL2 dev the browser may not reach
+        // Supabase directly; the workspace SSR will validate the session.
         try {
-          // Restore the Supabase session from saved tokens
           const supabase = createClient()
           await supabase.auth.setSession({
             access_token: saved.access_token,
             refresh_token: saved.refresh_token,
           })
-          // Silent re-entry — no display name form shown (SESS-10)
-          router.replace(`/sessions/${saved.session_id}`)
-          return
         } catch {
-          // Saved session is invalid — show the form
+          // ignore network errors — redirect anyway, workspace SSR handles auth
         }
+        // Silent re-entry — no display name form shown (SESS-10)
+        router.replace(`/sessions/${saved.session_id}`)
+        return
       }
       setIsCheckingSaved(false)
     }
@@ -81,12 +82,17 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
         return
       }
 
-      // Set the anonymous Supabase session on the browser client
-      const supabase = createClient()
-      await supabase.auth.setSession({
-        access_token: result.access_token,
-        refresh_token: result.refresh_token,
-      })
+      // Best-effort session set — in WSL2 dev the browser may not reach Supabase
+      // directly; workspace SSR will validate. Never block the join flow on this.
+      try {
+        const supabase = createClient()
+        await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        })
+      } catch {
+        // ignore — tokens saved to localStorage below; SSR will restore
+      }
 
       // Persist to localStorage BEFORE router.push (RESEARCH.md Pitfall 8, SESS-10)
       saveGuestSession(shortCode, {
