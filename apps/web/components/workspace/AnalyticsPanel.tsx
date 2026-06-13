@@ -130,6 +130,12 @@ function StateKeySet(): ReactNode {
 
 interface AnalyticsPanelProps {
   hasApiKey: boolean
+  /**
+   * Phase 2: isStreaming — passed from workspace while AI is generating a response.
+   * When true, the panel header shows "Analizando..." with a pulsing dot (PANEL-03).
+   * Plan 03 wires this prop; Plan 04 renders the full header strip.
+   */
+  isStreaming?: boolean
 }
 
 /**
@@ -137,12 +143,20 @@ interface AnalyticsPanelProps {
  *
  * @param hasApiKey - Whether the creator has a verified Anthropic API key.
  *                   Plan 04 hardcodes false; Plan 06 wires the real value.
+ * @param isStreaming - Phase 2: true while AI is generating a response (for "Analizando..." label).
  */
-export function AnalyticsPanel({ hasApiKey }: AnalyticsPanelProps): ReactNode {
+export function AnalyticsPanel({ hasApiKey, isStreaming = false }: AnalyticsPanelProps): ReactNode {
   return (
     <AnalyticsPanelErrorBoundary>
       <div className="analytics-panel bg-card flex items-center justify-center border-b border-border">
+        {/* Phase 2 Plan 04 will replace this with the full header strip + widget zone.
+            For now, pass isStreaming through so the prop contract is established. */}
         {hasApiKey ? <StateKeySet /> : <StateNoKey />}
+        {isStreaming && (
+          <span className="sr-only" role="status" aria-live="polite">
+            El analista está analizando...
+          </span>
+        )}
       </div>
     </AnalyticsPanelErrorBoundary>
   )
