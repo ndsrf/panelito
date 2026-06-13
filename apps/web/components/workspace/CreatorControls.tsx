@@ -236,7 +236,7 @@ export function CreatorControls({ session }: CreatorControlsProps): ReactNode {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom">
+          <SheetContent side="bottom" aria-describedby={undefined}>
             <SheetHeader>
               <SheetTitle>Opciones de sesion</SheetTitle>
             </SheetHeader>

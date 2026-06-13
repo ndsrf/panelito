@@ -281,6 +281,10 @@ sessionsRouter.post('/:id/unfreeze', requireAuth, async (c) => {
     }
 
     if (session.status !== 'frozen') {
+      // Idempotent: already active is a success (handles double-clicks / stale UI)
+      if (session.status === 'active') {
+        return c.json(session, 200)
+      }
       return c.json({ error: 'session_not_frozen', status: session.status }, 409)
     }
 

@@ -34,11 +34,13 @@ interface SessionStatusChangePayload {
 export function useSessionStatus(sessionId: string, initialSession: Session): void {
   const setSession = useSessionStore((s) => s.setSession)
 
-  // Hydrate the store with the initial server-fetched session on mount
+  // Re-hydrate the store whenever the server-fetched session changes (e.g. after router.refresh()).
+  // Using specific fields avoids re-running on every parent render while still catching
+  // status/title updates that router.refresh() brings in after an action.
   useEffect(() => {
     setSession(initialSession)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [initialSession.id, initialSession.status, initialSession.title])
 
   useEffect(() => {
     const supabase = createClient()
