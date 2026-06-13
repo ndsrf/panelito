@@ -28,21 +28,30 @@ const EnvSchema = z.object({
     .default("http://localhost:3000"),
 });
 
-const result = EnvSchema.safeParse(process.env);
+export const env = (() => {
+  const result = EnvSchema.safeParse(process.env);
 
-if (!result.success) {
-  // During Next.js build phase, some env vars might be missing.
-  // We allow the build to continue, but we'll crash at runtime if they are still missing.
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    console.warn('[panelito/api] Skipping env validation during build phase');
-  } else {
-    const issues = result.error.issues
-      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-      .join("\n");
-    throw new Error(
-      `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
-    );
+  if (!result.success) {
+    // During Next.js build phase, some env vars might be missing.
+    // We allow the build to continue, but we'll crash at runtime if they are still missing.
+    if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.VERCEL === '1') {
+      console.warn('[panelito/api] Skipping env validation during build phase');
+      return {
+        SUPABASE_URL: process.env.SUPABASE_URL || '',
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        KEY_ENCRYPTION_SECRET: process.env.KEY_ENCRYPTION_SECRET || '0'.repeat(64),
+        API_PORT: 8787,
+        ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
+      } as z.infer<typeof EnvSchema>;
+    } else {
+      const issues = result.error.issues
+        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+        .join("\n");
+      throw new Error(
+        `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
+      );
+    }
   }
-}
 
-export const env = result.data ?? {} as z.infer<typeof EnvSchema>;
+  return result.data;
+})();
