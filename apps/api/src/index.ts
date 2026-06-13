@@ -6,6 +6,7 @@ import messagesRouter from "./routes/messages";
 import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
+import reactionsRouter from "./routes/reactions";
 import { createServiceClient } from "./lib/supabase";
 
 // -----------------------------------------------------------------------
@@ -67,5 +68,10 @@ app.route("/sessions/:id/messages", messagesRouter);
 app.route("/keys", keysRouter);
 app.route("/settings", settingsRouter);
 app.route("/sessions", aiRouter); // aiRouter has internal /:id/invoke
+// -------------------------------------------------------
+// Reactions route (REACT-01 through REACT-05)
+// POST /api/sessions/:id/reactions
+// -------------------------------------------------------
+app.route("/sessions/:id/reactions", reactionsRouter);
 
 export default app;
