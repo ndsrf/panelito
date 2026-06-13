@@ -31,12 +31,18 @@ const EnvSchema = z.object({
 const result = EnvSchema.safeParse(process.env);
 
 if (!result.success) {
-  const issues = result.error.issues
-    .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-    .join("\n");
-  throw new Error(
-    `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
-  );
+  // During Next.js build phase, some env vars might be missing.
+  // We allow the build to continue, but we'll crash at runtime if they are still missing.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.warn('[panelito/api] Skipping env validation during build phase');
+  } else {
+    const issues = result.error.issues
+      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    throw new Error(
+      `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
+    );
+  }
 }
 
-export const env = result.data;
+export const env = result.data ?? {} as z.infer<typeof EnvSchema>;
