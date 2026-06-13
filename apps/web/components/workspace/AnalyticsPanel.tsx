@@ -7,18 +7,24 @@
  * LAYOUT-07: wrapped in AnalyticsPanelErrorBoundary — any widget crash
  *            shows the fallback card without breaking the chat below.
  *
- * Two distinct states per D-07:
+ * Phase 2 Plan 04 additions:
+ *   - 36px panel header strip (PANEL-03): "Main" branch badge + "Analizando..." pulse
+ *   - Dynamic widget zone reading from usePanelStore, resolved via widgetRegistry
+ *   - AnimatePresence mode="wait" keyed on `${widgetType}-${branchId}` for D-08 morph
+ *
+ * Two distinct empty states per D-07:
  *   a) hasApiKey=false → "Connect your API key in Settings" with a link (D-07a)
  *   b) hasApiKey=true  → branded empty state with tagline (D-07b / D-08)
- *
- * Phase 2 will render dynamic widgets inside the boundary; Phase 1 just
- * scaffolds the structural shell and the error safety net.
  */
 
 import { Component, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { AlertTriangle, KeyRound } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Badge } from '@/components/ui/badge'
+import { usePanelStore } from '@/store/panel-store'
+import { widgetRegistry } from './widgets/widget-registry'
 
 // -----------------------------------------------------------------------
 // Error Boundary (LAYOUT-07)
@@ -125,6 +131,92 @@ function StateKeySet(): ReactNode {
 }
 
 // -----------------------------------------------------------------------
+// Widget Zone (inner client component — reads panelStore hooks)
+// -----------------------------------------------------------------------
+
+/**
+ * WidgetZone — the dynamic inner zone that reads panelStore and renders
+ * the active widget with AnimatePresence morph transitions (D-08).
+ *
+ * Separated as a client component function so the error boundary (class component)
+ * can wrap it without needing to call hooks itself.
+ */
+function WidgetZone({ hasApiKey, isStreaming }: { hasApiKey: boolean; isStreaming: boolean }) {
+  const { widgetType, widgetData, branchId } = usePanelStore()
+  const WidgetComponent = widgetType ? widgetRegistry.get(widgetType) : null
+
+  return (
+    <div className="analytics-panel bg-card flex flex-col border-b border-border">
+      {/* Panel header strip — 36px height (PANEL-03) */}
+      <div
+        className="flex items-center justify-between px-4 border-b border-border flex-shrink-0"
+        style={{ height: 36 }}
+      >
+        {/* Branch badge — "Main" with Indigo 500 treatment */}
+        <Badge
+          className="text-[13px] gap-1.5 py-0.5"
+          style={{
+            background: 'rgba(99,102,241,0.2)',
+            border: '1px solid #6366f1',
+            color: '#a5b4fc',
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: '#6366f1' }}
+          />
+          Main
+        </Badge>
+
+        {/* "Analizando..." pulse — only while AI is streaming */}
+        {isStreaming && (
+          <span className="text-[13px] text-muted-foreground flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Analizando...
+          </span>
+        )}
+      </div>
+
+      {/* Widget zone — calc(100% - 36px) height, AnimatePresence morph (D-08) */}
+      <div className="flex-1 overflow-hidden p-4">
+        <AnimatePresence mode="wait">
+          {WidgetComponent && widgetData ? (
+            <motion.div
+              key={`${widgetType}-${branchId}`}
+              initial={{ opacity: 0, scale: 0.97, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
+              transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="h-full"
+            >
+              <WidgetComponent data={widgetData} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="h-full flex items-center justify-center"
+            >
+              {hasApiKey ? <StateKeySet /> : <StateNoKey />}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Accessibility: sr-only status for streaming state */}
+      {isStreaming && (
+        <span className="sr-only" role="status" aria-live="polite">
+          El analista está analizando...
+        </span>
+      )}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------
 // Public component
 // -----------------------------------------------------------------------
 
@@ -133,7 +225,6 @@ interface AnalyticsPanelProps {
   /**
    * Phase 2: isStreaming — passed from workspace while AI is generating a response.
    * When true, the panel header shows "Analizando..." with a pulsing dot (PANEL-03).
-   * Plan 03 wires this prop; Plan 04 renders the full header strip.
    */
   isStreaming?: boolean
 }
@@ -142,22 +233,12 @@ interface AnalyticsPanelProps {
  * AnalyticsPanel — the top 40% analytics segment of the workspace.
  *
  * @param hasApiKey - Whether the creator has a verified Anthropic API key.
- *                   Plan 04 hardcodes false; Plan 06 wires the real value.
  * @param isStreaming - Phase 2: true while AI is generating a response (for "Analizando..." label).
  */
 export function AnalyticsPanel({ hasApiKey, isStreaming = false }: AnalyticsPanelProps): ReactNode {
   return (
     <AnalyticsPanelErrorBoundary>
-      <div className="analytics-panel bg-card flex items-center justify-center border-b border-border">
-        {/* Phase 2 Plan 04 will replace this with the full header strip + widget zone.
-            For now, pass isStreaming through so the prop contract is established. */}
-        {hasApiKey ? <StateKeySet /> : <StateNoKey />}
-        {isStreaming && (
-          <span className="sr-only" role="status" aria-live="polite">
-            El analista está analizando...
-          </span>
-        )}
-      </div>
+      <WidgetZone hasApiKey={hasApiKey} isStreaming={isStreaming} />
     </AnalyticsPanelErrorBoundary>
   )
 }
