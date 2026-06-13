@@ -65,7 +65,9 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     const container = containerRef.current
     if (!container) return
     // If the user is within 100px of the bottom, we consider them "at the bottom"
-    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100
+    // We use a small buffer to handle rounding issues on high-DPI screens.
+    const threshold = 100
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - threshold
     shouldAutoScrollRef.current = atBottom
   }
 
@@ -77,10 +79,13 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
       .then((msgs) => {
         setMessages(msgs)
-        // Ensure we scroll to bottom after initial load
-        if (containerRef.current) {
-          containerRef.current.scrollTop = containerRef.current.scrollHeight
-        }
+        // Ensure we scroll to bottom after initial load. 
+        // We use requestAnimationFrame to wait for the browser to finish rendering the messages.
+        requestAnimationFrame(() => {
+          if (containerRef.current) {
+            containerRef.current.scrollTop = containerRef.current.scrollHeight
+          }
+        })
       })
       .catch((err) => console.error('[MessageList] history load failed', err))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +97,10 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
       try {
         const msgs = await apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
         const knownIds = new Set(useSessionStore.getState().messages.map((m) => m.id))
-        msgs.filter((m) => !knownIds.has(m.id)).forEach(useSessionStore.getState().addMessage)
+        const newMsgs = msgs.filter((m) => !knownIds.has(m.id))
+        if (newMsgs.length > 0) {
+          newMsgs.forEach(useSessionStore.getState().addMessage)
+        }
       } catch {
         // ignore
       }

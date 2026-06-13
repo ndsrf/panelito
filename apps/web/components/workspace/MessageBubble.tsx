@@ -101,9 +101,12 @@ export function MessageBubble({
       {/* Content column */}
       <div className={cn('flex-1 min-w-0 flex flex-col', isOwn && !isAI ? 'items-end' : 'items-start')}>
         {/* Author + timestamp (+ persona badge for AI) */}
-        <div className={cn('flex items-baseline gap-2 mb-0.5', isOwn && !isAI && 'flex-row-reverse')}>
-          <span className="text-[15px] font-medium text-foreground truncate">
-            {isAI ? 'Analista Científico' : message.display_name}
+        <div className={cn('flex items-baseline gap-2 mb-0.5 flex-wrap', isOwn && !isAI && 'flex-row-reverse')}>
+          <span
+            className="text-[15px] font-medium text-foreground"
+            data-testid="message-author"
+          >
+            {isAI ? 'Analista Científico' : (message.display_name || 'Invitado')}
           </span>
 
           {/* Persona badge — shown next to author name when isAI (PERSONA-03 / UI-SPEC Surface 2) */}

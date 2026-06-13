@@ -89,7 +89,25 @@
 .chat-stream {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 52px; /* input box height */
+  /* padding-bottom: base height of InputBox + keyboard height */
+  padding-bottom: calc(52px + var(--keyboard-height, 0px));
+  /* Ensure mobile momentum scrolling and finger interactions are smooth */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mini scrollbar for chat-stream (mostly for desktop/non-touch to indicate scrollability) */
+.chat-stream::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-stream::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-stream::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+.chat-stream::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
 
 /* Input box: absolutely positioned, keyboard-aware bottom offset (LAYOUT-04) */
