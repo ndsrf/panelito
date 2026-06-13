@@ -62,20 +62,30 @@ export async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-  })
+  const url = `${API_URL}${path}`
 
-  if (!response.ok) {
-    let body: unknown
-    try {
-      body = await response.json()
-    } catch {
-      body = { error: 'unknown' }
+  try {
+    const response = await fetch(url, {
+      ...init,
+      headers,
+    })
+
+    if (!response.ok) {
+      let body: unknown
+      try {
+        body = await response.json()
+      } catch {
+        body = { error: 'unknown' }
+      }
+      throw new ApiError(response.status, body)
     }
-    throw new ApiError(response.status, body)
-  }
 
-  return response.json() as Promise<T>
+    return response.json() as Promise<T>
+  } catch (err) {
+    if (err instanceof ApiError) throw err
+    
+    // Log network errors for debugging, especially on the server
+    console.error(`[apiFetch] Network error for ${url}:`, err)
+    throw err
+  }
 }

@@ -27,6 +27,10 @@ import type { CreatorSettings } from '@panelito/types'
 export async function getCreatorSettings(): Promise<CreatorSettings> {
   const supabase = await createServerClient()
   const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const {
     data: { session },
   } = await supabase.auth.getSession()
 
@@ -34,9 +38,11 @@ export async function getCreatorSettings(): Promise<CreatorSettings> {
 
   try {
     return await apiFetch<CreatorSettings>('/api/settings', {}, accessToken)
-  } catch {
+  } catch (err) {
+    // Log the error for server-side debugging
+    console.error('[getCreatorSettings] fetch failed:', err)
+    
     // If settings fetch fails (e.g., no row yet), return safe defaults
-    const user = session?.user
     return {
       user_id: user?.id ?? '',
       has_api_key: false,
@@ -67,7 +73,8 @@ export async function getKeyStatus(): Promise<{ has_api_key: boolean; last4: str
       {},
       accessToken
     )
-  } catch {
+  } catch (err) {
+    console.error('[getKeyStatus] fetch failed:', err)
     return { has_api_key: false, last4: null }
   }
 }
