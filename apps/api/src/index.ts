@@ -69,23 +69,43 @@ app.route("/api/settings", settingsRouter);
 app.route("/api/sessions", aiRouter);
 
 // -------------------------------------------------------
-// Start server
+// Activity tracking middleware
+// Updates last_creator_activity_at in Supabase whenever
+// the creator makes a request to a session route.
 // -------------------------------------------------------
-serve(
-  {
-    fetch: app.fetch,
-    port: env.API_PORT,
-  },
-  (info) => {
-    console.log(`[panelito/api] Server listening on port ${info.port}`);
-    console.log(`[panelito/api] Health: http://localhost:${info.port}/health`);
+app.use("/api/sessions/:id/*", async (c, next) => {
+  await next();
+  
+  const user = c.get("user") as { id: string } | undefined;
+  const sessionId = c.req.param("id");
 
-    // SESS-07: Start auto-freeze tracker after server is ready
-    startAutoFreezeTracker(createServiceClient()).catch((err) =>
-      console.error("[panelito/api] auto-freeze tracker startup error:", err)
-    );
+  if (user && sessionId && c.req.method !== "GET") {
+    const supabase = createServiceClient();
+    // We don't await this to keep the response fast
+    supabase.rpc("update_session_activity", { session_id: sessionId }).catch(() => {});
   }
-);
+});
+
+// -------------------------------------------------------
+// Start server (only if not running on Vercel)
+// -------------------------------------------------------
+if (process.env.VERCEL !== "1") {
+  serve(
+    {
+      fetch: app.fetch,
+      port: env.API_PORT,
+    },
+    (info) => {
+      console.log(`[panelito/api] Server listening on port ${info.port}`);
+      console.log(`[panelito/api] Health: http://localhost:${info.port}/health`);
+
+      // SESS-07: Start auto-freeze tracker after server is ready
+      startAutoFreezeTracker(createServiceClient()).catch((err) =>
+        console.error("[panelito/api] auto-freeze tracker startup error:", err)
+      );
+    }
+  );
+}
 
 // Clean up all timers on graceful shutdown (SIGTERM)
 process.on("SIGTERM", () => {

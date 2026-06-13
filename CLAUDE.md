@@ -46,7 +46,7 @@ Project Multiverse is a synchronous, multi-user collaborative workspace where gr
 ### Infrastructure
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| Hosting | **Vercel** (frontend) + **Railway** (backend) | Vercel for Next.js edge; Railway for persistent Node.js streaming server |
+| Hosting | **Vercel** (unified) | Frontend + Backend (Hono bridge) hosted on Vercel; Supabase `pg_cron` for persistent tasks |
 | File storage | **Supabase Storage** | QR codes, exported session summaries |
 | Secrets | **Doppler** or `.env.local` | Creator API keys stored encrypted in Supabase user metadata |
 ## Key Library Versions (2026)
