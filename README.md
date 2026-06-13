@@ -2,6 +2,33 @@
 
 > A synchronous, multi-user collaborative workspace where groups debate and explore ideas alongside specialized AI personas.
 
+## Deployment (Unified)
+
+Panelito is designed to be deployed as a single Vercel project with a Supabase backend.
+
+### 1. Supabase Setup
+1. Create a new project at [supabase.com](https://supabase.com).
+2. Apply the migrations in `supabase/migrations/` to your project.
+3. **Crucial:** Ensure the `pg_cron` extension is enabled and the auto-freeze job is scheduled (see `0004_auto_freeze_pg_cron.sql`).
+
+### 2. Vercel Setup (1 Project)
+1. Connect your GitHub repository to Vercel.
+2. Set the **Root Directory** to `apps/web`.
+3. Vercel will automatically detect the Turborepo monorepo.
+4. Add the following **Environment Variables**:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase Project URL.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase `anon` key.
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase `service_role` key (found in Settings -> API).
+   - `KEY_ENCRYPTION_SECRET`: A 64-character hex string for API key encryption.
+   - `NEXT_PUBLIC_API_URL`: `/api` (this points the frontend to the internal Hono bridge).
+   - `ALLOWED_ORIGINS`: Your Vercel domain (e.g., `https://panelito.vercel.app`).
+
+### Why Unified?
+By hosting the Hono API inside Next.js Route Handlers:
+- **Zero CORS:** Both live on the same domain.
+- **Cost Effective:** Fits within the Vercel Hobby tier (1 project).
+- **Serverless:** Uses Supabase `pg_cron` for background tasks, allowing the API to remain stateless.
+
 ## Quick Start
 
 ```bash
