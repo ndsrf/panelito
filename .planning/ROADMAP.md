@@ -11,7 +11,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
-| 2 | AI + Analytics | 1/6 | In Progress|  |
+| 2 | AI + Analytics | 2/6 | In Progress|  |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 
 ---
@@ -88,7 +88,7 @@ Plans:
 4. All 4 power reactions (🧠🔥📌🎯) produce the correct AI behavior; reactions apply optimistically on the local client
 5. Each AI message is clearly labeled with "Analista Científico" persona badge; creator can toggle the persona off mid-session and the AI stops responding
 
-**Plans:** 1/6 plans executed
+**Plans:** 2/6 plans executed
 
 Plans:
 **Wave 1**
@@ -97,7 +97,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — AI streaming backend: real streamSSE /invoke route (branch context, bot-activation, snapshot persist) + reactions CRUD route (AI-03/04/06/07/08, PANEL-04, REACT-01..04)
+- [x] 02-02-PLAN.md — AI streaming backend: real streamSSE /invoke route (branch context, bot-activation, snapshot persist) + reactions CRUD route (AI-03/04/06/07/08, PANEL-04, REACT-01..04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
