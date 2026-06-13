@@ -1,4 +1,5 @@
 import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
+import { DevSignInButton } from '@/components/auth/dev-sign-in-button'
 
 /**
  * Sign-in page — Screen 1 (OAuth Sign-In Page)
@@ -30,6 +31,9 @@ export default function SignInPage() {
 
         {/* Google OAuth CTA */}
         <GoogleSignInButton />
+
+        {/* Dev-only bypass — skips OAuth for WSL2 local dev */}
+        {process.env.NODE_ENV !== 'production' && <DevSignInButton />}
       </div>
     </main>
   )
