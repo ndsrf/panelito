@@ -5,6 +5,7 @@ import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { rateLimit } from '../lib/rate-limit'
 import { registerSession } from '../lib/auto-freeze'
+import { unfreezeSession } from '../lib/sessions-helpers'
 
 // -----------------------------------------------------------------------
 // Rate limiting (T-03-05, T-03-06)
@@ -293,22 +294,18 @@ sessionsRouter.post('/:id/unfreeze', requireAuth, async (c) => {
     const parsed = UnfreezeBodySchema.safeParse(rawBody)
     const reason = parsed.success && parsed.data.reason ? parsed.data.reason : 'creator_unfreeze'
 
-    const { data: updated, error: updateError } = await supabase
+    await unfreezeSession(supabase, id, reason)
+
+    // Re-fetch the updated session to return it
+    const { data: updated, error: refetchError } = await supabase
       .from('sessions')
-      .update({ status: 'active' })
-      .eq('id', id)
       .select()
+      .eq('id', id)
       .single()
 
-    if (updateError || !updated) {
-      return c.json({ error: toClientError(updateError) }, 500)
+    if (refetchError || !updated) {
+      return c.json({ error: toClientError(refetchError) }, 500)
     }
-
-    // Broadcast status change to all clients
-    supabase
-      .channel(`session:${id}`)
-      .httpSend('session_status_change', { status: 'active', reason })
-      .catch((err: unknown) => console.error('[sessions] unfreeze broadcast error:', err))
 
     return c.json(updated, 200)
   } catch (err) {

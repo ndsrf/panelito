@@ -83,3 +83,66 @@ function freezeReasonMessage(reason: string): string {
       return `Sesion congelada (razon: ${reason}).`
   }
 }
+
+/**
+ * unfreezeSession — updates session status to 'active', inserts a system
+ * message, and broadcasts `session_status_change` on `session:${sessionId}`.
+ *
+ * Symmetric with freezeSession so the audit trail is complete.
+ *
+ * @param supabase - Service-role Supabase client (bypasses RLS).
+ * @param sessionId - The session to reactivate.
+ * @param reason - Why the session was unfrozen (e.g. 'creator_unfreeze').
+ */
+export async function unfreezeSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  reason: string
+): Promise<void> {
+  const { data: updated, error: updateError } = await supabase
+    .from('sessions')
+    .update({ status: 'active' })
+    .eq('id', sessionId)
+    .select('id, status, title')
+    .single()
+
+  if (updateError) {
+    console.error('[sessions-helpers] unfreezeSession update error:', updateError.message)
+    return
+  }
+
+  const { error: msgError } = await supabase
+    .from('messages')
+    .insert({
+      session_id: sessionId,
+      author_id: SYSTEM_AUTHOR_ID,
+      display_name: SYSTEM_DISPLAY_NAME,
+      parent_id: null,
+      path_id: 'main',
+      content: unfreezeReasonMessage(reason),
+      canvas_snapshot_state: null,
+    })
+    .select()
+    .single()
+  if (msgError) {
+    console.error('[sessions-helpers] system message insert error:', msgError.message)
+  }
+
+  supabase
+    .channel(`session:${sessionId}`)
+    .httpSend('session_status_change', {
+      status: 'active',
+      reason,
+      title: updated?.title ?? null,
+    })
+    .catch((err: unknown) => console.error('[sessions-helpers] broadcast error:', err))
+}
+
+function unfreezeReasonMessage(reason: string): string {
+  switch (reason) {
+    case 'creator_unfreeze':
+      return 'El creador ha reactivado la sesion.'
+    default:
+      return 'La sesion ha sido reactivada.'
+  }
+}
