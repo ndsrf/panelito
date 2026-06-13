@@ -58,7 +58,7 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   const setMessages = useSessionStore((s) => s.setMessages)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const wasAtBottomRef = useRef(true)
+  const lastScrollHeightRef = useRef(0)
 
   // Subscribe to live messages via Supabase Realtime broadcast
   useSessionChannel(sessionId, useSessionStore.getState().addMessage)
@@ -89,24 +89,24 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  // CHAT-03: Snapshot scroll position BEFORE render (on each messages change)
+  // CHAT-03: Auto-scroll to bottom if we were already at the bottom.
+  // We use useLayoutEffect so the scroll happens before the browser paints the new messages.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    // Check if we were at the bottom before this render cycle
-    wasAtBottomRef.current =
-      container.scrollTop + container.clientHeight >= container.scrollHeight - 64
-  })
+    // Check if we were at the bottom before this update.
+    // scrollTop + clientHeight is the current visible bottom.
+    // lastScrollHeightRef.current is the height BEFORE the new messages were added.
+    const wasAtBottom =
+      container.scrollTop + container.clientHeight >= lastScrollHeightRef.current - 64
 
-  // CHAT-03: After render, scroll to bottom if we were at bottom before
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    if (wasAtBottomRef.current) {
+    if (wasAtBottom) {
       container.scrollTop = container.scrollHeight
     }
+
+    // Update the height for the next render
+    lastScrollHeightRef.current = container.scrollHeight
   }, [messages])
 
   // Prevent re-adding addMessage to session channel subscription deps

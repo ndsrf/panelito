@@ -9,7 +9,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { getAvatarColor } from '@/lib/utils'
+import { getAvatarColor, cn } from '@/lib/utils'
 import { useLongPress, useDoubleTap } from '@/hooks/use-long-press'
 import { QuickReactionPopover } from './QuickReactionPopover'
 import { MessageActionMenu } from './MessageActionMenu'
@@ -44,7 +44,13 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps): ReactNode
   const doubleTapHandlers = useDoubleTap(() => setReactionOpen(true))
 
   return (
-    <div className="message-bubble flex items-start gap-3 px-4 py-2" data-message-id={message.id}>
+    <div
+      className={cn(
+        'message-bubble flex items-start gap-3 px-4 py-2',
+        isOwn && 'flex-row-reverse'
+      )}
+      data-message-id={message.id}
+    >
       {/* Avatar — 32px circle with author color and initial (CHAT-02) */}
       <div
         className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-semibold text-white select-none"
@@ -58,9 +64,9 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps): ReactNode
       </div>
 
       {/* Content column */}
-      <div className="flex-1 min-w-0">
+      <div className={cn('flex-1 min-w-0 flex flex-col', isOwn ? 'items-end' : 'items-start')}>
         {/* Author + timestamp */}
-        <div className="flex items-baseline gap-2 mb-0.5">
+        <div className={cn('flex items-baseline gap-2 mb-0.5', isOwn && 'flex-row-reverse')}>
           <span className="text-[15px] font-medium text-foreground truncate">
             {message.display_name}
           </span>
@@ -71,15 +77,14 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps): ReactNode
 
         {/* Message bubble — LAYOUT-06 gesture handlers */}
         <div
-          className="relative"
-          style={{ minHeight: 44 }} /* iOS 44px touch target minimum */
+          className="relative w-full flex"
+          style={{ minHeight: 44, justifyContent: isOwn ? 'flex-end' : 'flex-start' }} /* iOS 44px touch target minimum */
         >
           <div
-            className={`
-              rounded-lg p-3 text-[15px] text-foreground leading-relaxed
-              max-w-[80%] break-words cursor-pointer select-text
-              ${isOwn ? 'bg-muted' : 'bg-card border border-border'}
-            `}
+            className={cn(
+              'rounded-lg p-3 text-[15px] text-foreground leading-relaxed max-w-[80%] break-words cursor-pointer select-text',
+              isOwn ? 'bg-muted rounded-tr-none' : 'bg-card border border-border rounded-tl-none'
+            )}
             {...longPressHandlers}
             {...doubleTapHandlers}
             role="article"

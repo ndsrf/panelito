@@ -57,7 +57,9 @@ export function useSessionStatus(sessionId: string, initialSession: Session): vo
             ...current,
             ...(payload.status ? { status: payload.status } : {}),
             ...(payload.title !== undefined ? { title: payload.title } : {}),
-          }
+            // SESS-07: Track the reason for status change (e.g. auto_freeze_creator_absent)
+            ...(payload.reason ? { auto_freeze_reason: payload.reason } : {}),
+          } as Session
           setSession(updated)
         }
       )

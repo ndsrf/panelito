@@ -5,7 +5,7 @@ import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { rateLimit } from '../lib/rate-limit'
 import { registerSession } from '../lib/auto-freeze'
-import { unfreezeSession } from '../lib/sessions-helpers'
+import { unfreezeSession, freezeSession, closeSession } from '../lib/sessions-helpers'
 
 // -----------------------------------------------------------------------
 // Rate limiting (T-03-05, T-03-06)
@@ -177,15 +177,17 @@ sessionsRouter.post('/:id/freeze', requireAuth, async (c) => {
       return c.json({ error: 'forbidden' }, 403)
     }
 
-    const { data: updated, error: updateError } = await supabase
+    await freezeSession(supabase, id, 'creator_freeze')
+
+    // Re-fetch the updated session to return it
+    const { data: updated, error: refetchError } = await supabase
       .from('sessions')
-      .update({ status: 'frozen' })
-      .eq('id', id)
       .select()
+      .eq('id', id)
       .single()
 
-    if (updateError || !updated) {
-      return c.json({ error: toClientError(updateError) }, 500)
+    if (refetchError || !updated) {
+      return c.json({ error: toClientError(refetchError) }, 500)
     }
 
     return c.json(updated, 200)
@@ -228,15 +230,17 @@ sessionsRouter.post('/:id/close', requireAuth, async (c) => {
       return c.json({ error: 'forbidden' }, 403)
     }
 
-    const { data: updated, error: updateError } = await supabase
+    await closeSession(supabase, id, 'creator_close')
+
+    // Re-fetch the updated session to return it
+    const { data: updated, error: refetchError } = await supabase
       .from('sessions')
-      .update({ status: 'closed' })
-      .eq('id', id)
       .select()
+      .eq('id', id)
       .single()
 
-    if (updateError || !updated) {
-      return c.json({ error: toClientError(updateError) }, 500)
+    if (refetchError || !updated) {
+      return c.json({ error: toClientError(refetchError) }, 500)
     }
 
     return c.json(updated, 200)

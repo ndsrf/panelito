@@ -146,3 +146,55 @@ function unfreezeReasonMessage(reason: string): string {
       return 'La sesion ha sido reactivada.'
   }
 }
+
+/**
+ * closeSession — updates session status to 'closed', inserts a system
+ * message, and broadcasts `session_status_change` on `session:${sessionId}`.
+ *
+ * @param supabase - Service-role Supabase client (bypasses RLS).
+ * @param sessionId - The session to close.
+ * @param reason - Why the session was closed (e.g. 'creator_close').
+ */
+export async function closeSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  reason: string = 'creator_close'
+): Promise<void> {
+  const { data: updated, error: updateError } = await supabase
+    .from('sessions')
+    .update({ status: 'closed' })
+    .eq('id', sessionId)
+    .select('id, status, title')
+    .single()
+
+  if (updateError) {
+    console.error('[sessions-helpers] closeSession update error:', updateError.message)
+    return
+  }
+
+  const { error: msgError } = await supabase
+    .from('messages')
+    .insert({
+      session_id: sessionId,
+      author_id: SYSTEM_AUTHOR_ID,
+      display_name: SYSTEM_DISPLAY_NAME,
+      parent_id: null,
+      path_id: 'main',
+      content: 'La sesion ha finalizado.',
+      canvas_snapshot_state: null,
+    })
+    .select()
+    .single()
+  if (msgError) {
+    console.error('[sessions-helpers] system message insert error:', msgError.message)
+  }
+
+  supabase
+    .channel(`session:${sessionId}`)
+    .httpSend('session_status_change', {
+      status: 'closed',
+      reason,
+      title: updated?.title ?? null,
+    })
+    .catch((err: unknown) => console.error('[sessions-helpers] broadcast error:', err))
+}
