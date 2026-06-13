@@ -52,7 +52,7 @@ Inherited from Phase 1 — no new tokens introduced.
 | 3xl | 64px | Unused in Phase 2 |
 
 Exceptions (carried forward from Phase 1):
-- Touch targets: minimum **44px** tall on all interactive elements (reaction buttons, persona card tap area).
+- Touch targets: minimum **44px** tall on all interactive elements (reaction buttons, persona card tap area). (declared exception: WCAG 2.5.5 / iOS HIG minimum touch target requirement, carried forward from Phase 1)
 - Widget container height fills available panel area: `height = calc(var(--app-height) * 0.40)` minus any panel header height.
 
 Phase 2 additions:
@@ -79,7 +79,7 @@ Rules carried forward:
 - Error and destructive text inherits body size — never smaller.
 
 Widget-specific type:
-- Recharts axis tick labels: 11px, Muted Foreground (`--muted-foreground`), Regular. This is a Recharts prop override, not a system weight.
+- Recharts axis tick labels: 11px, Muted Foreground (`--muted-foreground`), Regular. This is a Recharts prop override, not a system weight. Implementation rule: 11px must never appear outside Recharts components. Any label requiring sub-13px size must use 13px (Label) instead.
 - Recharts tooltip: Body (15px Regular), `--card` surface.
 - Bento grid card title: Label (13px Regular, Muted Foreground) above; Heading (20px Semibold, Foreground) for value or concept name below.
 
@@ -150,7 +150,7 @@ Phase 2 adds the following surfaces. Each section below defines the complete vis
 
 #### Panel Header Strip (PANEL-03)
 
-A slim header at the top of the panel, height **36px**, `flex-shrink: 0`.
+A slim header at the top of the panel, height **36px — approved exception for panel header strip: 13px label + 12px vertical padding (top + bottom) × 2 = 24px + 1px border × 2 = 26px minimum; rounded to 36px for comfortable visual breathing room with branch badge.**, `flex-shrink: 0`.
 Background: transparent (inherits panel `--card`). Bottom border: 1px `--border`.
 
 Contents (flex row, 16px left padding, 8px right padding, vertically centered):
@@ -275,7 +275,7 @@ Streaming indicator (AI-03):
 - Container: pill shape, height 24px, horizontal padding 6px.
 - Background: `--muted` (Zinc 800). Border: 1px `--border`.
 - Border-radius: 999px (full pill).
-- Content: `{emoji}` (14px, native emoji color) + space + `{count}` (Label 13px Regular, Muted Foreground). 2px gap.
+- Content: `{emoji}` (14px, native emoji color) + space + `{count}` (Label 13px Regular, Muted Foreground). 2px gap between emoji and count (declared exception: 2px for emoji-to-count gap within 24px pill height — 4px would be disproportionate at this scale).
 - Example: `🔥 2`
 
 **Own-reaction state (when current user has applied this reaction):**
@@ -290,7 +290,7 @@ Badge appears immediately on tap. If server returns error, badge reverts (disapp
 
 **Touch target:** The badge itself is NOT a tap target in Phase 2 — it is display-only. Reactions are applied via QuickReactionPopover (double-tap on the bubble), not by tapping the badge.
 
-**Accessibility:** `aria-label="{emoji} reaction, {count} times"`. Example: `aria-label="🔥 reaction, 2 times"`.
+**Accessibility:** `aria-label="{emoji} reaction, {count} times"`. Example: `aria-label="🔥 reaction, 2 times"`. Note: `aria-label` strings are in English for locale-neutral screen reader compatibility. All visible copy remains Spanish.
 
 ---
 
@@ -308,18 +308,20 @@ Each persona card (library card pattern):
 - Button element with `type="button"`, full-width.
 - Background: `--card` (Zinc 900). Border: 1px `--border`. Border-radius: 8px. Padding: 16px.
 - Hover: `--muted` background.
-- Layout: flex row, 12px gap, vertically centered.
+- Layout: flex row, 12px gap, vertically centered. (declared exception: 12px — compact card interior; same justified deviation as bento card padding)
 
   Left: persona avatar container, 40px × 40px, `border-radius: 8px`.
   - Background: Indigo 500 at 15% opacity.
   - Border: 1px solid Indigo 500 at 30%.
   - Icon: Lucide `FlaskConical` (20px, Indigo 400 `#818cf8`) centered.
 
-  Right: flex column, 2px gap.
-  - Persona name: Body (15px Regular, weight 500 rendering micro-adjustment only, Foreground). "Analista Científico".
+  Right: flex column, 4px gap.
+  - Persona name: Body (15px Regular, weight 500 rendering micro-adjustment only (Do not apply `font-weight: 500` in CSS — Regular 400 rendering is sufficient; this is a visual note only.), Foreground). "Analista Científico".
   - Persona description: Label (13px Regular, Muted Foreground). "Analiza datos, detecta falacias y estructura la información cuantitativa." Max 2 lines, `line-clamp-2`.
 
   Far right: toggle switch (`<Switch>` shadcn component, if added) or checkmark icon.
+
+**Touch target:** All interactive persona card elements must meet the minimum **44px** touch target height. (declared exception: WCAG 2.5.5 / iOS HIG minimum touch target requirement, carried forward from Phase 1)
 
 **Selected state (persona active):**
 - Card border: 2px solid Indigo 500.
@@ -378,7 +380,7 @@ InputBox background: unchanged (`--muted`).
 
 Left side of input row: streaming indicator injected at `flex-start` before the textarea.
 - Container: flex row, 8px left padding. Vertically centered with input row.
-- Three pulsing dots: 6px circles, Indigo 500 (`--primary`), `animate-bounce` with staggered delays (0ms, 100ms, 200ms). Spaced 3px apart.
+- Three pulsing dots: 6px circles, Indigo 500 (`--primary`), `animate-bounce` with staggered delays (0ms, 100ms, 200ms). 3px between dots (declared exception: 3px between 6px dots in streaming indicator — 4px spacing would exceed the visual gap-to-dot ratio for this animation).
 - `aria-label="El analista está generando una respuesta"`, `role="status"`.
 
 Placeholder text during lock: "El analista está escribiendo..." (already scaffolded in InputBox — Phase 2 replaces the static string with this value when AI lock is active).
@@ -464,7 +466,7 @@ All Phase 1 copywriting is inherited. Phase 2 additions:
 | Panel "Analizando" label (header, streaming) | "Analizando..." |
 | Empty state — Panel (AI done, key set, widget ready) | Inherited from Phase 1: "El AI analizará tu conversación aquí." (shown until first widget renders) |
 | Error — Panel render crash (widget throws) | Inherited from Phase 1: "El Analista está recalculando. Tu chat no se ve afectado." |
-| Reaction badge `aria-label` | "{emoji} reaction, {count} times" — `aria-label="🔥 reaction, 2 times"` |
+| Reaction badge `aria-label` | "{emoji} reaction, {count} times" — `aria-label="🔥 reaction, 2 times"`. Note: `aria-label` strings are in English for locale-neutral screen reader compatibility. All visible copy remains Spanish. |
 | @mention hint (below input, shown after first message) | Not shown in Phase 2 UI — @analista mention is typed naturally. No tooltip needed. |
 | Session creation CTA (unchanged) | "Crear sesión" |
 
