@@ -9,6 +9,8 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { FeaturesTabs } from '@/components/features-tabs'
+import { HeroPixels } from '@/components/hero-pixels'
+import { ScrollLogo } from '@/components/scroll-logo'
 
 // ── Portrait SVGs ──────────────────────────────────────────────────────────────
 // Stroke-only line art, 40×40 viewBox. Color comes from the parent (currentColor).
@@ -201,16 +203,7 @@ export default function LandingPage() {
       {/* ── NAV ──────────────────────────────────────────────────── */}
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/[0.04] bg-black/70 backdrop-blur-xl">
         <nav className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect width="32" height="32" rx="6" fill="#0F172A"/>
-              <path d="M11 22V10H17C18.6569 10 20 11.3431 20 13C20 14.6569 18.6569 16 17 16H11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="22" cy="22" r="2" fill="#38BDF8"/>
-              <circle cx="24" cy="12" r="1.5" fill="#818CF8"/>
-              <circle cx="8" cy="18" r="1.5" fill="#F472B6"/>
-            </svg>
-            <span className="text-sm font-bold tracking-wider text-white">Panelito</span>
-          </div>
+          <ScrollLogo />
           <Link
             href="/auth/sign-in"
             className="text-sm bg-white text-black px-4 py-1.5 rounded-md font-medium hover:bg-slate-200 transition-all"
@@ -239,13 +232,16 @@ export default function LandingPage() {
           </div>
 
           {/* H1 */}
-          <h1 className="text-5xl sm:text-6xl lg:text-[5.25rem] font-bold tracking-tight leading-[0.92] max-w-5xl">
-            Desata la Inteligencia
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-600">
-              Colectiva de tus Reuniones
-            </span>
-          </h1>
+          <div className="relative inline-block">
+            <HeroPixels />
+            <h1 className="text-5xl sm:text-6xl lg:text-[5.25rem] font-bold tracking-tight leading-[0.92] max-w-5xl">
+              Desata la Inteligencia
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-600">
+                Colectiva de tus Reuniones
+              </span>
+            </h1>
+          </div>
 
           {/* Subtitle + CTA */}
           <div className="mt-12 flex flex-col lg:flex-row lg:items-end justify-between gap-10 max-w-5xl">
