@@ -4,19 +4,194 @@ import {
   GitBranch,
   GitMerge,
   Monitor,
-  ShieldAlert,
-  Target,
-  EyeOff,
   Key,
   Activity,
   ArrowRight,
 } from 'lucide-react'
+import { FeaturesTabs } from '@/components/features-tabs'
 
-const growSteps = [
-  { k: 'G', name: 'Goal', note: 'Objetivo', color: 'text-amber-400' },
-  { k: 'R', name: 'Reality', note: 'Diagnóstico', color: 'text-sky-400' },
-  { k: 'O', name: 'Options', note: 'Escenarios', color: 'text-indigo-400' },
-  { k: 'W', name: 'Will', note: 'Compromisos', color: 'text-emerald-400' },
+// ── Portrait SVGs ──────────────────────────────────────────────────────────────
+// Stroke-only line art, 40×40 viewBox. Color comes from the parent (currentColor).
+
+function EinsteinPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Wild hair */}
+      <path d="M10 19C10 10 13 4 20 4C27 4 30 10 30 19" strokeWidth="1.5"/>
+      <path d="M10 15C8 9 12 4 11 7" strokeWidth="1"/>
+      <path d="M30 15C32 9 28 4 29 7" strokeWidth="1"/>
+      {/* Face */}
+      <ellipse cx="20" cy="23" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Round glasses */}
+      <circle cx="16" cy="22" r="3" strokeWidth="1"/>
+      <circle cx="24" cy="22" r="3" strokeWidth="1"/>
+      <line x1="19" y1="22" x2="21" y2="22" strokeWidth="1"/>
+      <line x1="13" y1="21" x2="11" y2="20" strokeWidth="1"/>
+      {/* Mustache */}
+      <path d="M16 28Q20 31 24 28" strokeWidth="1.5"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 32 13 30 20 30C27 30 32 32 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function DescartesPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Long 17th-century hair, flows to shoulders */}
+      <path d="M11 18C10 10 13 4 20 4C27 4 30 10 29 18" strokeWidth="1.5"/>
+      <path d="M11 18C9 25 9 33 11 37" strokeWidth="1.5"/>
+      <path d="M29 18C31 25 31 33 29 37" strokeWidth="1.5"/>
+      {/* Face */}
+      <ellipse cx="20" cy="21" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Period thin mustache */}
+      <path d="M16 27Q20 29 24 27" strokeWidth="1"/>
+      {/* Lace collar zigzag */}
+      <path d="M11 33C13 30 15 32 17 30C19 32 21 30 23 32C25 30 27 32 29 33" strokeWidth="1"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 34 12 32 20 32C28 32 32 34 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function SocratesPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Bald head */}
+      <circle cx="20" cy="17" r="11" strokeWidth="1.5"/>
+      {/* Full beard */}
+      <path d="M9 22C8 29 12 36 16 37C18 38 22 38 24 37C28 36 32 29 31 22" strokeWidth="1.5"/>
+      <path d="M13 29C16 33 20 35 20 35" strokeWidth="1"/>
+      <path d="M27 29C24 33 20 35 20 35" strokeWidth="1"/>
+      {/* Toga */}
+      <path d="M5 40C7 33 12 31 20 31C28 31 33 33 35 40" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function CuriePortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Hair bun */}
+      <ellipse cx="20" cy="8" rx="5" ry="4" strokeWidth="1.5"/>
+      <line x1="15" y1="10" x2="13" y2="14" strokeWidth="1.5"/>
+      <line x1="25" y1="10" x2="27" y2="14" strokeWidth="1.5"/>
+      {/* Face */}
+      <ellipse cx="20" cy="22" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* High collar blouse */}
+      <path d="M13 31C14 34 20 35 20 35C20 35 26 34 27 31" strokeWidth="1"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 33 13 31 20 31C27 31 32 33 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function SunTzuPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Topknot */}
+      <ellipse cx="20" cy="7" rx="3" ry="3" strokeWidth="1.5"/>
+      <line x1="20" y1="4" x2="20" y2="2" strokeWidth="2"/>
+      {/* Head */}
+      <circle cx="20" cy="19" r="11" strokeWidth="1.5"/>
+      {/* Sparse goatee */}
+      <path d="M18 28C19 32 21 32 22 28" strokeWidth="1.5"/>
+      {/* Robe collar */}
+      <path d="M10 30C11 27 15 26 20 26C25 26 29 27 30 30" strokeWidth="1.5"/>
+      <path d="M5 38C7 33 12 31 20 31C28 31 33 33 35 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function DarwinPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Balding head — hair on sides only */}
+      <path d="M12 17C12 10 15 5 20 5C25 5 28 10 28 17" strokeWidth="1.5"/>
+      <path d="M11 17C10 13 11 9 12 10" strokeWidth="1"/>
+      <path d="M29 17C30 13 29 9 28 10" strokeWidth="1"/>
+      {/* Face */}
+      <ellipse cx="20" cy="21" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Long patriarch beard */}
+      <path d="M11 25C9 30 10 37 14 39C17 40 20 40 20 40C20 40 23 40 26 39C30 37 31 30 29 25" strokeWidth="1.5"/>
+      <path d="M13 33C16 37 20 38 20 38" strokeWidth="1"/>
+      <path d="M27 33C24 37 20 38 20 38" strokeWidth="1"/>
+    </svg>
+  )
+}
+
+// ── Agent roster ───────────────────────────────────────────────────────────────
+
+type Stat = { label: string; value: number; width: string; color: string }
+
+type Agent = {
+  Portrait: () => React.ReactElement
+  name: string
+  tag: string
+  stats: [Stat, Stat, Stat]
+}
+
+const agents: Agent[] = [
+  {
+    Portrait: EinsteinPortrait,
+    name: 'Albert Einstein',
+    tag: 'Síntesis Cuantitativa',
+    stats: [
+      { label: 'Neutralidad',  value: 82, width: 'w-[82%]', color: 'bg-sky-500/60' },
+      { label: 'Rigor',        value: 94, width: 'w-[94%]', color: 'bg-indigo-400/60' },
+      { label: 'Síntesis',     value: 88, width: 'w-[88%]', color: 'bg-emerald-400/60' },
+    ],
+  },
+  {
+    Portrait: DescartesPortrait,
+    name: 'René Descartes',
+    tag: 'Duda Metódica / Red Team',
+    stats: [
+      { label: 'Asertividad',  value: 95, width: 'w-[95%]', color: 'bg-red-500/60' },
+      { label: 'Rigor',        value: 91, width: 'w-[91%]', color: 'bg-indigo-400/60' },
+      { label: 'Crítica',      value: 97, width: 'w-[97%]', color: 'bg-red-600/60' },
+    ],
+  },
+  {
+    Portrait: SocratesPortrait,
+    name: 'Sócrates',
+    tag: 'Método Maiéutico',
+    stats: [
+      { label: 'Equilibrio',   value: 68, width: 'w-[68%]', color: 'bg-indigo-400/60' },
+      { label: 'Empatía',      value: 85, width: 'w-[85%]', color: 'bg-purple-400/60' },
+      { label: 'Síntesis',     value: 76, width: 'w-[76%]', color: 'bg-emerald-400/60' },
+    ],
+  },
+  {
+    Portrait: CuriePortrait,
+    name: 'Marie Curie',
+    tag: 'Rigor Clínico',
+    stats: [
+      { label: 'Neutralidad',  value: 88, width: 'w-[88%]', color: 'bg-sky-500/60' },
+      { label: 'Rigor',        value: 97, width: 'w-[97%]', color: 'bg-indigo-400/60' },
+      { label: 'Pragmatismo',  value: 80, width: 'w-[80%]', color: 'bg-amber-500/60' },
+    ],
+  },
+  {
+    Portrait: SunTzuPortrait,
+    name: 'Sun Tzu',
+    tag: 'Arte de la Estrategia',
+    stats: [
+      { label: 'Asertividad',  value: 79, width: 'w-[79%]', color: 'bg-amber-500/60' },
+      { label: 'Síntesis',     value: 88, width: 'w-[88%]', color: 'bg-emerald-400/60' },
+      { label: 'Pragmatismo',  value: 92, width: 'w-[92%]', color: 'bg-amber-400/60' },
+    ],
+  },
+  {
+    Portrait: DarwinPortrait,
+    name: 'Charles Darwin',
+    tag: 'Síntesis Sistémica',
+    stats: [
+      { label: 'Neutralidad',  value: 91, width: 'w-[91%]', color: 'bg-sky-500/60' },
+      { label: 'Síntesis',     value: 95, width: 'w-[95%]', color: 'bg-emerald-400/60' },
+      { label: 'Rigor',        value: 87, width: 'w-[87%]', color: 'bg-indigo-400/60' },
+    ],
+  },
 ]
 
 export default function LandingPage() {
@@ -94,7 +269,6 @@ export default function LandingPage() {
 
       {/* ── HERO MOCKUP ──────────────────────────────────────────── */}
       <div className="relative px-4 sm:px-6 pb-4">
-        {/* Glow behind image */}
         <div className="absolute inset-x-0 top-0 flex justify-center pointer-events-none">
           <div className="w-[700px] h-[120px] bg-indigo-500/25 blur-3xl opacity-20 rounded-full" />
         </div>
@@ -123,7 +297,6 @@ export default function LandingPage() {
             <p className="text-xs text-slate-800 font-mono hidden sm:block">core / 3 mecánicas</p>
           </div>
 
-          {/* Seamless border grid — no individual card borders, one unified frame */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-900 border border-slate-900 rounded-2xl overflow-hidden">
             <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
               <GitBranch className="w-7 h-7 text-indigo-400" strokeWidth={1.5} />
@@ -167,68 +340,69 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── B2B BENTO ────────────────────────────────────────────── */}
-      <section className="pb-32">
+      {/* ── FEATURES CONTEXT TABS (client component) ─────────────── */}
+      <FeaturesTabs />
+
+      {/* ── AGENT ROSTER ─────────────────────────────────────────── */}
+      <section className="py-32 border-t border-slate-900">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-16">
+          {/* Header with floating badge */}
+          <div className="mb-16 relative">
+            <div className="absolute -top-6 right-0 hidden sm:inline-flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/50 text-indigo-300 text-xs px-3 py-1.5 rounded-full backdrop-blur-sm whitespace-nowrap">
+              🧠 Personalizables: Crea tus propios prompts de identidad en v2
+            </div>
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-indigo-400 mb-5">
-              Casos de uso empresarial
+              Agentes Modulares
             </p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight max-w-xl leading-[1.05]">
-              Modos avanzados para decisiones que importan
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 max-w-2xl leading-[1.05]">
+              Una biblioteca de mentes a tu disposición
             </h2>
+            <p className="text-slate-400 max-w-xl leading-relaxed">
+              No hables con una IA genérica. Invoca a un comité de expertos modulares
+              adaptados a la naturaleza de tu debate.
+            </p>
           </div>
 
-          {/* Bento: Red Team (2 cols) + GROW (1 col, 2 rows) + Blind Impact (2 cols) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 hover:border-slate-700 transition-colors duration-300">
-              <div className="flex items-start justify-between mb-10">
-                <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.5} />
-                <span className="text-[10px] font-mono tracking-[0.12em] uppercase text-slate-600 border border-slate-800 rounded-full px-2.5 py-1">
-                  Modo Adversarial
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Simulador Red Team</h3>
-              <p className="text-xs font-medium text-red-400/60 uppercase tracking-[0.15em] mb-5">Abogado del Diablo</p>
-              <p className="text-slate-400 leading-relaxed text-sm max-w-md">
-                Pon a prueba tus planes corporativos contra un agente implacable que busca
-                vulnerabilidades ocultas de mercado. Cada hipótesis sale reforzada o eliminada.
-              </p>
-            </div>
-
-            <div className="md:row-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 flex flex-col hover:border-slate-700 transition-colors duration-300">
-              <Target className="w-8 h-8 text-amber-400 mb-10" strokeWidth={1.5} />
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Facilitador GROW</h3>
-              <p className="text-xs font-medium text-amber-400/60 uppercase tracking-[0.15em] mb-5">Para Equipos</p>
-              <p className="text-slate-400 leading-relaxed text-sm mb-8">
-                Una dinámica estructurada guiada por un Coach IA que transforma debates
-                abstractos en tableros Kanban de acciones ejecutables.
-              </p>
-              <div className="mt-auto border-t border-slate-900 pt-6 space-y-5">
-                {growSteps.map(({ k, name, note, color }) => (
-                  <div key={k} className="flex items-center gap-4">
-                    <span className={`font-bold font-mono text-sm ${color} w-4 shrink-0`}>{k}</span>
-                    <span className="text-slate-300 text-sm font-medium flex-1">{name}</span>
-                    <span className="text-slate-600 text-xs font-mono">{note}</span>
+          {/* Agent cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {agents.map(({ Portrait, name, tag, stats }) => (
+              <div
+                key={name}
+                className="bg-slate-950/40 border border-slate-900 rounded-xl p-6 hover:border-indigo-500/50 transition-all group"
+              >
+                {/* Avatar + identity */}
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
+                    <Portrait />
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-200 mb-1.5 leading-tight">
+                      {name}
+                    </p>
+                    <span className="inline-block text-[10px] font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
+                      [{tag}]
+                    </span>
+                  </div>
+                </div>
 
-            <div className="md:col-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 hover:border-slate-700 transition-colors duration-300">
-              <div className="flex items-start justify-between mb-10">
-                <EyeOff className="w-8 h-8 text-slate-400" strokeWidth={1.5} />
-                <span className="text-[10px] font-mono tracking-[0.12em] uppercase text-slate-600 border border-slate-800 rounded-full px-2.5 py-1">
-                  Anti-sesgo
-                </span>
+                {/* 3 stat bars */}
+                <div className="space-y-3">
+                  {stats.map(({ label, value, width, color }) => (
+                    <div key={label}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-700">
+                          {label}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-700">{value}%</span>
+                      </div>
+                      <div className="h-px bg-slate-900 rounded-full overflow-hidden">
+                        <div className={`h-full ${width} ${color} rounded-full`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Estudio de Impacto Ciego</h3>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-[0.15em] mb-5">Meritocracia de Ideas</p>
-              <p className="text-slate-400 leading-relaxed text-sm max-w-md">
-                Anonimiza la sala para evaluar estrategias exclusivamente en base a datos y méritos,
-                eliminando los sesgos de jerarquía y autoridad del debate.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
