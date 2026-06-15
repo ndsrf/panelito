@@ -8,10 +8,32 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const metadataBase = new URL(
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000"
+);
+
 export const metadata: Metadata = {
-  title: "Panelito — Proyecto Multiverso",
+  metadataBase,
+  title: "Panelito — Pensamiento colectivo en tiempo real",
   description:
-    "Un espacio de trabajo colaborativo sincrónico y multiusuario donde grupos debaten y exploran ideas junto a personas de IA especializadas.",
+    "Debate síncrono potenciado por IA con árbol de conversación ramificado y análisis visual en tiempo real.",
+  openGraph: {
+    type: "website",
+    siteName: "Panelito",
+    title: "Panelito — Pensamiento colectivo en tiempo real",
+    description:
+      "Debate síncrono potenciado por IA con árbol de conversación ramificado y análisis visual en tiempo real.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Panelito — Pensamiento colectivo en tiempo real",
+    description:
+      "Debate síncrono potenciado por IA con árbol de conversación ramificado y análisis visual en tiempo real.",
+  },
 };
 
 export default function RootLayout({
