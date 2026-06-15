@@ -1,22 +1,94 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import type { LucideIcon } from 'lucide-react'
 import {
   GitBranch,
   GitMerge,
   Monitor,
-  ShieldAlert,
-  Target,
-  EyeOff,
   Key,
   Activity,
   ArrowRight,
+  TrendingUp,
+  ShieldAlert,
+  Target,
+  BookOpen,
+  Network,
+  Scale,
 } from 'lucide-react'
+import { FeaturesTabs } from '@/components/features-tabs'
 
-const growSteps = [
-  { k: 'G', name: 'Goal', note: 'Objetivo', color: 'text-amber-400' },
-  { k: 'R', name: 'Reality', note: 'Diagnóstico', color: 'text-sky-400' },
-  { k: 'O', name: 'Options', note: 'Escenarios', color: 'text-indigo-400' },
-  { k: 'W', name: 'Will', note: 'Compromisos', color: 'text-emerald-400' },
+type Agent = {
+  Icon: LucideIcon
+  name: string
+  tag: string
+  statLabel: 'Asertividad' | 'Neutralidad' | 'Equilibrio'
+  statValue: number
+  statWidth: string
+  statColor: string
+  iconColor: string
+}
+
+const agents: Agent[] = [
+  {
+    Icon: TrendingUp,
+    name: 'MUTA.ANALISTA',
+    tag: 'Síntesis Cuantitativa',
+    statLabel: 'Neutralidad',
+    statValue: 82,
+    statWidth: 'w-[82%]',
+    statColor: 'bg-sky-500/60',
+    iconColor: 'text-sky-400',
+  },
+  {
+    Icon: ShieldAlert,
+    name: 'MUTA.ADVERSARIO',
+    tag: 'Red Team',
+    statLabel: 'Asertividad',
+    statValue: 95,
+    statWidth: 'w-[95%]',
+    statColor: 'bg-red-500/60',
+    iconColor: 'text-red-400',
+  },
+  {
+    Icon: Target,
+    name: 'MUTA.COACH',
+    tag: 'Framework GROW',
+    statLabel: 'Equilibrio',
+    statValue: 70,
+    statWidth: 'w-[70%]',
+    statColor: 'bg-indigo-400/60',
+    iconColor: 'text-amber-400',
+  },
+  {
+    Icon: BookOpen,
+    name: 'MUTA.RIGORISTA',
+    tag: 'Rigor Clínico',
+    statLabel: 'Neutralidad',
+    statValue: 88,
+    statWidth: 'w-[88%]',
+    statColor: 'bg-sky-500/60',
+    iconColor: 'text-slate-300',
+  },
+  {
+    Icon: Network,
+    name: 'MUTA.ESTRATEGA',
+    tag: 'Visión Sistémica',
+    statLabel: 'Asertividad',
+    statValue: 73,
+    statWidth: 'w-[73%]',
+    statColor: 'bg-amber-500/60',
+    iconColor: 'text-amber-400',
+  },
+  {
+    Icon: Scale,
+    name: 'MUTA.MEDIADOR',
+    tag: 'Dialéctica Socrática',
+    statLabel: 'Neutralidad',
+    statValue: 94,
+    statWidth: 'w-[94%]',
+    statColor: 'bg-sky-500/60',
+    iconColor: 'text-purple-400',
+  },
 ]
 
 export default function LandingPage() {
@@ -94,7 +166,6 @@ export default function LandingPage() {
 
       {/* ── HERO MOCKUP ──────────────────────────────────────────── */}
       <div className="relative px-4 sm:px-6 pb-4">
-        {/* Glow behind image */}
         <div className="absolute inset-x-0 top-0 flex justify-center pointer-events-none">
           <div className="w-[700px] h-[120px] bg-indigo-500/25 blur-3xl opacity-20 rounded-full" />
         </div>
@@ -123,7 +194,6 @@ export default function LandingPage() {
             <p className="text-xs text-slate-800 font-mono hidden sm:block">core / 3 mecánicas</p>
           </div>
 
-          {/* Seamless border grid — no individual card borders, one unified frame */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-900 border border-slate-900 rounded-2xl overflow-hidden">
             <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
               <GitBranch className="w-7 h-7 text-indigo-400" strokeWidth={1.5} />
@@ -167,68 +237,65 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── B2B BENTO ────────────────────────────────────────────── */}
-      <section className="pb-32">
+      {/* ── FEATURES CONTEXT TABS (client component) ─────────────── */}
+      <FeaturesTabs />
+
+      {/* ── AGENT ROSTER ─────────────────────────────────────────── */}
+      <section className="py-32 border-t border-slate-900">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-16">
+          {/* Header with floating badge */}
+          <div className="mb-16 relative">
+            <div className="absolute -top-6 right-0 hidden sm:inline-flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/50 text-indigo-300 text-xs px-3 py-1.5 rounded-full backdrop-blur-sm whitespace-nowrap">
+              🧠 Personalizables: Crea tus propios prompts de identidad en v2
+            </div>
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-indigo-400 mb-5">
-              Casos de uso empresarial
+              Agentes Modulares
             </p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight max-w-xl leading-[1.05]">
-              Modos avanzados para decisiones que importan
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 max-w-2xl leading-[1.05]">
+              Una biblioteca de mentes a tu disposición
             </h2>
+            <p className="text-slate-400 max-w-xl leading-relaxed">
+              No hables con una IA genérica. Invoca a un comité de expertos modulares
+              adaptados a la naturaleza de tu debate.
+            </p>
           </div>
 
-          {/* Bento: Red Team (2 cols) + GROW (1 col, 2 rows) + Blind Impact (2 cols) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 hover:border-slate-700 transition-colors duration-300">
-              <div className="flex items-start justify-between mb-10">
-                <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.5} />
-                <span className="text-[10px] font-mono tracking-[0.12em] uppercase text-slate-600 border border-slate-800 rounded-full px-2.5 py-1">
-                  Modo Adversarial
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Simulador Red Team</h3>
-              <p className="text-xs font-medium text-red-400/60 uppercase tracking-[0.15em] mb-5">Abogado del Diablo</p>
-              <p className="text-slate-400 leading-relaxed text-sm max-w-md">
-                Pon a prueba tus planes corporativos contra un agente implacable que busca
-                vulnerabilidades ocultas de mercado. Cada hipótesis sale reforzada o eliminada.
-              </p>
-            </div>
-
-            <div className="md:row-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 flex flex-col hover:border-slate-700 transition-colors duration-300">
-              <Target className="w-8 h-8 text-amber-400 mb-10" strokeWidth={1.5} />
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Facilitador GROW</h3>
-              <p className="text-xs font-medium text-amber-400/60 uppercase tracking-[0.15em] mb-5">Para Equipos</p>
-              <p className="text-slate-400 leading-relaxed text-sm mb-8">
-                Una dinámica estructurada guiada por un Coach IA que transforma debates
-                abstractos en tableros Kanban de acciones ejecutables.
-              </p>
-              <div className="mt-auto border-t border-slate-900 pt-6 space-y-5">
-                {growSteps.map(({ k, name, note, color }) => (
-                  <div key={k} className="flex items-center gap-4">
-                    <span className={`font-bold font-mono text-sm ${color} w-4 shrink-0`}>{k}</span>
-                    <span className="text-slate-300 text-sm font-medium flex-1">{name}</span>
-                    <span className="text-slate-600 text-xs font-mono">{note}</span>
+          {/* Agent cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {agents.map(({ Icon, name, tag, statLabel, statValue, statWidth, statColor, iconColor }) => (
+              <div
+                key={name}
+                className="bg-slate-950/40 border border-slate-900 rounded-xl p-6 hover:border-indigo-500/50 transition-all group"
+              >
+                {/* Avatar + identity */}
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 group-hover:border-indigo-800/60 transition-colors">
+                    <Icon className={`w-5 h-5 ${iconColor}`} strokeWidth={1.5} />
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold font-mono tracking-[0.1em] text-slate-200 mb-1.5 truncate">
+                      {name}
+                    </p>
+                    <span className="inline-block text-[10px] font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
+                      [{tag}]
+                    </span>
+                  </div>
+                </div>
 
-            <div className="md:col-span-2 bg-slate-950/50 border border-slate-900 backdrop-blur-sm rounded-2xl p-8 hover:border-slate-700 transition-colors duration-300">
-              <div className="flex items-start justify-between mb-10">
-                <EyeOff className="w-8 h-8 text-slate-400" strokeWidth={1.5} />
-                <span className="text-[10px] font-mono tracking-[0.12em] uppercase text-slate-600 border border-slate-800 rounded-full px-2.5 py-1">
-                  Anti-sesgo
-                </span>
+                {/* Stat bar */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-slate-700">
+                      {statLabel}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-700">{statValue}%</span>
+                  </div>
+                  <div className="h-px bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-full ${statWidth} ${statColor} rounded-full`} />
+                  </div>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold tracking-tight mb-1.5">Estudio de Impacto Ciego</h3>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-[0.15em] mb-5">Meritocracia de Ideas</p>
-              <p className="text-slate-400 leading-relaxed text-sm max-w-md">
-                Anonimiza la sala para evaluar estrategias exclusivamente en base a datos y méritos,
-                eliminando los sesgos de jerarquía y autoridad del debate.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
