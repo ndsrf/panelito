@@ -122,14 +122,13 @@ function DarwinPortrait() {
 
 // ── Agent roster ───────────────────────────────────────────────────────────────
 
+type Stat = { label: string; value: number; width: string; color: string }
+
 type Agent = {
   Portrait: () => React.ReactElement
   name: string
   tag: string
-  statLabel: 'Asertividad' | 'Neutralidad' | 'Equilibrio'
-  statValue: number
-  statWidth: string
-  statColor: string
+  stats: [Stat, Stat, Stat]
 }
 
 const agents: Agent[] = [
@@ -137,55 +136,61 @@ const agents: Agent[] = [
     Portrait: EinsteinPortrait,
     name: 'Albert Einstein',
     tag: 'Síntesis Cuantitativa',
-    statLabel: 'Neutralidad',
-    statValue: 82,
-    statWidth: 'w-[82%]',
-    statColor: 'bg-sky-500/60',
+    stats: [
+      { label: 'Neutralidad',  value: 82, width: 'w-[82%]', color: 'bg-sky-500/60' },
+      { label: 'Rigor',        value: 94, width: 'w-[94%]', color: 'bg-indigo-400/60' },
+      { label: 'Síntesis',     value: 88, width: 'w-[88%]', color: 'bg-emerald-400/60' },
+    ],
   },
   {
     Portrait: DescartesPortrait,
     name: 'René Descartes',
     tag: 'Duda Metódica / Red Team',
-    statLabel: 'Asertividad',
-    statValue: 95,
-    statWidth: 'w-[95%]',
-    statColor: 'bg-red-500/60',
+    stats: [
+      { label: 'Asertividad',  value: 95, width: 'w-[95%]', color: 'bg-red-500/60' },
+      { label: 'Rigor',        value: 91, width: 'w-[91%]', color: 'bg-indigo-400/60' },
+      { label: 'Crítica',      value: 97, width: 'w-[97%]', color: 'bg-red-600/60' },
+    ],
   },
   {
     Portrait: SocratesPortrait,
     name: 'Sócrates',
     tag: 'Método Maiéutico',
-    statLabel: 'Equilibrio',
-    statValue: 68,
-    statWidth: 'w-[68%]',
-    statColor: 'bg-indigo-400/60',
+    stats: [
+      { label: 'Equilibrio',   value: 68, width: 'w-[68%]', color: 'bg-indigo-400/60' },
+      { label: 'Empatía',      value: 85, width: 'w-[85%]', color: 'bg-purple-400/60' },
+      { label: 'Síntesis',     value: 76, width: 'w-[76%]', color: 'bg-emerald-400/60' },
+    ],
   },
   {
     Portrait: CuriePortrait,
     name: 'Marie Curie',
     tag: 'Rigor Clínico',
-    statLabel: 'Neutralidad',
-    statValue: 88,
-    statWidth: 'w-[88%]',
-    statColor: 'bg-sky-500/60',
+    stats: [
+      { label: 'Neutralidad',  value: 88, width: 'w-[88%]', color: 'bg-sky-500/60' },
+      { label: 'Rigor',        value: 97, width: 'w-[97%]', color: 'bg-indigo-400/60' },
+      { label: 'Pragmatismo',  value: 80, width: 'w-[80%]', color: 'bg-amber-500/60' },
+    ],
   },
   {
     Portrait: SunTzuPortrait,
     name: 'Sun Tzu',
     tag: 'Arte de la Estrategia',
-    statLabel: 'Asertividad',
-    statValue: 79,
-    statWidth: 'w-[79%]',
-    statColor: 'bg-amber-500/60',
+    stats: [
+      { label: 'Asertividad',  value: 79, width: 'w-[79%]', color: 'bg-amber-500/60' },
+      { label: 'Síntesis',     value: 88, width: 'w-[88%]', color: 'bg-emerald-400/60' },
+      { label: 'Pragmatismo',  value: 92, width: 'w-[92%]', color: 'bg-amber-400/60' },
+    ],
   },
   {
     Portrait: DarwinPortrait,
     name: 'Charles Darwin',
     tag: 'Síntesis Sistémica',
-    statLabel: 'Neutralidad',
-    statValue: 91,
-    statWidth: 'w-[91%]',
-    statColor: 'bg-sky-500/60',
+    stats: [
+      { label: 'Neutralidad',  value: 91, width: 'w-[91%]', color: 'bg-sky-500/60' },
+      { label: 'Síntesis',     value: 95, width: 'w-[95%]', color: 'bg-emerald-400/60' },
+      { label: 'Rigor',        value: 87, width: 'w-[87%]', color: 'bg-indigo-400/60' },
+    ],
   },
 ]
 
@@ -360,7 +365,7 @@ export default function LandingPage() {
 
           {/* Agent cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map(({ Portrait, name, tag, statLabel, statValue, statWidth, statColor }) => (
+            {agents.map(({ Portrait, name, tag, stats }) => (
               <div
                 key={name}
                 className="bg-slate-950/40 border border-slate-900 rounded-xl p-6 hover:border-indigo-500/50 transition-all group"
@@ -380,17 +385,21 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Stat bar */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-slate-700">
-                      {statLabel}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-700">{statValue}%</span>
-                  </div>
-                  <div className="h-px bg-slate-900 rounded-full overflow-hidden">
-                    <div className={`h-full ${statWidth} ${statColor} rounded-full`} />
-                  </div>
+                {/* 3 stat bars */}
+                <div className="space-y-3">
+                  {stats.map(({ label, value, width, color }) => (
+                    <div key={label}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-700">
+                          {label}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-700">{value}%</span>
+                      </div>
+                      <div className="h-px bg-slate-900 rounded-full overflow-hidden">
+                        <div className={`h-full ${width} ${color} rounded-full`} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
