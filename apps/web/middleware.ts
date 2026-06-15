@@ -54,9 +54,17 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Auth gate: if not authenticated AND not on an /auth/*, /join/*, /api/* path or the landing page, redirect to sign-in
+  // Landing page (/) is public — authenticated users land at /sessions/new instead.
+  if (pathname === "/") {
+    if (user) {
+      return NextResponse.redirect(new URL("/sessions/new", request.url));
+    }
+    return response;
+  }
+
+  // Auth gate: if not authenticated AND not on an /auth/*, /join/*, or /api/* path, redirect to sign-in
   // /api/* is handled by the Hono API's internal requireAuth middleware.
-  if (!user && !pathname.startsWith("/auth/") && !pathname.startsWith("/join/") && !pathname.startsWith("/api/") && pathname !== "/") {
+  if (!user && !pathname.startsWith("/auth/") && !pathname.startsWith("/join/") && !pathname.startsWith("/api/")) {
     const signInUrl = new URL("/auth/sign-in", request.url);
     return NextResponse.redirect(signInUrl);
   }
