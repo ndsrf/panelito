@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import type { LucideIcon } from 'lucide-react'
 import {
   GitBranch,
   GitMerge,
@@ -8,86 +7,185 @@ import {
   Key,
   Activity,
   ArrowRight,
-  TrendingUp,
-  ShieldAlert,
-  Target,
-  BookOpen,
-  Network,
-  Scale,
 } from 'lucide-react'
 import { FeaturesTabs } from '@/components/features-tabs'
 
+// ── Portrait SVGs ──────────────────────────────────────────────────────────────
+// Stroke-only line art, 40×40 viewBox. Color comes from the parent (currentColor).
+
+function EinsteinPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Wild hair */}
+      <path d="M10 19C10 10 13 4 20 4C27 4 30 10 30 19" strokeWidth="1.5"/>
+      <path d="M10 15C8 9 12 4 11 7" strokeWidth="1"/>
+      <path d="M30 15C32 9 28 4 29 7" strokeWidth="1"/>
+      {/* Face */}
+      <ellipse cx="20" cy="23" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Round glasses */}
+      <circle cx="16" cy="22" r="3" strokeWidth="1"/>
+      <circle cx="24" cy="22" r="3" strokeWidth="1"/>
+      <line x1="19" y1="22" x2="21" y2="22" strokeWidth="1"/>
+      <line x1="13" y1="21" x2="11" y2="20" strokeWidth="1"/>
+      {/* Mustache */}
+      <path d="M16 28Q20 31 24 28" strokeWidth="1.5"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 32 13 30 20 30C27 30 32 32 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function DescartesPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Long 17th-century hair, flows to shoulders */}
+      <path d="M11 18C10 10 13 4 20 4C27 4 30 10 29 18" strokeWidth="1.5"/>
+      <path d="M11 18C9 25 9 33 11 37" strokeWidth="1.5"/>
+      <path d="M29 18C31 25 31 33 29 37" strokeWidth="1.5"/>
+      {/* Face */}
+      <ellipse cx="20" cy="21" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Period thin mustache */}
+      <path d="M16 27Q20 29 24 27" strokeWidth="1"/>
+      {/* Lace collar zigzag */}
+      <path d="M11 33C13 30 15 32 17 30C19 32 21 30 23 32C25 30 27 32 29 33" strokeWidth="1"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 34 12 32 20 32C28 32 32 34 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function SocratesPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Bald head */}
+      <circle cx="20" cy="17" r="11" strokeWidth="1.5"/>
+      {/* Full beard */}
+      <path d="M9 22C8 29 12 36 16 37C18 38 22 38 24 37C28 36 32 29 31 22" strokeWidth="1.5"/>
+      <path d="M13 29C16 33 20 35 20 35" strokeWidth="1"/>
+      <path d="M27 29C24 33 20 35 20 35" strokeWidth="1"/>
+      {/* Toga */}
+      <path d="M5 40C7 33 12 31 20 31C28 31 33 33 35 40" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function CuriePortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Hair bun */}
+      <ellipse cx="20" cy="8" rx="5" ry="4" strokeWidth="1.5"/>
+      <line x1="15" y1="10" x2="13" y2="14" strokeWidth="1.5"/>
+      <line x1="25" y1="10" x2="27" y2="14" strokeWidth="1.5"/>
+      {/* Face */}
+      <ellipse cx="20" cy="22" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* High collar blouse */}
+      <path d="M13 31C14 34 20 35 20 35C20 35 26 34 27 31" strokeWidth="1"/>
+      {/* Shoulders */}
+      <path d="M6 38C8 33 13 31 20 31C27 31 32 33 34 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function SunTzuPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Topknot */}
+      <ellipse cx="20" cy="7" rx="3" ry="3" strokeWidth="1.5"/>
+      <line x1="20" y1="4" x2="20" y2="2" strokeWidth="2"/>
+      {/* Head */}
+      <circle cx="20" cy="19" r="11" strokeWidth="1.5"/>
+      {/* Sparse goatee */}
+      <path d="M18 28C19 32 21 32 22 28" strokeWidth="1.5"/>
+      {/* Robe collar */}
+      <path d="M10 30C11 27 15 26 20 26C25 26 29 27 30 30" strokeWidth="1.5"/>
+      <path d="M5 38C7 33 12 31 20 31C28 31 33 33 35 38" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function DarwinPortrait() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* Balding head — hair on sides only */}
+      <path d="M12 17C12 10 15 5 20 5C25 5 28 10 28 17" strokeWidth="1.5"/>
+      <path d="M11 17C10 13 11 9 12 10" strokeWidth="1"/>
+      <path d="M29 17C30 13 29 9 28 10" strokeWidth="1"/>
+      {/* Face */}
+      <ellipse cx="20" cy="21" rx="9" ry="10" strokeWidth="1.5"/>
+      {/* Long patriarch beard */}
+      <path d="M11 25C9 30 10 37 14 39C17 40 20 40 20 40C20 40 23 40 26 39C30 37 31 30 29 25" strokeWidth="1.5"/>
+      <path d="M13 33C16 37 20 38 20 38" strokeWidth="1"/>
+      <path d="M27 33C24 37 20 38 20 38" strokeWidth="1"/>
+    </svg>
+  )
+}
+
+// ── Agent roster ───────────────────────────────────────────────────────────────
+
 type Agent = {
-  Icon: LucideIcon
+  Portrait: () => React.ReactElement
   name: string
   tag: string
   statLabel: 'Asertividad' | 'Neutralidad' | 'Equilibrio'
   statValue: number
   statWidth: string
   statColor: string
-  iconColor: string
 }
 
 const agents: Agent[] = [
   {
-    Icon: TrendingUp,
-    name: 'MUTA.ANALISTA',
+    Portrait: EinsteinPortrait,
+    name: 'Albert Einstein',
     tag: 'Síntesis Cuantitativa',
     statLabel: 'Neutralidad',
     statValue: 82,
     statWidth: 'w-[82%]',
     statColor: 'bg-sky-500/60',
-    iconColor: 'text-sky-400',
   },
   {
-    Icon: ShieldAlert,
-    name: 'MUTA.ADVERSARIO',
-    tag: 'Red Team',
+    Portrait: DescartesPortrait,
+    name: 'René Descartes',
+    tag: 'Duda Metódica / Red Team',
     statLabel: 'Asertividad',
     statValue: 95,
     statWidth: 'w-[95%]',
     statColor: 'bg-red-500/60',
-    iconColor: 'text-red-400',
   },
   {
-    Icon: Target,
-    name: 'MUTA.COACH',
-    tag: 'Framework GROW',
+    Portrait: SocratesPortrait,
+    name: 'Sócrates',
+    tag: 'Método Maiéutico',
     statLabel: 'Equilibrio',
-    statValue: 70,
-    statWidth: 'w-[70%]',
+    statValue: 68,
+    statWidth: 'w-[68%]',
     statColor: 'bg-indigo-400/60',
-    iconColor: 'text-amber-400',
   },
   {
-    Icon: BookOpen,
-    name: 'MUTA.RIGORISTA',
+    Portrait: CuriePortrait,
+    name: 'Marie Curie',
     tag: 'Rigor Clínico',
     statLabel: 'Neutralidad',
     statValue: 88,
     statWidth: 'w-[88%]',
     statColor: 'bg-sky-500/60',
-    iconColor: 'text-slate-300',
   },
   {
-    Icon: Network,
-    name: 'MUTA.ESTRATEGA',
-    tag: 'Visión Sistémica',
+    Portrait: SunTzuPortrait,
+    name: 'Sun Tzu',
+    tag: 'Arte de la Estrategia',
     statLabel: 'Asertividad',
-    statValue: 73,
-    statWidth: 'w-[73%]',
+    statValue: 79,
+    statWidth: 'w-[79%]',
     statColor: 'bg-amber-500/60',
-    iconColor: 'text-amber-400',
   },
   {
-    Icon: Scale,
-    name: 'MUTA.MEDIADOR',
-    tag: 'Dialéctica Socrática',
+    Portrait: DarwinPortrait,
+    name: 'Charles Darwin',
+    tag: 'Síntesis Sistémica',
     statLabel: 'Neutralidad',
-    statValue: 94,
-    statWidth: 'w-[94%]',
+    statValue: 91,
+    statWidth: 'w-[91%]',
     statColor: 'bg-sky-500/60',
-    iconColor: 'text-purple-400',
   },
 ]
 
@@ -262,18 +360,18 @@ export default function LandingPage() {
 
           {/* Agent cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map(({ Icon, name, tag, statLabel, statValue, statWidth, statColor, iconColor }) => (
+            {agents.map(({ Portrait, name, tag, statLabel, statValue, statWidth, statColor }) => (
               <div
                 key={name}
                 className="bg-slate-950/40 border border-slate-900 rounded-xl p-6 hover:border-indigo-500/50 transition-all group"
               >
                 {/* Avatar + identity */}
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 group-hover:border-indigo-800/60 transition-colors">
-                    <Icon className={`w-5 h-5 ${iconColor}`} strokeWidth={1.5} />
+                  <div className="w-12 h-12 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
+                    <Portrait />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold font-mono tracking-[0.1em] text-slate-200 mb-1.5 truncate">
+                    <p className="text-sm font-semibold text-slate-200 mb-1.5 leading-tight">
                       {name}
                     </p>
                     <span className="inline-block text-[10px] font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
