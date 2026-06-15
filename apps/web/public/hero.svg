@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="100%" height="100%">
+  <defs>
+    <!-- Fondo y Degradados Oscuros -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#030303" />
+      <stop offset="50%" stop-color="#08080a" />
+      <stop offset="100%" stop-color="#020205" />
+    </linearGradient>
+
+    <!-- Degradados de Neón para Ramas -->
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="1" />
+      <stop offset="100%" stop-color="#4facfe" stop-opacity="0.2" />
+    </linearGradient>
+    <linearGradient id="purple-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b92b27" />
+      <stop offset="100%" stop-color="#1565c0" />
+    </linearGradient>
+    <linearGradient id="emerald-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00ff87" />
+      <stop offset="100%" stop-color="#60efff" />
+    </linearGradient>
+
+    <!-- Filtros de Resplandor (Glow Effect) -->
+    <filter id="glow-heavy" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-subtle" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Lienzo de Fondo -->
+  <rect width="1200" height="750" fill="url(#bg-grad)" />
+
+  <!-- Luces de Fondo Difuminadas Ambientales (Aura) -->
+  <circle cx="200" cy="200" r="180" fill="#7000ff" opacity="0.1" filter="url(#glow-heavy)" />
+  <circle cx="1000" cy="550" r="220" fill="#00f2fe" opacity="0.08" filter="url(#glow-heavy)" />
+
+  <!-- CONTENEDOR DISPOSITIVO PRINCIPAL (Mockup de la App) -->
+  <g transform="translate(150, 75)">
+    <!-- Marco de la Pantalla Estilo Neumórfico Oscuro -->
+    <rect width="900" height="600" rx="16" fill="#050508" stroke="#12121a" stroke-width="2" />
+
+    <!-- BARRA SUPERIOR DE LA VENTANA -->
+    <rect width="900" height="40" rx="16" fill="#09090f" />
+    <!-- Botones de Sistema Mac-style -->
+    <circle cx="25" cy="20" r="5" fill="#ef4444" opacity="0.6"/>
+    <circle cx="41" cy="20" r="5" fill="#f59e0b" opacity="0.6"/>
+    <circle cx="57" cy="20" r="5" fill="#10b981" opacity="0.6"/>
+    <!-- Título / URL simulada -->
+    <rect cx="450" cy="20" width="180" height="16" rx="4" fill="#141423" x="360" y="12"/>
+    <text x="415" y="24" fill="#475569" font-family="sans-serif" font-size="10" letter-spacing="1">multiverse.io/room/alpha</text>
+
+    <!-- INTERFAZ DIVIDIDA (THE SPLIT LAYOUT) -->
+
+    <!-- ==================== PANEL ANALÍTICO SUPERIOR (40%) ==================== -->
+    <g transform="translate(20, 55)">
+      <!-- Marco del Canvas Superior -->
+      <rect width="860" height="210" rx="8" fill="#0c0c14" stroke="#1e1b4b" stroke-width="1" />
+      <text x="20" y="25" fill="#6366f1" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="1">PANEL DE CONTROL ANALÍTICO (ACTIVO: RAMA BETA)</text>
+
+      <!-- Widget 1: Radar Chart Geopolítico / Estratégico (Izquierda) -->
+      <g transform="translate(40, 45)">
+        <polygon points="60,0 117,41 95,107 25,107 3,41" fill="none" stroke="#1e293b" stroke-width="1"/>
+        <polygon points="60,15 102,46 86,95 34,95 18,46" fill="none" stroke="#1e293b" stroke-width="1"/>
+        <!-- Datos de la IA en Cyan brillante -->
+        <polygon points="60,10 110,41 90,80 40,95 20,30" fill="none" stroke="#00f2fe" stroke-width="2" filter="url(#glow-subtle)"/>
+        <polygon points="60,10 110,41 90,80 40,95 20,30" fill="#00f2fe" opacity="0.15"/>
+        <circle cx="60" cy="10" r="3" fill="#00f2fe"/>
+        <circle cx="110" cy="41" r="3" fill="#00f2fe"/>
+        <circle cx="90" cy="80" r="3" fill="#00f2fe"/>
+      </g>
+
+      <!-- Widget 2: Bento Grid / Tarjetas Estratégicas (Centro-Derecha) -->
+      <g transform="translate(240, 50)">
+        <!-- Tarjeta G (GROW) o Pilar 1 -->
+        <rect width="280" height="60" rx="6" fill="#111122" stroke="#312e81" stroke-width="1"/>
+        <rect width="6" height="60" rx="3" fill="#6366f1" x="0" y="0"/>
+        <text x="20" y="25" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="600">Meta Trimestral: Expansión</text>
+        <text x="20" y="42" fill="#64748b" font-family="sans-serif" font-size="10">Validado por el Analista • Consenso 94%</text>
+
+        <!-- Tarjeta R (GROW) o Pilar 2 (Abajo) -->
+        <rect width="280" height="60" rx="6" fill="#111122" stroke="#1e293b" stroke-width="1" y="75"/>
+        <rect width="6" height="60" rx="3" fill="#f59e0b" x="0" y="75"/>
+        <text x="20" y="100" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="600">Riesgo Detectado: Liquidez</text>
+        <text x="20" y="117" fill="#64748b" font-family="sans-serif" font-size="10">Alerta del Abogado del Diablo • Mitigando</text>
+      </g>
+
+      <!-- Widget 3: Gráfico de Dispersión / Consenso Mental (Derecha) -->
+      <g transform="translate(580, 50)">
+        <rect width="240" height="135" rx="6" fill="#111122" stroke="#1e1b4b" stroke-width="1"/>
+        <!-- Ejes de coordenadas -->
+        <line x1="20" y1="115" x2="220" y2="115" stroke="#334155" stroke-width="1"/>
+        <line x1="20" y1="20" x2="20" y2="115" stroke="#334155" stroke-width="1"/>
+        <!-- Nodos de Ideas (Humans + AI) -->
+        <circle cx="80" cy="80" r="6" fill="#38bdf8" opacity="0.7"/>
+        <circle cx="140" cy="40" r="8" fill="#00ff87" filter="url(#glow-subtle)"/>
+        <text x="154" y="44" fill="#00ff87" font-family="sans-serif" font-size="9">Golden Path</text>
+        <circle cx="180" cy="90" r="5" fill="#ec4899" opacity="0.6"/>
+        <circle cx="50" cy="50" r="7" fill="#6366f1" opacity="0.8"/>
+      </g>
+    </g>
+
+    <!-- ==================== BARRA DIVISORIA / NAVEGADOR DE RAMAS ==================== -->
+    <g transform="translate(20, 278)">
+      <rect width="860" height="34" rx="6" fill="#0d0e16" stroke="#1e1b4b" stroke-width="1"/>
+
+      <!-- Chips de Ramas Estilo Git -->
+      <!-- Rama Raíz Principal -->
+      <g transform="translate(15, 7)">
+        <rect width="90" height="20" rx="4" fill="#1e1b4b"/>
+        <circle cx="12" cy="10" r="4" fill="#6366f1"/>
+        <text x="24" y="14" fill="#e2e8f0" font-family="sans-serif" font-size="10" font-weight="bold">Rama Raíz</text>
+      </g>
+
+      <!-- Rama Azul Forkeada (Activa) -->
+      <g transform="translate(120, 7)">
+        <rect width="110" height="20" rx="4" fill="#0369a1" stroke="#00f2fe" stroke-width="1" filter="url(#glow-subtle)"/>
+        <circle cx="12" cy="10" r="4" fill="#00f2fe"/>
+        <text x="24" y="14" fill="#ffffff" font-family="sans-serif" font-size="10" font-weight="bold">Estrategia Gas</text>
+      </g>
+
+      <!-- Rama Verde Sibling con Notificación de Pulso (AWARE-01) -->
+      <g transform="translate(245, 7)">
+        <rect width="110" height="20" rx="4" fill="#064e3b"/>
+        <circle cx="12" cy="10" r="4" fill="#00ff87"/>
+        <text x="24" y="14" fill="#a7f3d0" font-family="sans-serif" font-size="10">Fase Opciones</text>
+        <!-- Pulso de Actividad -->
+        <circle cx="102" cy="5" r="3" fill="#ef4444" filter="url(#glow-subtle)"/>
+      </g>
+
+      <!-- Indicador Co-escritura en el Extremo -->
+      <text x="690" y="21" fill="#475569" font-family="sans-serif" font-size="10" font-style="italic">Lau está hablando por micro...</text>
+    </g>
+
+    <!-- ==================== FLUJO DE CHAT INFERIOR (60%) ==================== -->
+    <g transform="translate(20, 325)">
+      <!-- Contenedor del Chat Scrollable -->
+      <rect width="860" height="255" rx="8" fill="#06060b" stroke="#11111f" stroke-width="1"/>
+
+      <!-- Mensaje 1: Humano (Javi) -->
+      <g transform="translate(20, 20)">
+        <circle cx="20" cy="20" r="14" fill="#4338ca"/>
+        <text x="15" y="23" fill="#fff" font-family="sans-serif" font-size="10" font-weight="bold">J</text>
+        <text x="45" y="14" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold">Javi Gomez</text>
+        <rect x="45" y="22" width="450" height="32" rx="6" fill="#111122"/>
+        <text x="57" y="42" fill="#f1f5f9" font-family="sans-serif" font-size="11">¿Qué pasa si la UE corta el 100% de la importación de gas en invierno?</text>
+      </g>
+
+      <!-- Línea de Conexión de Árbol / Bifurcación (The Git Fork Effect) -->
+      <path d="M 65, 77 L 65, 120 L 85, 120" fill="none" stroke="#00f2fe" stroke-width="2" opacity="0.8" stroke-dasharray="2 2"/>
+      <circle cx="65" cy="77" r="3" fill="#00f2fe"/>
+
+      <!-- Mensaje 2: Respuesta de la IA Inteligente en la nueva rama -->
+      <g transform="translate(85, 95)">
+        <!-- Avatar de Bot Especializado -->
+        <circle cx="20" cy="20" r="14" fill="#0f172a" stroke="#00f2fe" stroke-width="1" filter="url(#glow-subtle)"/>
+        <!-- Icono de Red Neuronal Abstracto inside Avatar -->
+        <circle cx="20" cy="15" r="2" fill="#00f2fe"/>
+        <circle cx="15" cy="24" r="2" fill="#00f2fe"/>
+        <circle cx="25" cy="24" r="2" fill="#00f2fe"/>
+        <line x1="20" y1="15" x2="15" y2="24" stroke="#00f2fe" stroke-width="1"/>
+        <line x1="20" y1="15" x2="25" y2="24" stroke="#00f2fe" stroke-width="1"/>
+
+        <text x="45" y="14" fill="#00f2fe" font-family="sans-serif" font-size="10" font-weight="bold" letter-spacing="0.5">MUTA_BOT: ANALISTA DE DATOS</text>
+
+        <!-- Contenedor del Mensaje Streaming -->
+        <rect x="45" y="22" width="670" height="65" rx="6" fill="#090d16" stroke="#004e7c" stroke-width="1"/>
+        <text x="57" y="42" fill="#f1f5f9" font-family="sans-serif" font-size="11" font-weight="500">Bifurcando a la línea temporal "Estrategia Gas". Analizando dependencias energéticas...</text>
+        <text x="57" y="62" fill="#94a3b8" font-family="sans-serif" font-size="11">El precio se dispararía un 40% en el flanco este. He actualizado el Radar de Presión arriba.</text>
+
+        <!-- Power Reactions aplicadas debajo de la burbuja -->
+        <g transform="translate(45, 95)">
+          <rect width="60" height="18" rx="4" fill="#1e293b" opacity="0.8"/>
+          <text x="6" y="13" font-size="10">&#129504; 3</text>
+          <rect width="60" height="18" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" x="68"/>
+          <text x="74" y="13" font-size="10">&#128293; Activo</text>
+        </g>
+      </g>
+
+      <!-- CAJA DE ENTRADA INFERIOR DE TEXTO (Chat Input Field) -->
+      <g transform="translate(20, 210)">
+        <rect width="820" height="32" rx="6" fill="#0f0f18" stroke="#1e1b4b" stroke-width="1"/>
+        <text x="15" y="20" fill="#475569" font-family="sans-serif" font-size="11">Escribe una hipótesis, abre una rama con @ o usa el micro...</text>
+        <!-- Icono de Micro / Enviar simulado -->
+        <circle cx="795" cy="16" r="8" fill="#1e1b4b"/>
+        <path d="M 793,16 L 797,16 M 795,13 L 795,19" stroke="#6366f1" stroke-width="1.5"/>
+      </g>
+    </g>
+  </g>
+</svg>
