@@ -172,8 +172,8 @@ export function NavChartPixels() {
               ty={p.y}
               color={p.color}
               delay={i * 0.055}
-              ix={scatter[i].x}
-              iy={scatter[i].y}
+              ix={scatter[i]?.x ?? 0}
+              iy={scatter[i]?.y ?? 0}
             />
           ))}
       </AnimatePresence>
