@@ -3,8 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useMemo } from 'react'
-import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
-import { DevSignInButton } from '@/components/auth/dev-sign-in-button'
+import { LoginContent } from '@/components/auth/login-content'
 
 const COLORS = ['#818CF8', '#38BDF8', '#F472B6']
 
@@ -80,7 +79,7 @@ export function LoginPanel({
         {open ? (
           <motion.aside
             key="login-panel"
-            className="fixed right-0 top-0 bottom-0 z-[57] w-full sm:w-[400px] bg-slate-950 border-l border-white/[0.07] flex flex-col items-center justify-center gap-8 px-10"
+            className="fixed right-0 top-0 bottom-0 z-[57] w-full sm:w-[400px] bg-slate-950 border-l border-white/[0.07] flex flex-col items-center justify-center px-10"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -94,43 +93,7 @@ export function LoginPanel({
               <X className="w-5 h-5" />
             </button>
 
-            {/* Logo + wordmark */}
-            <div className="flex flex-col items-center gap-4 text-center">
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <rect width="32" height="32" rx="6" fill="#0F172A" />
-                <path
-                  d="M11 22V10H17C18.6569 10 20 11.3431 20 13C20 14.6569 18.6569 16 17 16H11"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="22" cy="22" r="2" fill="#38BDF8" />
-                <circle cx="24" cy="12" r="1.5" fill="#818CF8" />
-                <circle cx="8" cy="18" r="1.5" fill="#F472B6" />
-              </svg>
-              <div>
-                <h2 className="text-2xl font-semibold text-white tracking-tight">
-                  Panelito
-                </h2>
-                <p className="text-sm text-slate-500 mt-1.5">
-                  Pensamiento colectivo en tiempo real.
-                </p>
-              </div>
-            </div>
-
-            {/* Auth buttons */}
-            <div className="w-full max-w-[300px] flex flex-col gap-3">
-              <GoogleSignInButton />
-              {process.env.NODE_ENV !== 'production' && <DevSignInButton />}
-            </div>
+            <LoginContent />
           </motion.aside>
         ) : null}
       </AnimatePresence>
