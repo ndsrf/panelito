@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import { ScrollLogo } from './scroll-logo'
 import { NavChartPixels } from './nav-chart-pixels'
 import { LoginPanel } from './login-panel'
+import { useLoginStore } from '@/store/login-store'
 
 function ScrollEntrar({ onClick }: { onClick: () => void }) {
   const { scrollY } = useScroll()
@@ -27,7 +27,7 @@ export function ScrollHeader() {
   const { scrollY } = useScroll()
   const rawH = useTransform(scrollY, [0, 120], [56, 40], { clamp: true })
   const height = useSpring(rawH, { stiffness: 80, damping: 20 })
-  const [loginOpen, setLoginOpen] = useState(false)
+  const { open, openPanel, closePanel } = useLoginStore()
 
   return (
     <>
@@ -38,11 +38,11 @@ export function ScrollHeader() {
         <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between relative">
           <ScrollLogo />
           <NavChartPixels />
-          <ScrollEntrar onClick={() => setLoginOpen(true)} />
+          <ScrollEntrar onClick={openPanel} />
         </div>
       </motion.header>
 
-      <LoginPanel open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginPanel open={open} onClose={closePanel} />
     </>
   )
 }
