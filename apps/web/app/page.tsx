@@ -10,7 +10,7 @@ import {
 import { FeaturesTabs } from '@/components/features-tabs'
 import { HeroPixels } from '@/components/hero-pixels'
 import { HeroCarousel } from '@/components/hero-carousel'
-import { ScrollLogo } from '@/components/scroll-logo'
+import { ScrollHeader } from '@/components/scroll-header'
 
 // ── Portrait SVGs ──────────────────────────────────────────────────────────────
 // Stroke-only line art, 40×40 viewBox. Color comes from the parent (currentColor).
@@ -201,17 +201,7 @@ export default function LandingPage() {
     <div className="bg-black text-slate-100 overflow-x-hidden">
 
       {/* ── NAV ──────────────────────────────────────────────────── */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/[0.04] bg-black/70 backdrop-blur-xl">
-        <nav className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <ScrollLogo />
-          <Link
-            href="/auth/sign-in"
-            className="text-sm bg-white text-black px-4 py-1.5 rounded-md font-medium hover:bg-slate-200 transition-all"
-          >
-            Entrar →
-          </Link>
-        </nav>
-      </header>
+      <ScrollHeader />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative pt-14 min-h-screen flex flex-col justify-center overflow-hidden">
