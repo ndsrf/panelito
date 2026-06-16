@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 const slides = [
   '/hero.svg',
   '/hero0.svg',
+  '/hero6.svg',
   '/hero1.svg',
   '/hero2.svg',
   '/hero3.svg',

@@ -5,8 +5,8 @@ import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 export function ScrollLogo() {
   const { scrollY } = useScroll()
 
-  // Scale peaks at ~80px scroll then eases back to 1 by ~200px
-  const rawScale = useTransform(scrollY, [0, 80, 200], [1, 1.55, 1])
+  // Start large on page open, shrink to normal size as user scrolls down
+  const rawScale = useTransform(scrollY, [0, 120], [1.5, 1], { clamp: true })
   const scale = useSpring(rawScale, { stiffness: 120, damping: 22 })
 
   return (
