@@ -141,27 +141,46 @@ export default function Image() {
         </div>
 
         {/* Tags */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {[
-            'Bifurcación de conversaciones',
-            'Panel analítico 40/60',
-            'IA modular BYOK',
-          ].map((tag) => (
-            <div
-              key={tag}
-              style={{
-                background: 'rgba(99,102,241,0.08)',
-                border: '1px solid rgba(99,102,241,0.18)',
-                borderRadius: '9999px',
-                padding: '7px 18px',
-                color: '#6366f1',
-                fontSize: '15px',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {tag}
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.18)',
+              borderRadius: '9999px',
+              padding: '7px 18px',
+              color: '#6366f1',
+              fontSize: '15px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Bifurcación de conversaciones
+          </div>
+          <div
+            style={{
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.18)',
+              borderRadius: '9999px',
+              padding: '7px 18px',
+              color: '#6366f1',
+              fontSize: '15px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Panel analítico 40/60
+          </div>
+          <div
+            style={{
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.18)',
+              borderRadius: '9999px',
+              padding: '7px 18px',
+              color: '#6366f1',
+              fontSize: '15px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            IA modular BYOK
+          </div>
         </div>
       </div>
     ),
