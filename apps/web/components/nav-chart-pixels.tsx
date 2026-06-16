@@ -143,7 +143,7 @@ export function NavChartPixels() {
     }
   }, [isScrolled])
 
-  const chart = CHARTS[chartKey % CHARTS.length]
+  const chart = CHARTS[chartKey % CHARTS.length]!
 
   // Stable scatter positions per chart cycle — recomputed when chartKey changes
   const scatter = useMemo(
