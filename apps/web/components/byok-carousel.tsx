@@ -5,79 +5,65 @@ import { ChevronLeft, ChevronRight, Lock, Database, Network } from 'lucide-react
 
 function EncryptionDiagram() {
   return (
-    <svg viewBox="0 0 800 400" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      {/* Title */}
-      <text x="400" y="50" fontSize="32" fontWeight="bold" fill="#f1f5f9" textAnchor="middle">
-        Tus datos encriptados
-      </text>
-      <text x="400" y="85" fontSize="18" fill="#cbd5e1" textAnchor="middle">
-        Solo tú tienes acceso
-      </text>
+    <div className="w-full h-full flex flex-col items-center justify-center gap-8 py-8">
+      <div className="flex items-center gap-8">
+        {/* Browser - Key */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-24 h-24 rounded-full bg-cyan-950/40 border-2 border-cyan-400 flex items-center justify-center">
+            <span className="text-5xl">🔑</span>
+          </div>
+        </div>
 
-      {/* Step 1: Browser */}
-      <circle cx="120" cy="200" r="50" fill="none" stroke="#06b6d4" strokeWidth="3" />
-      <text x="120" y="200" fontSize="24" fontWeight="bold" fill="#06b6d4" textAnchor="middle" dominantBaseline="middle">
-        🔑
-      </text>
-      <text x="120" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
-        Tu clave
-      </text>
-      <text x="120" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
-        en navegador
-      </text>
+        {/* Arrow 1 - TLS */}
+        <div className="flex flex-col items-center gap-2">
+          <svg width="60" height="40" viewBox="0 0 60 40" className="text-amber-400">
+            <line x1="10" y1="20" x2="50" y2="20" stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowAlt)" />
+          </svg>
+          <span className="text-xs font-semibold text-amber-400">TLS</span>
+        </div>
 
-      {/* Arrow 1 */}
-      <line x1="170" y1="200" x2="270" y2="200" stroke="#fbbf24" strokeWidth="4" markerEnd="url(#arrowYellow)" />
-      <text x="220" y="180" fontSize="14" fontWeight="600" fill="#fbbf24" textAnchor="middle">
-        TLS/SSL
-      </text>
-      <text x="220" y="228" fontSize="13" fill="#cbd5e1" textAnchor="middle">
-        En tránsito
-      </text>
+        {/* Server - Database */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-24 h-24 rounded-full bg-purple-950/40 border-2 border-purple-400 flex items-center justify-center">
+            <span className="text-5xl">🗄️</span>
+          </div>
+        </div>
 
-      {/* Step 2: Server */}
-      <circle cx="400" cy="200" r="50" fill="none" stroke="#a855f7" strokeWidth="3" />
-      <text x="400" y="200" fontSize="24" fontWeight="bold" fill="#a855f7" textAnchor="middle" dominantBaseline="middle">
-        🗄️
-      </text>
-      <text x="400" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
-        Servidor
-      </text>
-      <text x="400" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
-        Encriptado
-      </text>
+        {/* Arrow 2 - AES */}
+        <div className="flex flex-col items-center gap-2">
+          <svg width="60" height="40" viewBox="0 0 60 40" className="text-emerald-400">
+            <line x1="10" y1="20" x2="50" y2="20" stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowAlt2)" />
+          </svg>
+          <span className="text-xs font-semibold text-emerald-400">AES</span>
+        </div>
 
-      {/* Arrow 2 */}
-      <line x1="450" y1="200" x2="550" y2="200" stroke="#10b981" strokeWidth="4" markerEnd="url(#arrowGreen)" />
-      <text x="500" y="180" fontSize="14" fontWeight="600" fill="#10b981" textAnchor="middle">
-        AES-256
-      </text>
-      <text x="500" y="228" fontSize="13" fill="#cbd5e1" textAnchor="middle">
-        En reposo
-      </text>
+        {/* Lock - Admin Only */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-24 h-24 rounded-full bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center">
+            <span className="text-5xl">🔒</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Step 3: Access Control */}
-      <circle cx="680" cy="200" r="50" fill="none" stroke="#10b981" strokeWidth="3" />
-      <text x="680" y="200" fontSize="24" fontWeight="bold" fill="#10b981" textAnchor="middle" dominantBaseline="middle">
-        🔒
-      </text>
-      <text x="680" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
-        Solo Admin
-      </text>
-      <text x="680" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
-        accede
-      </text>
+      {/* Bottom text */}
+      <div className="text-center">
+        <p className="text-sm text-slate-300 max-w-sm">
+          Solo tú tienes acceso a tus datos
+        </p>
+      </div>
 
-      {/* Arrow markers */}
-      <defs>
-        <marker id="arrowYellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-          <path d="M0,0 L0,6 L9,3 z" fill="#fbbf24" />
-        </marker>
-        <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-          <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
-        </marker>
-      </defs>
-    </svg>
+      {/* SVG markers */}
+      <svg width="0" height="0">
+        <defs>
+          <marker id="arrowAlt" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="currentColor" />
+          </marker>
+          <marker id="arrowAlt2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="currentColor" />
+          </marker>
+        </defs>
+      </svg>
+    </div>
   )
 }
 
