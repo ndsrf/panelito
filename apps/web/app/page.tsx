@@ -5,12 +5,12 @@ import {
   Monitor,
   Key,
   Activity,
-  ArrowRight,
 } from 'lucide-react'
 import { FeaturesTabs } from '@/components/features-tabs'
 import { HeroPixels } from '@/components/hero-pixels'
 import { HeroCarousel } from '@/components/hero-carousel'
 import { ScrollHeader } from '@/components/scroll-header'
+import { HeroEntrar } from '@/components/hero-entrar'
 
 // ── Portrait SVGs ──────────────────────────────────────────────────────────────
 // Stroke-only line art, 40×40 viewBox. Color comes from the parent (currentColor).
@@ -245,13 +245,7 @@ export default function LandingPage() {
 
               {/* CTA */}
               <div>
-                <Link
-                  href="/auth/sign-in"
-                  className="inline-flex items-center gap-2.5 bg-white text-black px-7 py-3.5 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
-                >
-                  Entrar a la Aplicación
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                <HeroEntrar />
               </div>
             </div>
 
