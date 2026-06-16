@@ -12,7 +12,6 @@
     "format": "turbo run format"
   },
   "devDependencies": {
-    "@vercel/og": "^0.11.1",
     "turbo": "2.9.16"
   },
   "engines": {
