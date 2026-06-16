@@ -5,127 +5,84 @@ import { ChevronLeft, ChevronRight, Lock, Database, Network } from 'lucide-react
 
 function EncryptionDiagram() {
   return (
-    <svg viewBox="0 0 600 400" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      {/* Background */}
-      <defs>
-        <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style={{ stopColor: '#1e293b', stopOpacity: 0.3 }} />
-          <stop offset="100%" style={{ stopColor: '#0f172a', stopOpacity: 0.3 }} />
-        </linearGradient>
-      </defs>
-      <rect width="600" height="400" fill="url(#bgGradient)" rx="12" />
-
+    <svg viewBox="0 0 500 300" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
       {/* Title */}
-      <text x="300" y="35" fontSize="24" fontWeight="bold" fill="#f1f5f9" textAnchor="middle">
-        Tus datos, encriptados
-      </text>
-      <text x="300" y="60" fontSize="14" fill="#cbd5e1" textAnchor="middle">
-        Solo tú tienes acceso a tus conversaciones
+      <text x="250" y="28" fontSize="20" fontWeight="bold" fill="#f1f5f9" textAnchor="middle">
+        Datos encriptados, solo tú tienes acceso
       </text>
 
-      {/* Left side: Your Client */}
-      <g id="client">
-        <rect x="30" y="100" width="120" height="100" fill="#334155" stroke="#475569" strokeWidth="2" rx="8" />
-        <text x="90" y="130" fontSize="14" fontWeight="bold" fill="#e2e8f0" textAnchor="middle">
-          Tu Cliente
-        </text>
-        <text x="90" y="155" fontSize="11" fill="#cbd5e1" textAnchor="middle">
-          Browser
-        </text>
-        <circle cx="90" cy="185" r="4" fill="#06b6d4" />
-      </g>
-
-      {/* Lock icon in transit */}
-      <g id="encryption-transit">
-        <line x1="160" y1="150" x2="220" y2="150" stroke="#06b6d4" strokeWidth="2" strokeDasharray="5,5" />
-        <circle cx="190" cy="140" r="20" fill="#0e7490" stroke="#06b6d4" strokeWidth="2" />
-        <Lock x="180" y="130" width="20" height="20" fill="#06b6d4" />
-      </g>
-
-      {/* In transit label */}
-      <text x="190" y="190" fontSize="12" fontWeight="600" fill="#06b6d4" textAnchor="middle">
-        En Tránsito
+      {/* Browser box */}
+      <rect x="30" y="60" width="100" height="80" fill="none" stroke="#06b6d4" strokeWidth="2" rx="6" />
+      <text x="80" y="105" fontSize="12" fontWeight="600" fill="#06b6d4" textAnchor="middle">
+        Tu navegador
       </text>
-      <text x="190" y="206" fontSize="10" fill="#cbd5e1" textAnchor="middle">
+
+      {/* Arrow 1 - In Transit */}
+      <line x1="130" y1="100" x2="190" y2="100" stroke="#fbbf24" strokeWidth="2" markerEnd="url(#arrowYellow)" />
+      <text x="160" y="120" fontSize="10" fontWeight="600" fill="#fbbf24" textAnchor="middle">
         TLS/SSL
       </text>
 
-      {/* Middle: Server/Database */}
-      <g id="database">
-        <rect x="240" y="100" width="120" height="100" fill="#334155" stroke="#475569" strokeWidth="2" rx="8" />
-        <text x="300" y="130" fontSize="14" fontWeight="bold" fill="#e2e8f0" textAnchor="middle">
-          Base de Datos
-        </text>
-        <text x="300" y="155" fontSize="11" fill="#cbd5e1" textAnchor="middle">
-          Supabase
-        </text>
-        <circle cx="300" cy="185" r="4" fill="#a855f7" />
-      </g>
-
-      {/* Lock icon in database */}
-      <g id="encryption-db">
-        <circle cx="420" cy="150" r="20" fill="#6b21a8" stroke="#a855f7" strokeWidth="2" />
-        <Lock x="410" y="140" width="20" height="20" fill="#a855f7" />
-      </g>
-
-      {/* Database encryption label */}
-      <text x="420" y="190" fontSize="12" fontWeight="600" fill="#a855f7" textAnchor="middle">
-        En Reposo
+      {/* Server/Database box */}
+      <rect x="190" y="60" width="100" height="80" fill="none" stroke="#a855f7" strokeWidth="2" rx="6" />
+      <text x="240" y="105" fontSize="12" fontWeight="600" fill="#a855f7" textAnchor="middle">
+        Base de datos
       </text>
-      <text x="420" y="206" fontSize="10" fill="#cbd5e1" textAnchor="middle">
+
+      {/* Arrow 2 - At Rest */}
+      <line x1="290" y1="100" x2="350" y2="100" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrowGreen)" />
+      <text x="320" y="120" fontSize="10" fontWeight="600" fill="#10b981" textAnchor="middle">
         AES-256
       </text>
 
-      {/* Right side: Access control */}
-      <g id="access-control">
-        <rect x="450" y="100" width="120" height="100" fill="#334155" stroke="#475569" strokeWidth="2" rx="8" />
-        <text x="510" y="130" fontSize="14" fontWeight="bold" fill="#e2e8f0" textAnchor="middle">
-          Control
-        </text>
-        <text x="510" y="155" fontSize="11" fill="#cbd5e1" textAnchor="middle">
-          Admin Solo
-        </text>
-        <circle cx="510" cy="185" r="4" fill="#10b981" />
-      </g>
+      {/* Lock box */}
+      <rect x="350" y="60" width="100" height="80" fill="none" stroke="#10b981" strokeWidth="2" rx="6" />
+      <text x="400" y="105" fontSize="12" fontWeight="600" fill="#10b981" textAnchor="middle">
+        Encriptado
+      </text>
 
-      {/* Connections */}
-      <line x1="150" y1="150" x2="240" y2="150" stroke="#475569" strokeWidth="1" />
-      <line x1="360" y1="150" x2="450" y2="150" stroke="#475569" strokeWidth="1" />
-
-      {/* Bottom features */}
-      <g id="features">
-        <rect x="50" y="250" width="500" height="120" fill="none" stroke="#475569" strokeWidth="1" rx="8" />
-
-        {/* Feature 1: End-to-End */}
-        <circle cx="90" cy="285" r="6" fill="#06b6d4" />
-        <text x="110" y="290" fontSize="13" fontWeight="600" fill="#e2e8f0">
-          Encriptación E2E
+      {/* Bottom row - Access control */}
+      <g>
+        <rect x="80" y="180" width="140" height="90" fill="none" stroke="#cbd5e1" strokeWidth="1" rx="6" />
+        <text x="150" y="202" fontSize="11" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
+          Solo Admin
         </text>
-        <text x="110" y="310" fontSize="11" fill="#cbd5e1">
-          Llave única por usuario, almacenada
+        <text x="150" y="220" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          tiene la clave
         </text>
-        <text x="110" y="326" fontSize="11" fill="#cbd5e1">
-          en tu navegador. Nunca enviada al servidor.
+        <text x="150" y="234" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          para desencriptar
         </text>
-
-        {/* Feature 2: Admin Control */}
-        <circle cx="340" cy="285" r="6" fill="#a855f7" />
-        <text x="360" y="290" fontSize="13" fontWeight="600" fill="#e2e8f0">
-          Clave de Admin
-        </text>
-        <text x="360" y="310" fontSize="11" fill="#cbd5e1">
-          Solo el administrador puede
-        </text>
-        <text x="360" y="326" fontSize="11" fill="#cbd5e1">
-          descifrar datos en la base de datos.
+        <text x="150" y="248" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          datos en el servidor
         </text>
       </g>
 
-      {/* Key icon bottom right */}
-      <g id="key-icon">
-        <circle cx="540" cy="295" r="35" fill="none" stroke="#fbbf24" strokeWidth="2" opacity="0.3" />
-        <Lock x="520" y="275" width="40" height="40" fill="#fbbf24" opacity="0.6" />
+      <g>
+        <rect x="280" y="180" width="140" height="90" fill="none" stroke="#cbd5e1" strokeWidth="1" rx="6" />
+        <text x="350" y="202" fontSize="11" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
+          Tu clave
+        </text>
+        <text x="350" y="220" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          almacenada
+        </text>
+        <text x="350" y="234" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          en tu navegador
+        </text>
+        <text x="350" y="248" fontSize="9" fill="#94a3b8" textAnchor="middle">
+          nunca se envía
+        </text>
       </g>
+
+      {/* Arrow markers */}
+      <defs>
+        <marker id="arrowYellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#fbbf24" />
+        </marker>
+        <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
+        </marker>
+      </defs>
     </svg>
   )
 }
@@ -175,6 +132,11 @@ export function BYOKCarousel() {
 
   const next = useCallback(() => setCurrent(c => (c + 1) % slides.length), [])
   const prev = useCallback(() => setCurrent(c => (c - 1 + slides.length) % slides.length), [])
+
+  useEffect(() => {
+    const id = setInterval(next, 4000)
+    return () => clearInterval(id)
+  }, [next])
 
   return (
     <div className="relative group">
