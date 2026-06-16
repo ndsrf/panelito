@@ -1,0 +1,52 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E293B;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <!-- Logo -->
+  <g transform="translate(150, 150)">
+    <rect width="200" height="200" rx="30" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
+    <path
+      d="M70 160V55H115C121.627 55 127 60.3726 127 67C127 73.6274 121.627 79 115 79H70"
+      stroke="white"
+      stroke-width="12"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle cx="155" cy="160" r="12" fill="#38BDF8" />
+    <circle cx="170" cy="70" r="9" fill="#818CF8" />
+    <circle cx="45" cy="115" r="9" fill="#F472B6" />
+  </g>
+
+  <!-- Title -->
+  <text x="450" y="200" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">
+    Panelito
+  </text>
+
+  <!-- Subtitle -->
+  <text x="450" y="280" font-family="Arial, sans-serif" font-size="40" fill="#93C5FD">
+    Pensamiento colectivo
+  </text>
+  <text x="450" y="330" font-family="Arial, sans-serif" font-size="40" fill="#93C5FD">
+    en tiempo real
+  </text>
+
+  <!-- Description -->
+  <text x="450" y="420" font-family="Arial, sans-serif" font-size="28" fill="#CBD5E1">
+    Debate síncrono potenciado por IA
+  </text>
+  <text x="450" y="465" font-family="Arial, sans-serif" font-size="28" fill="#CBD5E1">
+    con análisis visual en tiempo real
+  </text>
+
+  <!-- Decorative circles -->
+  <circle cx="300" cy="550" r="6" fill="#38BDF8" opacity="0.6"/>
+  <circle cx="1050" cy="80" r="8" fill="#818CF8" opacity="0.5"/>
+  <circle cx="100" cy="500" r="5" fill="#F472B6" opacity="0.4"/>
+</svg>
