@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import {
   GitBranch,
   GitMerge,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react'
 import { FeaturesTabs } from '@/components/features-tabs'
 import { HeroPixels } from '@/components/hero-pixels'
+import { HeroCarousel } from '@/components/hero-carousel'
 import { ScrollLogo } from '@/components/scroll-logo'
 
 // ── Portrait SVGs ──────────────────────────────────────────────────────────────
@@ -214,7 +214,7 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative pt-14 min-h-[88vh] flex flex-col justify-center overflow-hidden">
+      <section className="relative pt-14 min-h-screen flex flex-col justify-center overflow-hidden">
         {/* Dot grid */}
         <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] opacity-30 pointer-events-none" />
 
@@ -222,66 +222,54 @@ export default function LandingPage() {
         <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[900px] h-[700px] rounded-full bg-indigo-900/20 blur-3xl pointer-events-none" />
         <div className="absolute top-1/2 right-0 w-[350px] h-[500px] rounded-full bg-cyan-900/8 blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-6 py-28">
-          {/* Badge */}
-          <div className="mb-10">
-            <span className="inline-flex items-center gap-2 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-              Beta Abierta
-            </span>
-          </div>
+        <div className="relative max-w-7xl mx-auto px-6 py-12 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-14 items-center">
 
-          {/* H1 */}
-          <div className="relative inline-block">
-            <HeroPixels />
-            <h1 className="text-5xl sm:text-6xl lg:text-[5.25rem] font-bold tracking-tight leading-[0.92] max-w-5xl">
-              Desata la Inteligencia
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-600">
-                Colectiva de tus Reuniones
-              </span>
-            </h1>
-          </div>
+            {/* Left column: text + CTA */}
+            <div className="flex flex-col gap-7">
+              {/* Badge */}
+              <div>
+                <span className="inline-flex items-center gap-2 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  Beta Abierta
+                </span>
+              </div>
 
-          {/* Subtitle + CTA */}
-          <div className="mt-12 flex flex-col lg:flex-row lg:items-end justify-between gap-10 max-w-5xl">
-            <p className="text-slate-400 text-base md:text-lg leading-relaxed max-w-lg">
-              El primer espacio de debate síncrono potenciado por IA con árbol de conversación
-              ramificado y análisis visual en tiempo real. Divide la pantalla, explora hipótesis
-              paralelas y fusiona ideas sin perder el rumbo.
-            </p>
-            <div className="shrink-0">
-              <Link
-                href="/auth/sign-in"
-                className="inline-flex items-center gap-2.5 bg-white text-black px-7 py-3.5 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
-              >
-                Entrar a la Aplicación
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {/* H1 */}
+              <div className="relative inline-block">
+                <HeroPixels />
+                <h1 className="text-4xl sm:text-5xl lg:text-5xl xl:text-[3.5rem] font-bold tracking-tight leading-[0.92]">
+                  Desata la Inteligencia
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-600">
+                    Colectiva de tus Reuniones
+                  </span>
+                </h1>
+              </div>
+
+              {/* Subtitle */}
+              <p className="text-slate-400 text-base leading-relaxed">
+                Debate en grupo con IA en tiempo real. Ramifica ideas, explora caminos en
+                paralelo y fusiona lo mejor sin perder el hilo.
+              </p>
+
+              {/* CTA */}
+              <div>
+                <Link
+                  href="/auth/sign-in"
+                  className="inline-flex items-center gap-2.5 bg-white text-black px-7 py-3.5 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
+                >
+                  Entrar a la Aplicación
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
+
+            {/* Right column: Carousel */}
+            <HeroCarousel />
           </div>
         </div>
       </section>
-
-      {/* ── HERO MOCKUP ──────────────────────────────────────────── */}
-      <div className="relative px-4 sm:px-6 pb-4">
-        <div className="absolute inset-x-0 top-0 flex justify-center pointer-events-none">
-          <div className="w-[700px] h-[120px] bg-indigo-500/25 blur-3xl opacity-20 rounded-full" />
-        </div>
-        <div className="max-w-7xl mx-auto">
-          <div className="border border-slate-800/50 rounded-xl overflow-hidden shadow-2xl shadow-black/60">
-            <Image
-              src="/hero.svg"
-              alt="Interfaz Panelito — panel analítico sincronizado con árbol de conversación ramificado en tiempo real"
-              width={1200}
-              height={750}
-              className="w-full h-auto"
-              priority
-              unoptimized
-            />
-          </div>
-        </div>
-      </div>
 
       {/* ── WORKFLOW ─────────────────────────────────────────────── */}
       <section className="py-32">
