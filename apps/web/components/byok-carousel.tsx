@@ -5,74 +5,68 @@ import { ChevronLeft, ChevronRight, Lock, Database, Network } from 'lucide-react
 
 function EncryptionDiagram() {
   return (
-    <svg viewBox="0 0 500 300" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 800 400" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
       {/* Title */}
-      <text x="250" y="28" fontSize="20" fontWeight="bold" fill="#f1f5f9" textAnchor="middle">
-        Datos encriptados, solo tú tienes acceso
+      <text x="400" y="50" fontSize="32" fontWeight="bold" fill="#f1f5f9" textAnchor="middle">
+        Tus datos encriptados
+      </text>
+      <text x="400" y="85" fontSize="18" fill="#cbd5e1" textAnchor="middle">
+        Solo tú tienes acceso
       </text>
 
-      {/* Browser box */}
-      <rect x="30" y="60" width="100" height="80" fill="none" stroke="#06b6d4" strokeWidth="2" rx="6" />
-      <text x="80" y="105" fontSize="12" fontWeight="600" fill="#06b6d4" textAnchor="middle">
-        Tu navegador
+      {/* Step 1: Browser */}
+      <circle cx="120" cy="200" r="50" fill="none" stroke="#06b6d4" strokeWidth="3" />
+      <text x="120" y="200" fontSize="24" fontWeight="bold" fill="#06b6d4" textAnchor="middle" dominantBaseline="middle">
+        🔑
+      </text>
+      <text x="120" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
+        Tu clave
+      </text>
+      <text x="120" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
+        en navegador
       </text>
 
-      {/* Arrow 1 - In Transit */}
-      <line x1="130" y1="100" x2="190" y2="100" stroke="#fbbf24" strokeWidth="2" markerEnd="url(#arrowYellow)" />
-      <text x="160" y="120" fontSize="10" fontWeight="600" fill="#fbbf24" textAnchor="middle">
+      {/* Arrow 1 */}
+      <line x1="170" y1="200" x2="270" y2="200" stroke="#fbbf24" strokeWidth="4" markerEnd="url(#arrowYellow)" />
+      <text x="220" y="180" fontSize="14" fontWeight="600" fill="#fbbf24" textAnchor="middle">
         TLS/SSL
       </text>
-
-      {/* Server/Database box */}
-      <rect x="190" y="60" width="100" height="80" fill="none" stroke="#a855f7" strokeWidth="2" rx="6" />
-      <text x="240" y="105" fontSize="12" fontWeight="600" fill="#a855f7" textAnchor="middle">
-        Base de datos
+      <text x="220" y="228" fontSize="13" fill="#cbd5e1" textAnchor="middle">
+        En tránsito
       </text>
 
-      {/* Arrow 2 - At Rest */}
-      <line x1="290" y1="100" x2="350" y2="100" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrowGreen)" />
-      <text x="320" y="120" fontSize="10" fontWeight="600" fill="#10b981" textAnchor="middle">
-        AES-256
+      {/* Step 2: Server */}
+      <circle cx="400" cy="200" r="50" fill="none" stroke="#a855f7" strokeWidth="3" />
+      <text x="400" y="200" fontSize="24" fontWeight="bold" fill="#a855f7" textAnchor="middle" dominantBaseline="middle">
+        🗄️
       </text>
-
-      {/* Lock box */}
-      <rect x="350" y="60" width="100" height="80" fill="none" stroke="#10b981" strokeWidth="2" rx="6" />
-      <text x="400" y="105" fontSize="12" fontWeight="600" fill="#10b981" textAnchor="middle">
+      <text x="400" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
+        Servidor
+      </text>
+      <text x="400" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
         Encriptado
       </text>
 
-      {/* Bottom row - Access control */}
-      <g>
-        <rect x="80" y="180" width="140" height="90" fill="none" stroke="#cbd5e1" strokeWidth="1" rx="6" />
-        <text x="150" y="202" fontSize="11" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
-          Solo Admin
-        </text>
-        <text x="150" y="220" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          tiene la clave
-        </text>
-        <text x="150" y="234" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          para desencriptar
-        </text>
-        <text x="150" y="248" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          datos en el servidor
-        </text>
-      </g>
+      {/* Arrow 2 */}
+      <line x1="450" y1="200" x2="550" y2="200" stroke="#10b981" strokeWidth="4" markerEnd="url(#arrowGreen)" />
+      <text x="500" y="180" fontSize="14" fontWeight="600" fill="#10b981" textAnchor="middle">
+        AES-256
+      </text>
+      <text x="500" y="228" fontSize="13" fill="#cbd5e1" textAnchor="middle">
+        En reposo
+      </text>
 
-      <g>
-        <rect x="280" y="180" width="140" height="90" fill="none" stroke="#cbd5e1" strokeWidth="1" rx="6" />
-        <text x="350" y="202" fontSize="11" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
-          Tu clave
-        </text>
-        <text x="350" y="220" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          almacenada
-        </text>
-        <text x="350" y="234" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          en tu navegador
-        </text>
-        <text x="350" y="248" fontSize="9" fill="#94a3b8" textAnchor="middle">
-          nunca se envía
-        </text>
-      </g>
+      {/* Step 3: Access Control */}
+      <circle cx="680" cy="200" r="50" fill="none" stroke="#10b981" strokeWidth="3" />
+      <text x="680" y="200" fontSize="24" fontWeight="bold" fill="#10b981" textAnchor="middle" dominantBaseline="middle">
+        🔒
+      </text>
+      <text x="680" y="270" fontSize="16" fontWeight="600" fill="#e2e8f0" textAnchor="middle">
+        Solo Admin
+      </text>
+      <text x="680" y="295" fontSize="13" fill="#cbd5e1" textAnchor="middle">
+        accede
+      </text>
 
       {/* Arrow markers */}
       <defs>
