@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     siteName: "Panelito",
     title: "Panelito — Pensamiento colectivo en tiempo real",
     description:
-      "Debate síncrono potenciado por IA con árbol de conversación ramificado y análisis visual en tiempo real.",
+      "Debate síncrono potenciado por ía con árbol de conversación ramificado y análisis visual en tiempo real.",
     images: [
       {
-        url: "/og-image.svg",
+        url: "/api/og",
         width: 1200,
         height: 630,
         alt: "Panelito — Pensamiento colectivo en tiempo real",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     title: "Panelito — Pensamiento colectivo en tiempo real",
     description:
       "Debate síncrono potenciado por IA con árbol de conversación ramificado y análisis visual en tiempo real.",
-    images: ["/og-image.svg"],
+    images: ["/api/og"],
   },
 };
 
