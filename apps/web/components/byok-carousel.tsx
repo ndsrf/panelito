@@ -222,7 +222,7 @@ export function BYOKCarousel() {
 
       {/* Indicators */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-        {slides.map((_, i) => (
+        {slides.map((slide, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
@@ -230,7 +230,7 @@ export function BYOKCarousel() {
               i === current ? 'w-6 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'
             }`}
             aria-label={`Slide ${i + 1}`}
-            title={slides[i].title}
+            title={slide.title}
           />
         ))}
       </div>
