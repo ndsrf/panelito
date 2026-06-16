@@ -1,0 +1,31 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E293B;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grad)"/>
+
+  <!-- Logo box -->
+  <rect x="140" y="160" width="180" height="180" rx="18" fill="#0F172A" stroke="#38BDF8" stroke-width="3"/>
+
+  <!-- P logo -->
+  <path d="M 220 310 L 220 160 L 280 160 Q 305 160 315 190 Q 315 210 305 220 L 220 220"
+        stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Decorative circles -->
+  <circle cx="310" cy="310" r="14" fill="#38BDF8"/>
+  <circle cx="325" cy="160" r="11" fill="#818CF8"/>
+  <circle cx="165" cy="240" r="10" fill="#F472B6"/>
+
+  <!-- Title -->
+  <text x="450" y="210" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">Panelito</text>
+
+  <!-- Subtitle -->
+  <text x="450" y="295" font-family="Arial, sans-serif" font-size="44" font-weight="bold" fill="#93C5FD">Pensamiento colectivo en tiempo real</text>
+
+  <!-- Description -->
+  <text x="450" y="365" font-family="Arial, sans-serif" font-size="32" fill="#CBD5E1">Debate síncrono potenciado por IA</text>
+  <text x="450" y="415" font-family="Arial, sans-serif" font-size="32" fill="#CBD5E1">con análisis visual en tiempo real</text>
+</svg>
