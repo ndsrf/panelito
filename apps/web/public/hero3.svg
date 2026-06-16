@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="100%" height="100%">
+  <defs>
+    <!-- Fondo y Degradados Oscuros -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#010204" />
+      <stop offset="50%" stop-color="#04060a" />
+      <stop offset="100%" stop-color="#020205" />
+    </linearGradient>
+    <!-- Degradados para las barras de neón -->
+    <linearGradient id="bar-gradient" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <!-- Filtros de Resplandor (Glow Effect) -->
+    <filter id="glow-heavy" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-subtle" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Lienzo de Fondo -->
+  <rect width="1200" height="750" fill="url(#bg-grad)" />
+  <circle cx="400" cy="200" r="150" fill="#0284c7" opacity="0.1" filter="url(#glow-heavy)" />
+
+  <!-- CONTENEDOR DISPOSITIVO PRINCIPAL (Mockup de la App) -->
+  <g transform="translate(150, 75)">
+    <!-- Marco de la Pantalla -->
+    <rect width="900" height="600" rx="16" fill="#040609" stroke="#111622" stroke-width="2" />
+    
+    <!-- BARRA SUPERIOR DE LA VENTANA -->
+    <rect width="900" height="40" rx="16" fill="#070a0f" />
+    <!-- Botones de Sistema Mac-style -->
+    <circle cx="25" cy="20" r="5" fill="#ef4444" opacity="0.6"/>
+    <circle cx="41" cy="20" r="5" fill="#f59e0b" opacity="0.6"/>
+    <circle cx="57" cy="20" r="5" fill="#10b981" opacity="0.6"/>
+    <!-- URL de la sala -->
+    <rect width="180" height="16" rx="4" fill="#0f141c" x="360" y="12"/>
+    <text x="398" y="24" fill="#475569" font-family="sans-serif" font-size="10" letter-spacing="1">multiverse.io/room/route-planner</text>
+
+    <!-- ==================== PANEL ANALÍTICO SUPERIOR (40%): MAPA + BARRAS ==================== -->
+    <g transform="translate(20, 55)">
+      <!-- Marco del Canvas Superior -->
+      <rect width="860" height="210" rx="8" fill="#060a12" stroke="#1d4ed8" stroke-width="1" />
+      <text x="20" y="25" fill="#38bdf8" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="1">MÓDULO GEOGRÁFICO: OPTIMIZACIÓN DE RUTA LOGÍSTICA</text>
+      
+      <!-- LADO IZQUIERDO: EL MAPA VECTORIAL (translate 20, 45) -->
+      <g transform="translate(20, 45)">
+        <!-- Contenedor del Mapa -->
+        <rect width="460" height="145" rx="6" fill="#0b1324" stroke="#1e293b" stroke-width="1"/>
+        
+        <!-- Líneas de cuadrícula de navegación abstractas -->
+        <line x1="0" y1="40" x2="460" y2="40" stroke="#111c30" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="0" y1="90" x2="460" y2="90" stroke="#111c30" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="150" y1="0" x2="150" y2="145" stroke="#111c30" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="300" y1="0" x2="300" y2="145" stroke="#111c30" stroke-width="1" stroke-dasharray="4 4"/>
+
+        <!-- Formas de relieve / Masa terrestre abstracta de fondo -->
+        <path d="M 30,40 Q 70,20 120,50 T 220,30 T 320,70 T 420,40 L 460,145 L 0,145 Z" fill="#142038" opacity="0.6"/>
+        <path d="M 80,90 Q 140,70 200,100 T 350,80 L 460,145 L 0,145 Z" fill="#192947" opacity="0.4"/>
+
+        <!-- Trazado de la Ruta Activa (Línea de Neón) -->
+        <path d="M 50,110 L 140,50 L 260,95 L 410,35" fill="none" stroke="#00f2fe" stroke-width="3" filter="url(#glow-subtle)"/>
+        <!-- Variantes / Ramas alternativas en el mapa (Línea discontinua morada) -->
+        <path d="M 140,50 L 220,120 L 340,110 L 410,35" fill="none" stroke="#a855f7" stroke-width="2" stroke-dasharray="5 3" opacity="0.7"/>
+
+        <!-- Nodos / Paradas del viaje -->
+        <circle cx="50" cy="110" r="5" fill="#00f2fe"/>
+        <text x="42" y="125" fill="#94a3b8" font-family="sans-serif" font-size="9" font-weight="600">Origen</text>
+        
+        <circle cx="140" cy="50" r="5" fill="#00f2fe"/>
+        <text x="132" y="40" fill="#94a3b8" font-family="sans-serif" font-size="9" font-weight="600">Hito 1</text>
+        
+        <circle cx="260" cy="95" r="5" fill="#00f2fe"/>
+        <text x="252" y="110" fill="#00f2fe" font-family="sans-serif" font-size="9" font-weight="bold">Hito 2 (Activo)</text>
+        
+        <!-- Nodo alternativo de la rama hermana -->
+        <circle cx="220" cy="120" r="4" fill="#a855f7"/>
+        
+        <circle cx="410" cy="35" r="6" fill="#34d399" filter="url(#glow-subtle)"/>
+        <text x="402" y="25" fill="#34d399" font-family="sans-serif" font-size="9" font-weight="bold">Destino</text>
+      </g>
+
+      <!-- LADO DERECHO: EL GRÁFICO DE BARRAS COMPARATIVO (translate 500, 45) -->
+      <g transform="translate(500, 45)">
+        <!-- Contenedor de las Barras -->
+        <rect width="340" height="145" rx="6" fill="#0b1324" stroke="#1e293b" stroke-width="1"/>
+        <text x="15" y="20" fill="#f8fafc" font-family="sans-serif" font-size="10" font-weight="600">Estimación de Costes / Parada (€)</text>
+        
+        <!-- Ejes del Gráfico -->
+        <line x1="40" y1="30" x2="40" y2="120" stroke="#334155" stroke-width="1"/>
+        <line x1="40" y1="120" x2="310" y2="120" stroke="#334155" stroke-width="1"/>
+        
+        <!-- Barras Verticales de Datos (Mapeadas según los hitos) -->
+        <!-- Barra 1 (Origen) -->
+        <rect x="65" y="70" width="28" height="50" rx="2" fill="url(#bar-gradient)" opacity="0.8"/>
+        <text x="68" y="132" fill="#64748b" font-family="sans-serif" font-size="8">Orig.</text>
+        <text x="71" y="64" fill="#38bdf8" font-family="sans-serif" font-size="8" font-weight="600">120€</text>
+
+        <!-- Barra 2 (Hito 1) -->
+        <rect x="125" y="50" width="28" height="70" rx="2" fill="url(#bar-gradient)" opacity="0.8"/>
+        <text x="128" y="132" fill="#64748b" font-family="sans-serif" font-size="8">Hito 1</text>
+        <text x="131" y="44" fill="#38bdf8" font-family="sans-serif" font-size="8" font-weight="600">240€</text>
+
+        <!-- Barra 3 (Hito 2 - Destacada en Cyan brillante por estar activa) -->
+        <rect x="185" y="35" width="28" height="85" rx="2" fill="#00f2fe" filter="url(#glow-subtle)"/>
+        <text x="188" y="132" fill="#00f2fe" font-family="sans-serif" font-size="8" font-weight="bold">Hito 2</text>
+        <text x="191" y="29" fill="#00f2fe" font-family="sans-serif" font-size="8" font-weight="bold">310€</text>
+
+        <!-- Barra 4 (Rama Hermana Descartada / Desenfocada) -->
+        <rect x="245" y="85" width="28" height="35" rx="2" fill="#334155" opacity="0.5"/>
+        <text x="248" y="132" fill="#475569" font-family="sans-serif" font-size="8">Alt C.</text>
+        <text x="251" y="80" fill="#475569" font-family="sans-serif" font-size="8">95€</text>
+      </g>
+    </g>
+
+    <!-- ==================== BARRA DIVISORIA / NAVEGADOR DE RAMAS ==================== -->
+    <g transform="translate(20, 278)">
+      <rect width="860" height="34" rx="6" fill="#0a0f18" stroke="#1d4ed8" stroke-width="1"/>
+      <g transform="translate(15, 7)">
+        <rect width="115" height="20" rx="4" fill="#1e3a8a" stroke="#38bdf8" stroke-width="1" filter="url(#glow-subtle)"/>
+        <circle cx="12" cy="10" r="4" fill="#00f2fe"/>
+        <text x="24" y="14" fill="#ffffff" font-family="sans-serif" font-size="10" font-weight="bold">Ruta Alpes Flanco</text>
+      </g>
+      <text x="700" y="21" fill="#475569" font-family="sans-serif" font-size="10" font-style="italic">Recalculando desvíos...</text>
+    </g>
+
+    <!-- ==================== FLUJO DE CHAT INFERIOR (60%) ==================== -->
+    <g transform="translate(20, 325)">
+      <!-- Contenedor del Chat -->
+      <rect width="860" height="255" rx="8" fill="#04060b" stroke="#11111f" stroke-width="1"/>
+      
+      <!-- Mensaje del Bot Operador de Ruta -->
+      <g transform="translate(20, 25)">
+        <circle cx="20" cy="20" r="14" fill="#0b1329" stroke="#38bdf8" stroke-width="1" filter="url(#glow-subtle)"/>
+        <text x="16" y="23" fill="#38bdf8" font-family="sans-serif" font-size="10" font-weight="bold">🗺️</text>
+        <text x="45" y="14" fill="#38bdf8" font-family="sans-serif" font-size="10" font-weight="bold" letter-spacing="0.5">MAP_BOT: LOGÍSTICA E ITINERARIOS</text>
+        
+        <rect x="45" y="22" width="700" height="65" rx="6" fill="#081120" stroke="#1d4ed8" stroke-width="1"/>
+        <text x="57" y="42" fill="#f1f5f9" font-family="sans-serif" font-size="11" font-weight="500">He procesado la desviación por el "Hito 2". El trazado reduce el kilometraje total un 12%.</text>
+        <text x="57" y="62" fill="#94a3b8" font-family="sans-serif" font-size="11">Sin embargo, el peaje incrementa el coste de la parada a 310€. He renderizado el impacto en las barras adyacentes.</text>
+      </g>
+
+      <!-- Caja de texto de entrada -->
+      <g transform="translate(20, 210)">
+        <rect width="820" height="32" rx="6" fill="#0a0f18" stroke="#1d4ed8" stroke-width="1"/>
+        <text x="15" y="20" fill="#475569" font-family="sans-serif" font-size="11">Modifica un hito (ej. "evitar peajes") o compara rutas alternativas con @map...</text>
+      </g>
+    </g>
+  </g>
+</svg>
+ 
