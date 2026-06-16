@@ -8,44 +8,45 @@ export async function GET() {
       <div
         style={{
           display: 'flex',
-          fontSize: 60,
-          color: 'white',
-          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           width: '100%',
           height: '100%',
-          padding: '60px',
-          textAlign: 'left',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          justifyContent: 'flex-start',
+          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+          padding: '60px',
           fontFamily: 'Arial, sans-serif',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/* Left side - Logo and branding */}
+        {/* Content container */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             gap: '20px',
+            maxWidth: '900px',
           }}
         >
-          {/* Logo */}
+          {/* Logo and title row */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '20px',
+              gap: '24px',
             }}
           >
             <svg
-              width="140"
-              height="140"
+              width="120"
+              height="120"
               viewBox="0 0 32 32"
               style={{
                 background: '#0F172A',
                 borderRadius: '12px',
-                padding: '12px',
+                padding: '8px',
                 border: '2px solid #38BDF8',
+                flexShrink: 0,
               }}
             >
               <rect width="32" height="32" rx="6" fill="#0F172A" />
@@ -60,74 +61,71 @@ export async function GET() {
               <circle cx="24" cy="12" r="1.5" fill="#818CF8" />
               <circle cx="8" cy="18" r="1.5" fill="#F472B6" />
             </svg>
-            <h1
+            <div
               style={{
-                fontSize: '80px',
+                display: 'flex',
+                fontSize: '72px',
                 fontWeight: 'bold',
-                margin: 0,
-                letterSpacing: '-2px',
+                color: 'white',
+                lineHeight: '1',
+                letterSpacing: '-1px',
               }}
             >
               Panelito
-            </h1>
+            </div>
           </div>
 
-          {/* Subtitle and description */}
+          {/* Subtitle - use separate divs instead of br */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '15px',
-              marginLeft: '0px',
+              fontSize: '42px',
+              color: '#93C5FD',
+              fontWeight: 'bold',
+              lineHeight: '1.3',
             }}
           >
-            <div
-              style={{
-                fontSize: '44px',
-                color: '#93C5FD',
-                fontWeight: 'bold',
-                lineHeight: '1.2',
-              }}
-            >
-              Pensamiento colectivo<br />
-              en tiempo real
-            </div>
-            <div
-              style={{
-                fontSize: '32px',
-                color: '#CBD5E1',
-                lineHeight: '1.4',
-              }}
-            >
-              Debate síncrono potenciado por IA<br />
-              con análisis visual en tiempo real
-            </div>
+            Pensamiento colectivo en tiempo real
+          </div>
+
+          {/* Description - use separate divs instead of br */}
+          <div
+            style={{
+              display: 'flex',
+              fontSize: '28px',
+              color: '#CBD5E1',
+              lineHeight: '1.5',
+            }}
+          >
+            Debate síncrono potenciado por IA con análisis visual en tiempo real
           </div>
         </div>
 
-        {/* Decorative elements */}
+        {/* Decorative circles */}
         <div
           style={{
             position: 'absolute',
-            right: '60px',
-            top: '60px',
-            width: '80px',
-            height: '80px',
+            right: '80px',
+            top: '100px',
+            width: '100px',
+            height: '100px',
             borderRadius: '50%',
             background: '#818CF8',
-            opacity: 0.3,
+            opacity: 0.15,
+            display: 'none',
           }}
         />
         <div
           style={{
             position: 'absolute',
-            right: '150px',
-            bottom: '80px',
-            width: '60px',
-            height: '60px',
+            right: '60px',
+            bottom: '120px',
+            width: '80px',
+            height: '80px',
             borderRadius: '50%',
             background: '#38BDF8',
-            opacity: 0.2,
+            opacity: 0.1,
+            display: 'none',
           }}
         />
       </div>
