@@ -95,10 +95,13 @@ export function LoginPanel({
               <X className="w-5 h-5" />
             </button>
 
-            {/* In-panel animation: hero pixels → chart pixels */}
+            {/* In-panel animation: hero pixels (always) + chart pixels (after 1.2s) */}
             <PanelAnimation active={open} />
 
-            <LoginContent />
+            {/* z-[1] keeps the form above the pixel layers */}
+            <div className="relative z-[1]">
+              <LoginContent />
+            </div>
           </motion.aside>
         ) : null}
       </AnimatePresence>
