@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useMemo } from 'react'
 import { LoginContent } from '@/components/auth/login-content'
+import { PanelAnimation } from '@/components/panel-animation'
 
 const COLORS = ['#818CF8', '#38BDF8', '#F472B6']
 
+// Viewport-wide pixel burst on panel open — draws the eye to the right
 function PixelBurst() {
   const pixels = useMemo(
     () =>
@@ -56,7 +58,7 @@ export function LoginPanel({
 }) {
   return (
     <>
-      {/* Pixel burst — mounts fresh on each open, self-animates to opacity 0 */}
+      {/* Viewport pixel burst — mounts fresh each open */}
       {open && <PixelBurst />}
 
       {/* Backdrop */}
@@ -79,7 +81,7 @@ export function LoginPanel({
         {open ? (
           <motion.aside
             key="login-panel"
-            className="fixed right-0 top-0 bottom-0 z-[57] w-full sm:w-[400px] bg-slate-950 border-l border-white/[0.07] flex flex-col items-center justify-center px-10"
+            className="fixed right-0 top-0 bottom-0 z-[57] w-full sm:w-[400px] bg-slate-950 border-l border-white/[0.07] flex flex-col items-center justify-center px-10 overflow-hidden"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -87,11 +89,14 @@ export function LoginPanel({
           >
             <button
               onClick={onClose}
-              className="absolute top-5 right-5 text-slate-600 hover:text-slate-300 transition-colors"
+              className="absolute top-5 right-5 z-10 text-slate-600 hover:text-slate-300 transition-colors"
               aria-label="Cerrar"
             >
               <X className="w-5 h-5" />
             </button>
+
+            {/* In-panel animation: hero pixels → chart pixels */}
+            <PanelAnimation active={open} />
 
             <LoginContent />
           </motion.aside>
