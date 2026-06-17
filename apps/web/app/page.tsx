@@ -205,23 +205,23 @@ export default function LandingPage() {
       <ScrollHeader />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative pt-14 min-h-screen flex flex-col justify-center overflow-hidden">
+      <section className="relative pt-14 lg:pt-20 min-h-screen flex flex-col justify-center overflow-hidden">
         {/* Dot grid */}
-        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] opacity-30 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] lg:[background-size:48px_48px] opacity-30 pointer-events-none" />
 
         {/* Ambient glows */}
-        <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[900px] h-[700px] rounded-full bg-indigo-900/20 blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 right-0 w-[350px] h-[500px] rounded-full bg-cyan-900/8 blur-3xl pointer-events-none" />
+        <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[900px] lg:w-[1200px] h-[700px] lg:h-[900px] rounded-full bg-indigo-900/20 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 right-0 w-[350px] lg:w-[500px] h-[500px] lg:h-[700px] rounded-full bg-cyan-900/8 blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-6 py-12 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-14 items-center">
+        <div className="relative max-w-7xl lg:max-w-full mx-auto px-6 lg:px-12 py-12 lg:py-16 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-20 items-center">
 
             {/* Left column: text + CTA */}
-            <div className="flex flex-col gap-7">
+            <div className="flex flex-col gap-7 lg:gap-10">
               {/* Badge */}
               <div>
-                <span className="inline-flex items-center gap-2 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="inline-flex items-center gap-2 text-xs lg:text-sm text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 lg:px-4 py-1.5 lg:py-2">
+                  <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-emerald-400 shrink-0" />
                   Beta Abierta
                 </span>
               </div>
@@ -257,17 +257,17 @@ export default function LandingPage() {
       </section>
 
       {/* ── WORKFLOW ─────────────────────────────────────────────── */}
-      <section className="py-32">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-baseline justify-between mb-16">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-indigo-400">
+      <section className="py-32 lg:py-48">
+        <div className="max-w-7xl lg:max-w-full mx-auto px-6 lg:px-12">
+          <div className="flex items-baseline justify-between mb-16 lg:mb-24">
+            <p className="text-xs lg:text-sm font-semibold tracking-[0.2em] uppercase text-indigo-400">
               El flujo de trabajo Panelito
             </p>
-            <p className="text-xs text-slate-800 font-mono hidden sm:block">core / 3 mecánicas</p>
+            <p className="text-xs lg:text-sm text-slate-800 font-mono hidden sm:block">core / 3 mecánicas</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-900 border border-slate-900 rounded-2xl overflow-hidden">
-            <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-900 border border-slate-900 rounded-2xl lg:rounded-3xl overflow-hidden">
+            <div className="bg-black p-8 lg:p-16 xl:p-12 flex flex-col gap-7 lg:gap-10">
               <GitBranch className="w-7 h-7 lg:w-8 lg:h-8 text-indigo-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">01</p>
@@ -280,7 +280,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
+            <div className="bg-black p-8 lg:p-16 xl:p-12 flex flex-col gap-7 lg:gap-10">
               <Monitor className="w-7 h-7 lg:w-8 lg:h-8 text-cyan-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">02</p>
@@ -293,7 +293,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
+            <div className="bg-black p-8 lg:p-16 xl:p-12 flex flex-col gap-7 lg:gap-10">
               <GitMerge className="w-7 h-7 lg:w-8 lg:h-8 text-emerald-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">03</p>
@@ -313,49 +313,49 @@ export default function LandingPage() {
       <FeaturesTabs />
 
       {/* ── AGENT ROSTER ─────────────────────────────────────────── */}
-      <section className="py-32 border-t border-slate-900">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="py-32 lg:py-48 border-t border-slate-900">
+        <div className="max-w-7xl lg:max-w-full mx-auto px-6 lg:px-12">
           {/* Header with floating badge */}
-          <div className="mb-16 relative">
-            <div className="absolute -top-6 right-0 hidden sm:inline-flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/50 text-indigo-300 text-xs px-3 py-1.5 rounded-full backdrop-blur-sm whitespace-nowrap">
+          <div className="mb-16 lg:mb-24 relative">
+            <div className="absolute -top-6 right-0 hidden sm:inline-flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/50 text-indigo-300 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2 rounded-full backdrop-blur-sm whitespace-nowrap">
               🧠 Personalizables: Crea tus propios prompts de identidad en v2
             </div>
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-indigo-400 mb-5">
+            <p className="text-xs lg:text-sm font-semibold tracking-[0.2em] uppercase text-indigo-400 mb-5 lg:mb-8">
               Agentes Modulares
             </p>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 max-w-2xl leading-[1.05]">
+            <h2 className="text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight mb-4 lg:mb-8 max-w-3xl leading-[1.05]">
               Una biblioteca de mentes a tu disposición
             </h2>
-            <p className="text-slate-400 max-w-xl lg:text-lg leading-relaxed">
+            <p className="text-slate-400 max-w-xl lg:text-xl leading-relaxed">
               No hables con una IA genérica. Invoca a un comité de expertos modulares
               adaptados a la naturaleza de tu debate.
             </p>
           </div>
 
           {/* Agent cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             {agents.map(({ Portrait, name, tag, stats }) => (
               <div
                 key={name}
-                className="bg-slate-950/40 border border-slate-900 rounded-xl p-6 hover:border-indigo-500/50 transition-all group"
+                className="bg-slate-950/40 border border-slate-900 rounded-xl lg:rounded-2xl p-6 lg:p-8 hover:border-indigo-500/50 transition-all group"
               >
                 {/* Avatar + identity */}
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
+                <div className="flex items-start gap-4 lg:gap-5 mb-6 lg:mb-8">
+                  <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 lg:p-2 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
                     <Portrait />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm lg:text-base font-semibold text-slate-200 mb-1.5 leading-tight">
+                    <p className="text-sm lg:text-lg font-semibold text-slate-200 mb-1.5 lg:mb-2 leading-tight">
                       {name}
                     </p>
-                    <span className="inline-block text-[10px] lg:text-xs font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
+                    <span className="inline-block text-[10px] lg:text-xs font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5 lg:px-3 lg:py-1">
                       [{tag}]
                     </span>
                   </div>
                 </div>
 
                 {/* 3 stat bars */}
-                <div className="space-y-3">
+                <div className="space-y-3 lg:space-y-4">
                   {stats.map(({ label, value, width, color }) => (
                     <div key={label}>
                       <div className="flex items-center justify-between mb-1.5">
@@ -377,50 +377,50 @@ export default function LandingPage() {
       </section>
 
       {/* ── BYOK ─────────────────────────────────────────────────── */}
-      <section className="py-32 border-t border-slate-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-start gap-16 lg:gap-20">
-            <div className="flex-1 max-w-md">
-              <Key className="w-7 h-7 lg:w-8 lg:h-8 text-slate-500 mb-8" strokeWidth={1.5} />
-              <h2 className="text-4xl lg:text-5xl font-bold tracking-tight mb-6 leading-[1.05]">
+      <section className="py-32 lg:py-48 border-t border-slate-900">
+        <div className="max-w-7xl lg:max-w-full mx-auto px-6 lg:px-12">
+          <div className="flex flex-col lg:flex-row items-start gap-16 lg:gap-32">
+            <div className="flex-1 max-w-md lg:max-w-lg">
+              <Key className="w-7 h-7 lg:w-10 lg:h-10 text-slate-500 mb-8 lg:mb-12" strokeWidth={1.5} />
+              <h2 className="text-4xl lg:text-6xl font-bold tracking-tight mb-6 lg:mb-10 leading-[1.05]">
                 Tu software.
                 <br />
                 Tu infraestructura.
               </h2>
-              <p className="text-slate-400 lg:text-lg leading-relaxed mb-6">
+              <p className="text-slate-400 lg:text-xl leading-relaxed mb-6 lg:mb-10">
                 Conecta tu propia llave de acceso de IA en un solo clic y mantén el control
                 absoluto de tus costes y tokens. Cero margen de plataforma. Cero opacidad.
                 Tu API key, tus reglas.
               </p>
 
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+              <div className="space-y-5 lg:space-y-6">
+                <div className="flex items-start gap-3 lg:gap-4">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 mt-0.5 lg:mt-1">
+                    <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Encriptación en tránsito</p>
-                    <p className="text-xs lg:text-sm text-slate-500">Todos los datos viajan protegidos mediante TLS/SSL</p>
+                    <p className="text-sm lg:text-lg font-medium text-slate-200 mb-1">Encriptación en tránsito</p>
+                    <p className="text-xs lg:text-base text-slate-500">Todos los datos viajan protegidos mediante TLS/SSL</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <div className="w-2 h-2 rounded-full bg-purple-400" />
+                <div className="flex items-start gap-3 lg:gap-4">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center flex-shrink-0 mt-0.5 lg:mt-1">
+                    <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-purple-400" />
                   </div>
                   <div>
-                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Encriptación en reposo</p>
-                    <p className="text-xs lg:text-sm text-slate-500">Los datos se almacenan encriptados con AES-256 en la base de datos</p>
+                    <p className="text-sm lg:text-lg font-medium text-slate-200 mb-1">Encriptación en reposo</p>
+                    <p className="text-xs lg:text-base text-slate-500">Los datos se almacenan encriptados con AES-256 en la base de datos</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                <div className="flex items-start gap-3 lg:gap-4">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 mt-0.5 lg:mt-1">
+                    <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-amber-400" />
                   </div>
                   <div>
-                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Control de acceso</p>
-                    <p className="text-xs lg:text-sm text-slate-500">Solo el administrador de tu workspace conoce la clave de desencriptación</p>
+                    <p className="text-sm lg:text-lg font-medium text-slate-200 mb-1">Control de acceso</p>
+                    <p className="text-xs lg:text-base text-slate-500">Solo el administrador de tu workspace conoce la clave de desencriptación</p>
                   </div>
                 </div>
               </div>
@@ -434,8 +434,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────── */}
-      <footer className="border-t border-slate-900 py-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <footer className="border-t border-slate-900 py-12 lg:py-16">
+        <div className="max-w-7xl lg:max-w-full mx-auto px-6 lg:px-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 lg:gap-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10">
             <div className="flex items-center gap-2">
               <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
