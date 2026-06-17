@@ -17,5 +17,9 @@
   "engines": {
     "node": ">=22",
     "pnpm": ">=10"
+  },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "openai": "^6.44.0"
   }
 }
