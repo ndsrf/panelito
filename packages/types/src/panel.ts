@@ -57,11 +57,12 @@ export const PanelWidgetSchema = z.discriminatedUnion('widget_type', [
 export type PanelWidget = z.infer<typeof PanelWidgetSchema>
 
 // -----------------------------------------------------------------------
-// AIStreamEvent — union of stream event types (D-03)
-// Used by the frontend SSE consumer to dispatch events.
+// FrontendStreamEvent — union of SSE event types the frontend consumes (D-03).
+// Renamed from AIStreamEvent to avoid clash with the adapter-side AIStreamEvent
+// in @panelito/types/ai which uses { type: 'tool_use' } instead of 'panel_update'.
 // -----------------------------------------------------------------------
 
-export type AIStreamEvent =
+export type FrontendStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'panel_update'; payload: PanelWidget }
   | { type: 'done' }

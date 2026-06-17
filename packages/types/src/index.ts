@@ -26,8 +26,20 @@ export {
 } from "./api-key";
 
 // Panel widget types + schemas (AI-05, PANEL-01)
-export type { PanelWidget, AIStreamEvent } from "./panel";
+// FrontendStreamEvent renamed from AIStreamEvent to avoid clash with adapter-side AIStreamEvent
+export type { PanelWidget, FrontendStreamEvent } from "./panel";
 export { PanelWidgetSchema } from "./panel";
+
+// Provider-agnostic AI interface + types (D-01, D-02, Phase 4)
+export type {
+  ProviderMessage,
+  ProviderTool,
+  ProviderCapabilities,
+  AIProvider,
+  AIStreamEvent,
+  ProviderName,
+} from "./ai";
+export { ProviderSchema, renderPanelTool } from "./ai";
 
 // Reaction types + schemas (REACT-01 through REACT-04)
 export type { Reaction, ReactionCount } from "./reaction";
