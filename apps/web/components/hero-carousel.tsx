@@ -28,7 +28,7 @@ export function HeroCarousel() {
 
   return (
     <div className="relative group">
-      <div className="relative aspect-[8/5] border border-slate-800/50 rounded-xl overflow-hidden shadow-2xl shadow-black/60 bg-black">
+      <div className="relative aspect-[8/5] border border-slate-800/50 lg:border-slate-700 rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl shadow-black/60 bg-black lg:shadow-3xl">
         {slides.map((src, i) => (
           <div
             key={src}
@@ -48,26 +48,26 @@ export function HeroCarousel() {
 
       <button
         onClick={prev}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+        className="absolute left-3 lg:left-5 top-1/2 -translate-y-1/2 w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
         aria-label="Anterior"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-4 lg:w-5 h-4 lg:h-5" />
       </button>
       <button
         onClick={next}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+        className="absolute right-3 lg:right-5 top-1/2 -translate-y-1/2 w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
         aria-label="Siguiente"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 lg:w-5 h-4 lg:h-5" />
       </button>
 
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+      <div className="absolute bottom-3 lg:bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 lg:gap-2">
         {slides.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === current ? 'w-4 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'
+            className={`h-1.5 lg:h-2 rounded-full transition-all duration-300 ${
+              i === current ? 'w-4 lg:w-6 bg-white' : 'w-1.5 lg:w-2 bg-white/30 hover:bg-white/50'
             }`}
             aria-label={`Vista ${i + 1}`}
           />
