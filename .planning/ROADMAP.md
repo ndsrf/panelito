@@ -13,7 +13,7 @@
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
 | 2 | AI + Analytics | 3/6 | In Progress|  |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
-| 4 | Multi-AI Providers | Provider-agnostic AIProvider layer — OpenAI + Gemini stream + render_panel at parity with Anthropic; creator selects provider in /settings | AI-01,02,03,04,05,08,10 (D-01..17) | 5 criteria |
+| 4 | Multi-AI Providers | 1/4 | In Progress|  |
 
 ---
 
@@ -158,12 +158,12 @@ Plans:
 4. The active provider is persisted in `creator_settings.active_provider`; the `/invoke` route reads it and instantiates the correct adapter via a factory; all AI tasks (analysis + compression) use the active provider's task-to-model mapping (D-03, D-04, D-05, D-13)
 5. New key columns (`openai_api_key`, `gemini_api_key`) are column-level locked to the service role; switching active provider changes which provider streams every session with no other change required (V4 access control, D-05)
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Provider-agnostic types + AIProvider interface refactor + AnthropicAdapter extraction + SDK install (D-01, D-02)
+- [x] 04-01-PLAN.md — Provider-agnostic types + AIProvider interface refactor + AnthropicAdapter extraction + SDK install (D-01, D-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
