@@ -1,6 +1,6 @@
 # Roadmap: Project Multiverse
 
-**Total phases:** 3
+**Total phases:** 4
 **Requirements covered:** 54 / 54 ✓
 **Structure:** Vertical MVP — each phase delivers a demoable user capability
 
@@ -13,6 +13,7 @@
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
 | 2 | AI + Analytics | 3/6 | In Progress|  |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
+| 4 | Multi-AI Providers | Provider-agnostic AIProvider layer — OpenAI + Gemini stream + render_panel at parity with Anthropic; creator selects provider in /settings | AI-01,02,03,04,05,08,10 (D-01..17) | 5 criteria |
 
 ---
 
@@ -135,6 +136,43 @@ Plans:
 3. Switching between branches in the Navigator instantly re-renders the analytics panel to the latest snapshot of the selected branch and updates the bar's gradient to the new branch color
 4. Creating a 6th branch displays a clear, non-crashing error message; the 5-branch limit is enforced server-side, not just client-side
 5. A full end-to-end multiverse session works: 2 branches created, AI invoked in each, panels diverge correctly, switching back and forth shows correct isolated states
+
+---
+
+### Phase 4: Multi-AI Providers
+
+**Goal:** Extend the `AIProvider` abstraction so OpenAI (via `openai` SDK) and Gemini (via `@google/genai` v2 SDK) drive the full split-screen experience — streaming chat and `render_panel` tool calls — at full parity with the existing Anthropic adapter. The creator selects their preferred provider in `/settings`; the rest of the app is provider-unaware. Switching providers is invisible to participants.
+
+**Mode:** standard
+
+**Requirements:**
+
+- Extends AI-01, AI-02, AI-03, AI-04, AI-05, AI-08, AI-10 (no new functional requirement IDs)
+- Implements CONTEXT decisions D-01 through D-17
+
+**Success Criteria:**
+
+1. The `AIProvider` interface and `renderPanelTool` are provider-agnostic (own types in `@panelito/types`, no Anthropic SDK imports); each adapter converts internally (D-01)
+2. All three providers (Anthropic, OpenAI, Gemini) produce valid `render_panel` tool calls during streaming — gated by `PanelWidgetSchema.safeParse()` before reaching the panel (D-14, AI-05)
+3. The creator manages three separate provider keys in `/settings` with upfront per-provider verification; clicking a provider icon activates it; keys for inactive providers persist silently (D-09, D-10, D-12)
+4. The active provider is persisted in `creator_settings.active_provider`; the `/invoke` route reads it and instantiates the correct adapter via a factory; all AI tasks (analysis + compression) use the active provider's task-to-model mapping (D-03, D-04, D-05, D-13)
+5. New key columns (`openai_api_key`, `gemini_api_key`) are column-level locked to the service role; switching active provider changes which provider streams every session with no other change required (V4 access control, D-05)
+
+**Plans:** 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Provider-agnostic types + AIProvider interface refactor + AnthropicAdapter extraction + SDK install (D-01, D-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — OpenAI + Gemini adapters + adapter factory + TASK_MODELS config + per-provider key verification (D-03, D-04, D-14, D-15, D-16)
+- [ ] 04-03-PLAN.md — Migration 0006 (multi-provider key columns + active_provider + REVOKE/GRANT) + schema push + multi-provider keys/settings routes (D-09..13)
+
+**Wave 3** *(blocked on Waves 2 completion)*
+
+- [ ] 04-04-PLAN.md — Wire /invoke to the adapter factory + provider-aware compressHistory + PanelWidgetSchema gate + three-provider /settings UI (D-03, D-05, D-07, D-09, D-14, D-17)
 
 ---
 
