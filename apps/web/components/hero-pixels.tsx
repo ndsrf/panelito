@@ -73,7 +73,7 @@ export function HeroPixels() {
 
   return (
     <div
-      className="absolute inset-0 pointer-events-none select-none overflow-hidden"
+      className="absolute inset-0 pointer-events-none select-none overflow-hidden [&>div]:lg:scale-[1.4]"
       aria-hidden="true"
     >
       {PIXELS.map((p, i) => (

@@ -229,7 +229,7 @@ export default function LandingPage() {
               {/* H1 */}
               <div className="relative inline-block">
                 <HeroPixels />
-                <h1 className="text-4xl sm:text-5xl lg:text-5xl xl:text-[3.5rem] font-bold tracking-tight leading-[0.92]">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[0.92]">
                   Desata la Inteligencia
                   <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-300 to-slate-600">
@@ -239,7 +239,7 @@ export default function LandingPage() {
               </div>
 
               {/* Subtitle */}
-              <p className="text-slate-400 text-base leading-relaxed">
+              <p className="text-slate-400 text-base lg:text-lg leading-relaxed">
                 Debate en grupo con IA en tiempo real. Ramifica ideas, explora caminos en
                 paralelo y fusiona lo mejor sin perder el hilo.
               </p>
@@ -268,12 +268,12 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-900 border border-slate-900 rounded-2xl overflow-hidden">
             <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
-              <GitBranch className="w-7 h-7 text-indigo-400" strokeWidth={1.5} />
+              <GitBranch className="w-7 h-7 lg:w-8 lg:h-8 text-indigo-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">01</p>
-                <h3 className="text-xl font-semibold tracking-tight mb-1">Bifurcación Instantánea</h3>
+                <h3 className="text-xl lg:text-2xl font-semibold tracking-tight mb-1">Bifurcación Instantánea</h3>
                 <p className="text-xs font-medium text-indigo-400 uppercase tracking-[0.18em] mb-5">Forking</p>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <p className="text-slate-500 text-sm lg:text-base leading-relaxed">
                   Mantén pulsado cualquier mensaje para abrir una línea temporal alternativa.
                   Explora escenarios en paralelo sin romper el hilo principal.
                 </p>
@@ -281,12 +281,12 @@ export default function LandingPage() {
             </div>
 
             <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
-              <Monitor className="w-7 h-7 text-cyan-400" strokeWidth={1.5} />
+              <Monitor className="w-7 h-7 lg:w-8 lg:h-8 text-cyan-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">02</p>
-                <h3 className="text-xl font-semibold tracking-tight mb-1">Panel Analítico Sincronizado</h3>
+                <h3 className="text-xl lg:text-2xl font-semibold tracking-tight mb-1">Panel Analítico Sincronizado</h3>
                 <p className="text-xs font-medium text-cyan-400 uppercase tracking-[0.18em] mb-5">40 / 60 Split</p>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <p className="text-slate-500 text-sm lg:text-base leading-relaxed">
                   El 40% superior muestra radares de riesgo, matrices estratégicas y tableros
                   de control que mutan en vivo según el contexto del chat inferior.
                 </p>
@@ -294,12 +294,12 @@ export default function LandingPage() {
             </div>
 
             <div className="bg-black p-8 xl:p-12 flex flex-col gap-7">
-              <GitMerge className="w-7 h-7 text-emerald-400" strokeWidth={1.5} />
+              <GitMerge className="w-7 h-7 lg:w-8 lg:h-8 text-emerald-400" strokeWidth={1.5} />
               <div>
                 <p className="text-[10px] font-mono text-slate-800 mb-3 tracking-widest">03</p>
-                <h3 className="text-xl font-semibold tracking-tight mb-1">Fusión de Caminos</h3>
+                <h3 className="text-xl lg:text-2xl font-semibold tracking-tight mb-1">Fusión de Caminos</h3>
                 <p className="text-xs font-medium text-emerald-400 uppercase tracking-[0.18em] mb-5">Merge</p>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <p className="text-slate-500 text-sm lg:text-base leading-relaxed">
                   Combina los mejores atributos de dos ramas independientes en un único
                   vector de consenso mediante síntesis inteligente de IA.
                 </p>
@@ -323,10 +323,10 @@ export default function LandingPage() {
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-indigo-400 mb-5">
               Agentes Modulares
             </p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 max-w-2xl leading-[1.05]">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 max-w-2xl leading-[1.05]">
               Una biblioteca de mentes a tu disposición
             </h2>
-            <p className="text-slate-400 max-w-xl leading-relaxed">
+            <p className="text-slate-400 max-w-xl lg:text-lg leading-relaxed">
               No hables con una IA genérica. Invoca a un comité de expertos modulares
               adaptados a la naturaleza de tu debate.
             </p>
@@ -341,14 +341,14 @@ export default function LandingPage() {
               >
                 {/* Avatar + identity */}
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
+                  <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 p-1.5 text-slate-600 group-hover:text-slate-300 group-hover:border-slate-700 transition-all">
                     <Portrait />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-200 mb-1.5 leading-tight">
+                    <p className="text-sm lg:text-base font-semibold text-slate-200 mb-1.5 leading-tight">
                       {name}
                     </p>
-                    <span className="inline-block text-[10px] font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
+                    <span className="inline-block text-[10px] lg:text-xs font-mono tracking-wider text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">
                       [{tag}]
                     </span>
                   </div>
@@ -381,13 +381,13 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-start gap-16 lg:gap-20">
             <div className="flex-1 max-w-md">
-              <Key className="w-7 h-7 text-slate-500 mb-8" strokeWidth={1.5} />
-              <h2 className="text-4xl font-bold tracking-tight mb-6 leading-[1.05]">
+              <Key className="w-7 h-7 lg:w-8 lg:h-8 text-slate-500 mb-8" strokeWidth={1.5} />
+              <h2 className="text-4xl lg:text-5xl font-bold tracking-tight mb-6 leading-[1.05]">
                 Tu software.
                 <br />
                 Tu infraestructura.
               </h2>
-              <p className="text-slate-400 leading-relaxed mb-6">
+              <p className="text-slate-400 lg:text-lg leading-relaxed mb-6">
                 Conecta tu propia llave de acceso de IA en un solo clic y mantén el control
                 absoluto de tus costes y tokens. Cero margen de plataforma. Cero opacidad.
                 Tu API key, tus reglas.
@@ -399,8 +399,8 @@ export default function LandingPage() {
                     <div className="w-2 h-2 rounded-full bg-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-200 mb-1">Encriptación en tránsito</p>
-                    <p className="text-xs text-slate-500">Todos los datos viajan protegidos mediante TLS/SSL</p>
+                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Encriptación en tránsito</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Todos los datos viajan protegidos mediante TLS/SSL</p>
                   </div>
                 </div>
 
@@ -409,8 +409,8 @@ export default function LandingPage() {
                     <div className="w-2 h-2 rounded-full bg-purple-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-200 mb-1">Encriptación en reposo</p>
-                    <p className="text-xs text-slate-500">Los datos se almacenan encriptados con AES-256 en la base de datos</p>
+                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Encriptación en reposo</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Los datos se almacenan encriptados con AES-256 en la base de datos</p>
                   </div>
                 </div>
 
@@ -419,8 +419,8 @@ export default function LandingPage() {
                     <div className="w-2 h-2 rounded-full bg-amber-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-200 mb-1">Control de acceso</p>
-                    <p className="text-xs text-slate-500">Solo el administrador de tu workspace conoce la clave de desencriptación</p>
+                    <p className="text-sm lg:text-base font-medium text-slate-200 mb-1">Control de acceso</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Solo el administrador de tu workspace conoce la clave de desencriptación</p>
                   </div>
                 </div>
               </div>

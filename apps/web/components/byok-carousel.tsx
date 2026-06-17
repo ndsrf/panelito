@@ -5,49 +5,49 @@ import { ChevronLeft, ChevronRight, Lock, Database, Network } from 'lucide-react
 
 function EncryptionDiagram() {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-8 py-8">
-      <div className="flex items-center gap-8">
+    <div className="w-full h-full flex flex-col items-center justify-center gap-8 py-8 lg:gap-12">
+      <div className="flex items-center gap-8 lg:gap-12">
         {/* Browser - Key */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-24 h-24 rounded-full bg-cyan-950/40 border-2 border-cyan-400 flex items-center justify-center">
-            <span className="text-5xl">🔑</span>
+          <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-cyan-950/40 border-2 border-cyan-400 flex items-center justify-center">
+            <span className="text-5xl lg:text-7xl">🔑</span>
           </div>
         </div>
 
         {/* Arrow 1 - TLS */}
         <div className="flex flex-col items-center gap-2">
-          <svg width="60" height="40" viewBox="0 0 60 40" className="text-amber-400">
+          <svg width="60" height="40" viewBox="0 0 60 40" className="text-amber-400 lg:w-20 lg:h-14">
             <line x1="10" y1="20" x2="50" y2="20" stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowAlt)" />
           </svg>
-          <span className="text-xs font-semibold text-amber-400">TLS</span>
+          <span className="text-xs lg:text-sm font-semibold text-amber-400">TLS</span>
         </div>
 
         {/* Server - Database */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-24 h-24 rounded-full bg-purple-950/40 border-2 border-purple-400 flex items-center justify-center">
-            <span className="text-5xl">🗄️</span>
+          <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-purple-950/40 border-2 border-purple-400 flex items-center justify-center">
+            <span className="text-5xl lg:text-7xl">🗄️</span>
           </div>
         </div>
 
         {/* Arrow 2 - AES */}
         <div className="flex flex-col items-center gap-2">
-          <svg width="60" height="40" viewBox="0 0 60 40" className="text-emerald-400">
+          <svg width="60" height="40" viewBox="0 0 60 40" className="text-emerald-400 lg:w-20 lg:h-14">
             <line x1="10" y1="20" x2="50" y2="20" stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowAlt2)" />
           </svg>
-          <span className="text-xs font-semibold text-emerald-400">AES</span>
+          <span className="text-xs lg:text-sm font-semibold text-emerald-400">AES</span>
         </div>
 
         {/* Lock - Admin Only */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-24 h-24 rounded-full bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center">
-            <span className="text-5xl">🔒</span>
+          <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-emerald-950/40 border-2 border-emerald-400 flex items-center justify-center">
+            <span className="text-5xl lg:text-7xl">🔒</span>
           </div>
         </div>
       </div>
 
       {/* Bottom text */}
       <div className="text-center">
-        <p className="text-sm text-slate-300 max-w-sm">
+        <p className="text-sm lg:text-base text-slate-300 max-w-sm">
           Solo tú tienes acceso a tus datos
         </p>
       </div>
@@ -76,9 +76,9 @@ function APIKeysCode() {
           <div className="w-3 h-3 rounded-full bg-amber-900/60" />
           <div className="w-3 h-3 rounded-full bg-emerald-900/60" />
         </div>
-        <span className="ml-2 text-slate-600 text-xs font-mono">.env.local</span>
+        <span className="ml-2 text-slate-600 text-xs lg:text-sm font-mono">.env.local</span>
       </div>
-      <div className="p-6 font-mono text-[13px] leading-7 space-y-0.5 flex-1">
+      <div className="p-6 lg:p-8 font-mono text-[13px] lg:text-base leading-7 lg:leading-8 space-y-0.5 flex-1">
         <div className="text-slate-600"># Conecta tu proveedor preferido</div>
         <div>
           <span className="text-indigo-400">ANTHROPIC_API_KEY</span>
