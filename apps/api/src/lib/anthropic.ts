@@ -4,13 +4,14 @@
  * AI-10: verifyApiKey performs a minimal handshake against api.anthropic.com
  *        BEFORE the key is saved. No key is ever logged (T-06-03).
  *
- * AI-11: assemblePromptArray builds the MessageParam[] with a cache_control
- *        breakpoint at the END of the static prefix. The dynamic tail
- *        (recent messages + current user message) follows after.
+ * AI-11: assemblePromptArray now returns ProviderMessage[] (provider-agnostic).
+ *        cache_control has moved into AnthropicAdapter (adapters/anthropic.ts)
+ *        where it is re-applied to the first user message's content block during
+ *        the ProviderMessage[] → MessageParam[] conversion.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
-import type { MessageParam } from '@anthropic-ai/sdk/resources'
+import type { ProviderMessage } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,24 +83,21 @@ export interface AssembleOptions {
 }
 
 /**
- * Build the Anthropic MessageParam[] for a session turn.
+ * Build the ProviderMessage[] for a session turn.
  *
- * Static prefix (system + persona + summary):
- *   The last block of the static prefix carries cache_control: 'ephemeral' —
- *   this instructs Anthropic to cache everything up to and including this block.
+ * Returns provider-agnostic ProviderMessage[] (role + string content only).
+ * cache_control is NO LONGER attached here — it has moved into AnthropicAdapter
+ * (apps/api/src/lib/adapters/anthropic.ts) where it is re-applied to the first
+ * user message (the static prefix) during the ProviderMessage[] → MessageParam[]
+ * conversion. This keeps anthropic.ts free of Anthropic SDK-specific constructs.
  *
- * AI-11 — cache_control is placed at the end of the static prefix.
- * Anthropic requires the cached prefix to be >= 1024 tokens AND
- * bitwise-identical across requests. The historicalSummary block must NOT
- * contain timestamps or session IDs that vary between calls.
+ * AI-11: The static prefix (systemPrompt + personaInstructions + historicalSummary)
+ * is concatenated into a single user message string. AnthropicAdapter applies
+ * cache_control to this message.
  *
- * Dynamic tail (recentMessages + userMessage) follows AFTER the cache
- * breakpoint and is NOT cached.
- *
- * The returned array is ready to pass to client.messages.create({ messages }).
- * Phase 2 wires the actual invocation.
+ * Dynamic tail (recentMessages + userMessage) follows AFTER the static prefix.
  */
-export function assemblePromptArray(opts: AssembleOptions): MessageParam[] {
+export function assemblePromptArray(opts: AssembleOptions): ProviderMessage[] {
   const {
     systemPrompt,
     personaInstructions,
@@ -108,27 +106,19 @@ export function assemblePromptArray(opts: AssembleOptions): MessageParam[] {
     userMessage,
   } = opts
 
-  // Static prefix — assembled as a single "user" message with multiple content
-  // blocks so we can attach cache_control to the last block only.
-  // The first two blocks (system + persona) are not cached individually;
-  // the third (historical summary) carries the cache breakpoint.
-  const staticPrefixMessage: MessageParam = {
+  // Static prefix — concatenated into a single string for the first user message.
+  // AI-11: AnthropicAdapter applies cache_control to this message during conversion.
+  const staticPrefixContent = [systemPrompt, personaInstructions, historicalSummary]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const staticPrefixMessage: ProviderMessage = {
     role: 'user',
-    content: [
-      { type: 'text', text: systemPrompt },
-      { type: 'text', text: personaInstructions },
-      // AI-11 cache breakpoint: last block of the static prefix
-      {
-        type: 'text',
-        text: historicalSummary,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        cache_control: { type: 'ephemeral' } as any,
-      },
-    ],
+    content: staticPrefixContent,
   }
 
-  // Dynamic tail — NOT cached
-  const dynamicTail: MessageParam[] = [
+  // Dynamic tail — NOT cached; recentMessages + current userMessage
+  const dynamicTail: ProviderMessage[] = [
     ...recentMessages.map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,

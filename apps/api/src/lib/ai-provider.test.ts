@@ -1,10 +1,11 @@
 /**
  * ai-provider.test.ts — Unit tests for AIProvider interface + AnthropicAdapter + compressHistory.
  *
- * Tests from 02-01-PLAN.md Task 2 behavior:
+ * Tests from 02-01-PLAN.md Task 2 behavior + updated for 04-01 refactor:
  *   - AnthropicAdapter.stream() yields text_delta events, then tool_use, then done
  *   - Tool input JSON only emitted after contentBlock event (not from partial input_json_delta)
  *   - compressHistory([]) returns empty string
+ *   - renderPanelTool.parameters (not input_schema) has the correct shape
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -60,7 +61,8 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: MockAnthropic }
 })
 
-import { AnthropicAdapter, renderPanelTool } from './ai-provider'
+import { AnthropicAdapter } from './adapters/anthropic'
+import { renderPanelTool } from '@panelito/types'
 import { compressHistory } from './anthropic'
 
 describe('AnthropicAdapter', () => {
@@ -139,17 +141,19 @@ describe('AnthropicAdapter', () => {
 describe('renderPanelTool', () => {
   it('has correct widget_type enum and required fields', () => {
     expect(renderPanelTool.name).toBe('render_panel')
-    // Cast properties to any since Anthropic.Tool types input_schema.properties as unknown
+    // Access via parameters.properties (04-01 refactor — no longer input_schema)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const props = renderPanelTool.input_schema.properties as any
+    const props = renderPanelTool.parameters.properties as any
     expect(props.widget_type.enum).toEqual([
       'bento',
       'radar',
       'scatter',
       'pie',
     ])
-    expect(renderPanelTool.input_schema.required).toContain('widget_type')
-    expect(renderPanelTool.input_schema.required).toContain('data')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((renderPanelTool.parameters as any).required).toContain('widget_type')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((renderPanelTool.parameters as any).required).toContain('data')
   })
 })
 
