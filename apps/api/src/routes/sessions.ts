@@ -415,7 +415,14 @@ sessionsRouter.post('/by-code/:code/guests', guestJoinRateLimit, async (c) => {
 
     // Mint a fresh anonymous Supabase user for the guest (SESS-04)
     // signInAnonymously() creates a new user in auth.users with aud: 'authenticated'
-    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously()
+    // We include the display_name in metadata so it's available via getUser() in the workspace.
+    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously({
+      options: {
+        data: {
+          full_name: parsed.data.display_name,
+        },
+      },
+    })
 
     if (anonError || !anonData.user || !anonData.session) {
       console.error('[sessions] signInAnonymously error:', anonError?.message)

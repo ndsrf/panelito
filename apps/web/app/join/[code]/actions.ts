@@ -1,5 +1,7 @@
 'use server'
 
+import { createServerClient } from '@/lib/supabase/server'
+
 /**
  * Server action: joinSession
  *
@@ -53,8 +55,23 @@ export async function joinSession({
     }
 
     const data: JoinSessionResult = await res.json()
+
+    // SESS-10: Set the session on the server so cookies are sent to the client.
+    // This ensures that the subsequent redirect to /sessions/[id] is authenticated.
+    const supabase = await createServerClient()
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    })
+
+    if (sessionError) {
+      console.error('[join-action] setSession error:', sessionError.message)
+      // We still return data because the client can try to set session as fallback
+    }
+
     return data
-  } catch {
+  } catch (error) {
+    console.error('[join-action] fetch error:', error)
     return { error: 'Network error. Check your connection and try again.' }
   }
 }

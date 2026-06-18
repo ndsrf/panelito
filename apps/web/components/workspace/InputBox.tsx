@@ -97,20 +97,22 @@ export function InputBox({
     setSending(true)
 
     try {
-      // Load guest session display_name if applicable
+      // Use the displayName prop as the source of truth (derived from metadata in WorkspacePage)
+      // Fall back to localStorage if shortCode is available for extra robustness.
       const guestSession = shortCode ? loadGuestSession(shortCode) : null
-      const guestDisplayName = guestSession?.display_name
+      const resolvedDisplayName = guestSession?.display_name || displayName
 
       await apiFetch(`/api/sessions/${sessionId}/messages`, {
         method: 'POST',
         body: JSON.stringify({
           content,
-          ...(guestDisplayName ? { display_name: guestDisplayName } : {}),
+          display_name: resolvedDisplayName,
         }),
       })
       // Phase 2: notify workspace of the sent content for @analista detection
       onAfterSend?.(content)
-    } catch (err) {
+    }
+ catch (err) {
       console.error('[InputBox] send failed', err)
       // Restore draft on error so user does not lose their message
       setDraft(content)

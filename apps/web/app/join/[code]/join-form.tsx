@@ -82,17 +82,7 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
         return
       }
 
-      // Best-effort: hydrate browser Supabase client, 2s timeout for WSL2.
-      const supabase = createClient()
-      await Promise.race([
-        supabase.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-        }).catch(() => undefined),
-        new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 2000)),
-      ])
-
-      // Persist to localStorage BEFORE router.push (RESEARCH.md Pitfall 8, SESS-10)
+      // Persist to localStorage (SESS-10)
       saveGuestSession(shortCode, {
         guest_user_id: result.guest_user_id,
         access_token: result.access_token,
@@ -101,9 +91,21 @@ export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps)
         session_id: result.session_id,
       })
 
-      // D-02: Instant redirect — no interstitial
+      // Best-effort: hydrate browser Supabase client.
+      // Since the server action already set the cookies, this instance will also see them.
+      const supabase = createClient()
+      await Promise.race([
+        supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        }).catch(() => undefined),
+        new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), 1000)),
+      ])
+
+      // D-02: Instant redirect — the server already has the cookies from the joinSession action.
       router.push(`/sessions/${result.session_id}`)
-    } catch {
+    } catch (err) {
+      console.error('[JoinForm] Error joining session:', err)
       setServerError('Algo salió mal. Inténtalo de nuevo.')
     }
   }

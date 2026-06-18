@@ -79,21 +79,20 @@ messagesRouter.post('/', messageRateLimit, async (c) => {
   // Resolve display_name based on user type
   // Anonymous users have is_anonymous: true in app_metadata (Supabase anon sign-in)
   const isAnonymous = !!(user.app_metadata as Record<string, unknown>)?.is_anonymous
+  const meta = user.user_metadata as Record<string, unknown>
+  const metadataName = (meta?.full_name as string | undefined)?.trim() || (meta?.name as string | undefined)?.trim()
+
   let displayName: string
 
   if (isAnonymous) {
-    // Guest: display_name must come from the request body
-    if (!body.display_name || body.display_name.trim().length === 0) {
+    // Guest: use display_name from body if provided, otherwise fall back to metadata (set during join)
+    displayName = body.display_name?.trim() || metadataName || ''
+    if (displayName.length === 0) {
       return c.json({ error: 'display_name_required', message: 'display_name is required for anonymous users.' }, 400)
     }
-    displayName = body.display_name.trim()
   } else {
-    // Authenticated creator: use full_name from metadata, fall back to email prefix
-    const meta = user.user_metadata as Record<string, unknown>
-    displayName =
-      (meta?.full_name as string | undefined)?.trim() ||
-      (meta?.name as string | undefined)?.trim() ||
-      (user.email?.split('@')[0] ?? 'Creator')
+    // Authenticated creator: use metadata, fall back to email prefix
+    displayName = metadataName || (user.email?.split('@')[0] ?? 'Creador')
   }
 
   // Insert the message via service-role client (bypasses RLS — we already verified status above)
