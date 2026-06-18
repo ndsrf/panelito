@@ -1,15 +1,16 @@
 /**
  * Creator settings routes.
  *
- * GET /api/settings  — return { user_id, has_api_key, api_response_cap, updated_at }
- * PUT /api/settings  — update api_response_cap
+ * GET /api/settings  — return { user_id, has_api_key, api_response_cap, active_provider, updated_at }
+ * PUT /api/settings  — update api_response_cap and/or active_provider
  *
- * NEVER returns encrypted_api_key (AI-02, T-06-02).
- * has_api_key is computed from (encrypted_api_key IS NOT NULL).
+ * NEVER returns anthropic_api_key, openai_api_key, or gemini_api_key (AI-02, T-04-07).
+ * has_api_key is computed from (anthropic_api_key IS NOT NULL) for backward compatibility.
  */
 
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { ProviderSchema } from '@panelito/types'
 import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 
@@ -24,6 +25,7 @@ const UpdateSettingsSchema = z.object({
     .min(1, 'api_response_cap must be at least 1')
     .max(10000, 'api_response_cap must be at most 10000')
     .optional(),
+  active_provider: ProviderSchema.optional(),
 })
 
 // ---------------------------------------------------------------------------
@@ -38,7 +40,8 @@ settingsRouter.use('/*', requireAuth)
  * GET /api/settings
  *
  * Returns the public-safe CreatorSettings shape.
- * has_api_key is derived from (encrypted_api_key IS NOT NULL) — never the blob.
+ * has_api_key is derived from (anthropic_api_key IS NOT NULL) — never the blob.
+ * All three key columns are stripped server-side before responding (T-04-07).
  */
 settingsRouter.get('/', async (c) => {
   const user = c.get('user')
@@ -46,7 +49,7 @@ settingsRouter.get('/', async (c) => {
 
   const { data, error } = await supabase
     .from('creator_settings')
-    .select('user_id, encrypted_api_key, api_response_cap, updated_at')
+    .select('user_id, anthropic_api_key, openai_api_key, gemini_api_key, api_response_cap, active_provider, updated_at')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -61,22 +64,23 @@ settingsRouter.get('/', async (c) => {
       user_id: user.id,
       has_api_key: false,
       api_response_cap: 150,
+      active_provider: 'anthropic',
       updated_at: null,
     }, 200)
   }
 
-  // Compute has_api_key server-side; strip encrypted_api_key from response (T-06-02)
-  const { encrypted_api_key: _omit, ...rest } = data
+  // Strip all three key columns server-side — never expose to client (T-04-07, AI-02)
+  const { anthropic_api_key: _a, openai_api_key: _o, gemini_api_key: _g, ...rest } = data
   return c.json({
     ...rest,
-    has_api_key: _omit !== null,
+    has_api_key: _a !== null,
   }, 200)
 })
 
 /**
  * PUT /api/settings
  *
- * Accepts { api_response_cap?: number } (int 1..10000).
+ * Accepts { api_response_cap?: number; active_provider?: ProviderName }.
  * Updates only the provided fields.
  * Returns the updated settings.
  */
@@ -122,10 +126,10 @@ settingsRouter.put('/', async (c) => {
     }
   }
 
-  // Return updated settings
+  // Return updated settings (strip all key columns)
   const { data, error: fetchErr } = await supabase
     .from('creator_settings')
-    .select('user_id, encrypted_api_key, api_response_cap, updated_at')
+    .select('user_id, anthropic_api_key, openai_api_key, gemini_api_key, api_response_cap, active_provider, updated_at')
     .eq('user_id', user.id)
     .single()
 
@@ -133,10 +137,10 @@ settingsRouter.put('/', async (c) => {
     return c.json({ error: 'server_error' }, 500)
   }
 
-  const { encrypted_api_key: _omit, ...rest } = data
+  const { anthropic_api_key: _a, openai_api_key: _o, gemini_api_key: _g, ...rest } = data
   return c.json({
     ...rest,
-    has_api_key: _omit !== null,
+    has_api_key: _a !== null,
   }, 200)
 })
 
