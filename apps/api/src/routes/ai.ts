@@ -250,28 +250,32 @@ aiRouter.post('/:id/invoke', async (c) => {
       // -----------------------------------------------------------------------
       // Pitfall 4: insert AI message AFTER the stream completes — not during streaming
       // PANEL-04: canvas_snapshot_state = last panel_update payload
+      // Guard: skip insert when content is empty (Anthropic error before first token)
+      // to avoid violating messages_content_check (content length >= 1).
       // -----------------------------------------------------------------------
-      const { error: insertError } = await supabase
-        .from('messages')
-        .insert({
-          session_id: sessionId,
-          author_id: session.creator_id, // AI rows attributed to session creator
-          display_name: 'Analista Científico',
-          parent_id: null,
-          path_id: 'main',
-          role: 'assistant',
-          content: accumulatedText,
-          canvas_snapshot_state: lastPanelUpdate ?? null,
-        })
+      if (accumulatedText.length > 0) {
+        const { error: insertError } = await supabase
+          .from('messages')
+          .insert({
+            session_id: sessionId,
+            author_id: session.creator_id, // AI rows attributed to session creator
+            display_name: 'Analista Científico',
+            parent_id: null,
+            path_id: 'main',
+            role: 'assistant',
+            content: accumulatedText,
+            canvas_snapshot_state: lastPanelUpdate ?? null,
+          })
 
-      if (insertError) {
-        console.error('[ai] message insert error', insertError)
-        // Stream already open — log only, don't abort the SSE connection
+        if (insertError) {
+          console.error('[ai] message insert error', insertError)
+          // Stream already open — log only, don't abort the SSE connection
+        }
+
+        // T-02-07: increment cap ONLY after a completed real AI stream with content
+        // (never on the typing_hold 429 path, during streaming, or on empty response)
+        await incrementCount(supabase, sessionId)
       }
-
-      // T-02-07: increment cap ONLY after a completed real AI stream
-      // (never on the typing_hold 429 path or during streaming)
-      await incrementCount(supabase, sessionId)
 
       await stream.writeSSE({ event: 'done', data: '{}' })
     } catch (err) {
