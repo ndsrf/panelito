@@ -61,16 +61,20 @@ import { OpenAIAdapter } from './openai'
 // ---------------------------------------------------------------------------
 async function collectEvents(
   chunks: Chunk[],
-  adapter?: OpenAIAdapter
+  options?: {
+    messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+    system?: string
+  }
 ): Promise<Array<{ type: string; text?: string; name?: string; input?: unknown }>> {
   mockChunks = chunks
-  const a = adapter ?? new OpenAIAdapter('test-key')
+  const adapter = new OpenAIAdapter('test-key')
+  const messages = options?.messages ?? [{ role: 'user' as const, content: 'hello' }]
   const events: Array<{ type: string; text?: string; name?: string; input?: unknown }> = []
-  for await (const event of a.stream(
-    [{ role: 'user', content: 'hello' }],
-    [],
-    { model: 'gpt-5.4', maxTokens: 100 }
-  )) {
+  for await (const event of adapter.stream(messages, [], {
+    model: 'gpt-5.4',
+    maxTokens: 100,
+    ...(options?.system ? { system: options.system } : {}),
+  })) {
     events.push(event)
   }
   return events
@@ -109,8 +113,8 @@ describe('OpenAIAdapter.stream() — text deltas', () => {
     const events = await collectEvents(chunks)
     const textEvents = events.filter((e) => e.type === 'text_delta')
     expect(textEvents).toHaveLength(2)
-    expect(textEvents[0].text).toBe('Hel')
-    expect(textEvents[1].text).toBe('lo')
+    expect(textEvents[0]!.text).toBe('Hel')
+    expect(textEvents[1]!.text).toBe('lo')
   })
 
   it('always emits done as the final event', async () => {
@@ -119,7 +123,7 @@ describe('OpenAIAdapter.stream() — text deltas', () => {
       { choices: [{ delta: {}, finish_reason: 'stop' }] },
     ]
     const events = await collectEvents(chunks)
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 })
 
@@ -127,20 +131,26 @@ describe('OpenAIAdapter.stream() — tool call accumulation', () => {
   it('yields NO tool_use event while accumulating (before finish_reason)', async () => {
     const chunks: Chunk[] = [
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, id: 'tc1', function: { name: 'render_panel', arguments: '{"widget_' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'tc1', function: { name: 'render_panel', arguments: '{"widget_' } },
+              ],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, function: { arguments: 'type":"pie","segments":[]}' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 0, function: { arguments: 'type":"pie","segments":[]}' } }],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
     ]
     const events = await collectEvents(chunks)
@@ -151,63 +161,79 @@ describe('OpenAIAdapter.stream() — tool call accumulation', () => {
   it('yields tool_use event with parsed input after finish_reason === "tool_calls"', async () => {
     const chunks: Chunk[] = [
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, id: 'tc1', function: { name: 'render_panel', arguments: '{"widget_' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'tc1', function: { name: 'render_panel', arguments: '{"widget_' } },
+              ],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, function: { arguments: 'type":"pie","segments":[]}' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 0, function: { arguments: 'type":"pie","segments":[]}' } }],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {},
-          finish_reason: 'tool_calls',
-        }],
+        choices: [
+          {
+            delta: {},
+            finish_reason: 'tool_calls',
+          },
+        ],
       },
     ]
     const events = await collectEvents(chunks)
     const toolEvents = events.filter((e) => e.type === 'tool_use')
     expect(toolEvents).toHaveLength(1)
-    expect(toolEvents[0].name).toBe('render_panel')
-    expect(toolEvents[0].input).toEqual({ widget_type: 'pie', segments: [] })
+    expect(toolEvents[0]!.name).toBe('render_panel')
+    expect(toolEvents[0]!.input).toEqual({ widget_type: 'pie', segments: [] })
   })
 
   it('two concurrent tool calls at index 0 and 1 produce two separate tool_use events', async () => {
     const chunks: Chunk[] = [
       {
-        choices: [{
-          delta: {
-            tool_calls: [
-              { index: 0, id: 'tc0', function: { name: 'render_panel', arguments: '{"widget_type":"pie"}' } },
-              { index: 1, id: 'tc1', function: { name: 'other_tool', arguments: '{"key":' } },
-            ],
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'tc0',
+                  function: { name: 'render_panel', arguments: '{"widget_type":"pie"}' },
+                },
+                { index: 1, id: 'tc1', function: { name: 'other_tool', arguments: '{"key":' } },
+              ],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {
-            tool_calls: [
-              { index: 1, function: { arguments: '"value"}' } },
-            ],
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 1, function: { arguments: '"value"}' } }],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {},
-          finish_reason: 'tool_calls',
-        }],
+        choices: [
+          {
+            delta: {},
+            finish_reason: 'tool_calls',
+          },
+        ],
       },
     ]
     const events = await collectEvents(chunks)
@@ -225,46 +251,66 @@ describe('OpenAIAdapter.stream() — tool call accumulation', () => {
   it('malformed accumulated JSON is skipped (no throw, no tool_use event)', async () => {
     const chunks: Chunk[] = [
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, id: 'tc1', function: { name: 'render_panel', arguments: 'INVALID_JSON{{{' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'tc1',
+                  function: { name: 'render_panel', arguments: 'INVALID_JSON{{{' },
+                },
+              ],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {},
-          finish_reason: 'tool_calls',
-        }],
+        choices: [
+          {
+            delta: {},
+            finish_reason: 'tool_calls',
+          },
+        ],
       },
     ]
     const events = await collectEvents(chunks)
     const toolEvents = events.filter((e) => e.type === 'tool_use')
     expect(toolEvents).toHaveLength(0)
     // done is still emitted
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 
   it('done is the final event even when accumulator is populated', async () => {
     const chunks: Chunk[] = [
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, id: 'tc1', function: { name: 'render_panel', arguments: '{"widget_type":"bento"}' } }],
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: 'tc1',
+                  function: { name: 'render_panel', arguments: '{"widget_type":"bento"}' },
+                },
+              ],
+            },
+            finish_reason: null,
           },
-          finish_reason: null,
-        }],
+        ],
       },
       {
-        choices: [{
-          delta: {},
-          finish_reason: 'tool_calls',
-        }],
+        choices: [
+          {
+            delta: {},
+            finish_reason: 'tool_calls',
+          },
+        ],
       },
     ]
     const events = await collectEvents(chunks)
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 })
 
@@ -273,9 +319,12 @@ describe('OpenAIAdapter.stream() — system prompt handling', () => {
     mockChunks = [{ choices: [{ delta: {}, finish_reason: 'stop' }] }]
 
     const { default: MockOpenAI } = await import('openai')
-    const mockInstance = (MockOpenAI as ReturnType<typeof vi.fn>).mock.results[
-      (MockOpenAI as ReturnType<typeof vi.fn>).mock.results.length - 1
-    ]?.value
+    // Use unknown cast to avoid type conflict between typeof OpenAI and vi.Mock
+    const MockCtor = MockOpenAI as unknown as ReturnType<typeof vi.fn>
+    const lastResult = MockCtor.mock.results[MockCtor.mock.results.length - 1]
+    const mockInstance = lastResult?.value as
+      | { chat: { completions: { stream: ReturnType<typeof vi.fn> } } }
+      | undefined
 
     const adapter = new OpenAIAdapter('test-key')
     const events: unknown[] = []
@@ -290,7 +339,9 @@ describe('OpenAIAdapter.stream() — system prompt handling', () => {
     // The key check: the stream was called with a system message first
     const streamFn = mockInstance?.chat?.completions?.stream
     if (streamFn) {
-      const callArgs = streamFn.mock.calls[streamFn.mock.calls.length - 1]
+      const callArgs = streamFn.mock.calls[streamFn.mock.calls.length - 1] as
+        | [{ messages: Array<{ role: string; content: string }> }]
+        | undefined
       if (callArgs) {
         const messages = callArgs[0]?.messages ?? []
         expect(messages[0]).toEqual({ role: 'system', content: 'You are a helpful assistant.' })
@@ -306,7 +357,7 @@ describe('OpenAIAdapter.stream() — done guard', () => {
       { choices: [{ delta: {}, finish_reason: 'stop' }] },
     ]
     const events = await collectEvents(chunks)
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 
   it('emits exactly one done event per stream invocation', async () => {

@@ -115,14 +115,14 @@ describe('GeminiAdapter.stream() — text deltas', () => {
     const events = await collectEvents(chunks)
     const textEvents = events.filter((e) => e.type === 'text_delta')
     expect(textEvents).toHaveLength(2)
-    expect(textEvents[0].text).toBe('Hi')
-    expect(textEvents[1].text).toBe(' there')
+    expect(textEvents[0]!.text).toBe('Hi')
+    expect(textEvents[1]!.text).toBe(' there')
   })
 
   it('done is always the final event', async () => {
     const chunks: GeminiChunk[] = [{ text: 'hello' }]
     const events = await collectEvents(chunks)
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 
   it('emits exactly one done event', async () => {
@@ -160,7 +160,7 @@ describe('GeminiAdapter.stream() — role mapping', () => {
     const modelMessages = contents.filter((c) => c.role === 'model')
     expect(assistantMessages).toHaveLength(0)
     expect(modelMessages).toHaveLength(1)
-    expect(modelMessages[0].parts[0].text).toBe('world')
+    expect(modelMessages[0]!.parts[0]!.text).toBe('world')
   })
 
   it('keeps "user" role as "user" in contents', async () => {
@@ -169,8 +169,8 @@ describe('GeminiAdapter.stream() — role mapping', () => {
       messages: [{ role: 'user', content: 'hello' }],
     })
     const contents = capturedConfig.contents ?? []
-    expect(contents[0].role).toBe('user')
-    expect(contents[0].parts[0].text).toBe('hello')
+    expect(contents[0]!.role).toBe('user')
+    expect(contents[0]!.parts[0]!.text).toBe('hello')
   })
 
   it('options.system goes to config.systemInstruction (not in contents)', async () => {
@@ -197,10 +197,7 @@ describe('GeminiAdapter.stream() — functionCalls accumulation', () => {
     ]
     const events = await collectEvents(chunks)
     const toolUseIdx = events.findIndex((e) => e.type === 'tool_use')
-    const lastTextIdx = events.reduce(
-      (last, e, i) => (e.type === 'text_delta' ? i : last),
-      -1
-    )
+    const lastTextIdx = events.reduce((last, e, i) => (e.type === 'text_delta' ? i : last), -1)
     // tool_use must appear AFTER all text_delta events
     expect(toolUseIdx).toBeGreaterThan(lastTextIdx)
   })
@@ -239,6 +236,6 @@ describe('GeminiAdapter.stream() — functionCalls accumulation', () => {
       { functionCalls: [{ name: 'render_panel', args: { widget_type: 'bento' } }] },
     ]
     const events = await collectEvents(chunks)
-    expect(events[events.length - 1].type).toBe('done')
+    expect(events[events.length - 1]!.type).toBe('done')
   })
 })
