@@ -1,13 +1,14 @@
 /**
  * Onboarding API key gate — D-04.
  *
- * Post-OAuth one-time focused screen. Creator must enter their Anthropic
- * API key before accessing any workspace functionality.
+ * Post-OAuth one-time focused screen. Creator must verify a provider API key
+ * before accessing any workspace functionality.
  *
  * - No nav, no sidebar (uses (onboarding) layout group)
  * - Max-width 440px centered column
+ * - Provider selector (Anthropic / OpenAI / Gemini)
  * - Masked input with eye toggle
- * - "Verify & Save" CTA button
+ * - "Verificar y guardar" CTA button
  * - Inline error on invalid key (AI-10)
  */
 
@@ -30,26 +31,19 @@ export default async function OnboardingApiKeyPage() {
       {/* Explanation */}
       <div className="text-center">
         <p className="text-[15px] text-foreground leading-relaxed">
-          Necesitamos tu clave de API de Anthropic para que el AI pueda analizar
-          tu sesion. Tu clave queda cifrada y solo se usa desde nuestro servidor
-          — nunca se envia al navegador.
+          Introduce tu clave de API para que el AI pueda analizar tu sesión.
+          Tu clave queda cifrada y solo se usa desde nuestro servidor
+          — nunca se envía al navegador.
         </p>
       </div>
 
-      {/* Form */}
+      {/* Form — includes provider selector */}
       <ApiKeyForm />
 
       {/* Footer hint */}
       <p className="text-center text-[12px] text-muted-foreground">
-        Obtén tu clave en{' '}
-        <a
-          href="https://console.anthropic.com/settings/keys"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2"
-        >
-          console.anthropic.com
-        </a>
+        Puedes cambiar de proveedor en cualquier momento desde{' '}
+        <span className="font-medium text-foreground">/configuración</span>.
       </p>
     </div>
   )
