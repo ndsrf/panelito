@@ -155,35 +155,16 @@ export function Workspace({
       <BranchNavigator />
 
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden flex flex-col">
         {/* Chat stream fills remaining space (LAYOUT-03, CHAT-01..05) */}
         <ChatStream
           sessionId={liveSession.id}
           currentUserId={currentUserId}
           onTriggerAIStream={() => openAIStream('', false).catch(console.error)}
+          isAIStreaming={localAIStreaming}
+          streamingMessage={streamingMessage}
+          aiErrorMessage={aiErrorMessage}
         />
-
-        {/* Ephemeral streaming AI bubble (D-02):
-            Shown only on the invoking client while localAIStreaming is true.
-            All other participants see the final message via Realtime when the stream ends. */}
-        {localAIStreaming && (
-          <div className="px-0">
-            <MessageBubble
-              message={streamingMessage}
-              isOwn={false}
-              isAI={true}
-              isStreaming={true}
-              streamingText={streamingText}
-            />
-          </div>
-        )}
-
-        {/* AI stream error feedback (no_api_key, error, no_persona) */}
-        {aiErrorMessage && (
-          <div className="px-4 pb-1 text-[13px] text-destructive" role="alert">
-            {aiErrorMessage}
-          </div>
-        )}
 
         {/* Input box anchored to keyboard-aware visual viewport (LAYOUT-04) */}
         {/* InputBox mounts useViewport() — single hook consumer for the workspace.

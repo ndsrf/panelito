@@ -42,6 +42,12 @@ interface MessageListProps {
   currentUserId: string
   /** Phase 2: called when a 🔥/📌/🎯 reaction triggers an AI follow-up (D-09) */
   onTriggerAIStream?: () => void
+  /** Phase 2: true while the AI stream is in flight (shows streaming bubble) */
+  isAIStreaming?: boolean
+  /** Phase 2: ephemeral streaming message object */
+  streamingMessage?: Message
+  /** Phase 2: AI stream error feedback (no_api_key, error, no_persona) */
+  aiErrorMessage?: string | null
 }
 
 /**
@@ -69,6 +75,9 @@ export function MessageList({
   sessionId,
   currentUserId,
   onTriggerAIStream,
+  isAIStreaming,
+  streamingMessage,
+  aiErrorMessage,
 }: MessageListProps): ReactNode {
   const messages = useSessionStore((s) => s.messages)
   const addMessage = useSessionStore((s) => s.addMessage)
@@ -99,6 +108,12 @@ export function MessageList({
       container.scrollTop + container.clientHeight >= container.scrollHeight - threshold
     shouldAutoScrollRef.current = atBottom
   }
+
+  const scrollToBottom = useCallback(() => {
+    if (shouldAutoScrollRef.current && containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight
+    }
+  }, [])
 
   // Subscribe to live messages via Supabase Realtime broadcast
   useSessionChannel(sessionId, useSessionStore.getState().addMessage)
@@ -139,10 +154,24 @@ export function MessageList({
 
   // CHAT-03: Auto-scroll to bottom if the flag is set.
   useEffect(() => {
-    if (shouldAutoScrollRef.current && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight
-    }
-  }, [messages])
+    scrollToBottom()
+    // Double-tap scroll to handle delayed height changes (images, etc)
+    const id = requestAnimationFrame(scrollToBottom)
+    return () => cancelAnimationFrame(id)
+  }, [messages, isAIStreaming, streamingMessage?.content, scrollToBottom])
+
+  // ResizeObserver to handle auto-scroll when container size changes (keyboard, etc)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new ResizeObserver(() => {
+      if (shouldAutoScrollRef.current) {
+        container.scrollTop = container.scrollHeight
+      }
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   // Prevent re-adding addMessage to session channel subscription deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,7 +201,7 @@ export function MessageList({
       className="chat-stream flex-1 overflow-y-auto"
       style={{ overscrollBehavior: 'contain' }}
     >
-      {messages.length === 0 ? (
+      {messages.length === 0 && !isAIStreaming ? (
         <div className="flex items-center justify-center h-full text-muted-foreground text-[15px] px-8 text-center">
           No hay mensajes todavia. Se el primero en escribir.
         </div>
@@ -205,6 +234,24 @@ export function MessageList({
               />
             )
           })}
+
+          {/* Ephemeral streaming AI bubble (D-02): moved inside MessageList for scrolling flow */}
+          {isAIStreaming && streamingMessage && (
+            <MessageBubble
+              message={streamingMessage}
+              isOwn={false}
+              isAI={true}
+              isStreaming={true}
+              streamingText={streamingMessage.content}
+            />
+          )}
+
+          {/* AI stream error feedback (no_api_key, error, no_persona) */}
+          {aiErrorMessage && (
+            <div className="px-4 py-2 text-[13px] text-destructive" role="alert">
+              {aiErrorMessage}
+            </div>
+          )}
         </div>
       )}
     </div>

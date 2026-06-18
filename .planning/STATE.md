@@ -56,6 +56,7 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260618-scroll-fix | Fixed chat panel scrolling and added auto-scroll functionality | 2026-06-18 | - | [260618-scroll-fix-fixed-chat-panel-scrolling](./quick/20260618-scroll-fix/) |
 | 260613-cnb | I cannot see the QR share functionality that in theory was added at phase 1 - wave 2 | 2026-06-13 | 6a19fb1 | [260613-cnb-i-cannot-see-the-qr-share-functionality-](./quick/260613-cnb-i-cannot-see-the-qr-share-functionality-/) |
 
 ---
