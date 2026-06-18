@@ -8,14 +8,18 @@
  * CHAT-01: Initial history loaded from GET /api/sessions/:id/messages on mount.
  *          Live updates delivered via useSessionChannel (broadcast subscription).
  *
- * Plan 07: Renders system messages (display_name === 'system') with distinct styling.
- *          System messages: no avatar, italic text, muted-foreground color, centered.
- *          Used for cap warnings (SESS-12), auto-freeze notices (SESS-07), auto-name (SESS-09).
+ * Phase 2 additions (REACT-01–05):
+ * - useReactions(sessionId, currentUserId) — optimistic reaction state + Realtime sync
+ * - Passes getReactionCounts(message.id) to each MessageBubble (Surface 3 badges)
+ * - Passes onOptimisticReaction/onRevertReaction/onPostReaction callbacks per message
+ * - When postReaction returns triggersAI, calls openAIStream (D-09)
+ * - AI bubbles are also reactable — no human-only gate (Surface 3 spec)
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useSessionStore } from '@/store/session-store'
 import { useSessionChannel } from '@/hooks/use-session-channel'
+import { useReactions } from '@/hooks/use-reactions'
 import { apiFetch } from '@/lib/api'
 import { MessageBubble } from './MessageBubble'
 import type { Message } from '@panelito/types'
@@ -29,6 +33,8 @@ const SYSTEM_AUTHOR_ID = '00000000-0000-0000-0000-000000000000'
 interface MessageListProps {
   sessionId: string
   currentUserId: string
+  /** Phase 2: called when a 🔥/📌/🎯 reaction triggers an AI follow-up (D-09) */
+  onTriggerAIStream?: () => void
 }
 
 /**
@@ -52,22 +58,32 @@ function SystemMessageBubble({ message }: { message: Message }): ReactNode {
 /**
  * MessageList — renders all messages and manages auto-scroll + initial history.
  */
-export function MessageList({ sessionId, currentUserId }: MessageListProps): ReactNode {
+export function MessageList({
+  sessionId,
+  currentUserId,
+  onTriggerAIStream,
+}: MessageListProps): ReactNode {
   const messages = useSessionStore((s) => s.messages)
   const addMessage = useSessionStore((s) => s.addMessage)
   const setMessages = useSessionStore((s) => s.setMessages)
 
+  // REACT-01–05: Reaction state hook — optimistic, Realtime-synced
+  const {
+    getReactionCounts,
+    applyOptimistic,
+    revert,
+    postReaction,
+  } = useReactions(sessionId, currentUserId)
+
   const containerRef = useRef<HTMLDivElement>(null)
-  // Re-thinking: I'll use a ref to track if we should auto-scroll.
   const shouldAutoScrollRef = useRef(true)
 
   const handleScroll = () => {
     const container = containerRef.current
     if (!container) return
-    // If the user is within 100px of the bottom, we consider them "at the bottom"
-    // We use a small buffer to handle rounding issues on high-DPI screens.
     const threshold = 100
-    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - threshold
+    const atBottom =
+      container.scrollTop + container.clientHeight >= container.scrollHeight - threshold
     shouldAutoScrollRef.current = atBottom
   }
 
@@ -79,8 +95,6 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
     apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
       .then((msgs) => {
         setMessages(msgs)
-        // Ensure we scroll to bottom after initial load. 
-        // We use requestAnimationFrame to wait for the browser to finish rendering the messages.
         requestAnimationFrame(() => {
           if (containerRef.current) {
             containerRef.current.scrollTop = containerRef.current.scrollHeight
@@ -121,6 +135,23 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   // eslint-disable-next-line react-hooks/exhaustive-deps
   void addMessage
 
+  /**
+   * Build per-message reaction callbacks bound to that message's id.
+   * These are stable closures that delegate to the useReactions hook.
+   */
+  const makeReactionCallbacks = useCallback(
+    (messageId: string) => ({
+      onOptimisticReaction: (emoji: string) => applyOptimistic(messageId, emoji),
+      onRevertReaction: (emoji: string) => revert(messageId, emoji),
+      onPostReaction: async (emoji: string): Promise<boolean> => {
+        const triggersAI = await postReaction(messageId, emoji)
+        return triggersAI
+      },
+      onTriggerAI: onTriggerAIStream,
+    }),
+    [applyOptimistic, revert, postReaction, onTriggerAIStream]
+  )
+
   return (
     <div
       ref={containerRef}
@@ -138,13 +169,23 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
             const isSystemMessage =
               msg.display_name === SYSTEM_DISPLAY_NAME ||
               msg.author_id === SYSTEM_AUTHOR_ID
-            return isSystemMessage ? (
-              <SystemMessageBubble key={msg.id} message={msg} />
-            ) : (
+            if (isSystemMessage) {
+              return <SystemMessageBubble key={msg.id} message={msg} />
+            }
+            const isAI = msg.role === 'assistant'
+            const callbacks = makeReactionCallbacks(msg.id)
+            return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 isOwn={msg.author_id === currentUserId}
+                isAI={isAI}
+                reactions={getReactionCounts(msg.id)}
+                sessionId={sessionId}
+                onOptimisticReaction={callbacks.onOptimisticReaction}
+                onRevertReaction={callbacks.onRevertReaction}
+                onPostReaction={callbacks.onPostReaction}
+                onTriggerAI={callbacks.onTriggerAI}
               />
             )
           })}
