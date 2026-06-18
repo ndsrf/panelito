@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 3
-status: planned
-stopped_at: Phase 3 planned
-last_updated: "2026-06-17T21:00:00.000Z"
-last_activity: 2026-06-17
+status: in_progress
+stopped_at: Phase 4 Plan 03 complete
+last_updated: "2026-06-18T00:00:00.000Z"
+last_activity: 2026-06-18
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 12
-  percent: 25
+  completed_plans: 15
+  percent: 71
 ---
 
 # Project State: Project Multiverse
@@ -28,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 
 ## Current Status
 
-**Phase:** 3 of 4
-**Phase goal:** Conversation branching — any participant can fork from any historical message to create a parallel timeline, navigate between branches via the Branch Navigator, and the AI context is fully isolated per branch. Switching branches instantly re-renders the analytics panel. The product's core differentiator is now complete.
-**Phase status:** Ready to execute
+**Phase:** 4 of 4
+**Phase goal:** Multi-AI provider support — OpenAI + Gemini adapters, adapter factory, multi-provider BYOK key storage, per-provider key management UI and settings route updates.
+**Phase status:** In progress (3/4 plans complete)
 
 ---
 
@@ -39,14 +38,16 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 | Phase | Name | Status | Plans |
 |-------|------|--------|-------|
 | 1 | Live Session Shell | ✓ Completed | 7/7 |
-| 2 | AI + Analytics | ○ Not started | — |
-| 3 | The Multiverse | Ready to execute | 0/4 |
+| 2 | AI + Analytics | ✓ Completed | 7/7 |
+| 3 | The Multiverse | ✓ Completed | 4/4 |
+| 4 | Multi-AI Providers | In progress | 3/4 |
 
 ---
 
 ## Decisions Log
 
 - **2026-06-13** — Phase 1 approved. Post-checkpoint fixes: unfreeze 409 bug (hydration deps), unfreezeSession system message, Dev Sign In bypass for WSL2.
+- **2026-06-18** — Phase 4 Plan 03: ApiKeyVerifyRequestSchema.key.min(10) not min(50) — prefix guard handles meaningful validation per provider; per-provider prefix validation in route not schema; DELETE defaults to anthropic for backward compat; migration 0006 pushed without auth gate (non-interactive success).
 
 ---
 
@@ -62,6 +63,6 @@ Last activity: 2026-06-17
 
 ## Session
 
-**Last session:** 2026-06-17T20:29:41.627Z
-**Stopped at:** Phase 3 context gathered
-**Resume file:** .planning/phases/03-the-multiverse/03-CONTEXT.md
+**Last session:** 2026-06-18T00:00:00.000Z
+**Stopped at:** Phase 4 Plan 03 complete — multi-provider schema + keys routes done; Plan 04 (settings UI + ai.ts route refactor) is next
+**Resume file:** .planning/phases/04-multi-ai-providers/04-03-SUMMARY.md
