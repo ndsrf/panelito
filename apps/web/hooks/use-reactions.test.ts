@@ -154,7 +154,7 @@ describe('useReactions', () => {
 
       const counts = result.current.getReactionCounts(MSG_1)
       expect(counts).toHaveLength(1)
-      expect(counts[0].emoji).toBe('🎯')
+      expect(counts[0]?.emoji).toBe('🎯')
     })
   })
 
