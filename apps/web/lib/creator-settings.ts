@@ -47,6 +47,7 @@ export async function getCreatorSettings(): Promise<CreatorSettings> {
       user_id: user?.id ?? '',
       has_api_key: false,
       api_response_cap: 150,
+      active_provider: 'anthropic' as const,
       updated_at: null as unknown as string,
     }
   }
