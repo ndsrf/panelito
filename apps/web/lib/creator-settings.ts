@@ -13,7 +13,7 @@ import 'server-only'
 
 import { createServerClient } from '@/lib/supabase/server'
 import { apiFetch } from '@/lib/api'
-import type { CreatorSettings } from '@panelito/types'
+import type { CreatorSettings, MultiProviderStatus } from '@panelito/types'
 
 /**
  * getCreatorSettings — server-only.
@@ -41,7 +41,7 @@ export async function getCreatorSettings(): Promise<CreatorSettings> {
   } catch (err) {
     // Log the error for server-side debugging
     console.error('[getCreatorSettings] fetch failed:', err)
-    
+
     // If settings fetch fails (e.g., no row yet), return safe defaults
     return {
       user_id: user?.id ?? '',
@@ -56,11 +56,14 @@ export async function getCreatorSettings(): Promise<CreatorSettings> {
 /**
  * getKeyStatus — server-only.
  *
- * Returns { has_api_key, last4 } from GET /api/keys/status.
- * Used by the settings page to display the masked key (sk-ant-••••[last4]).
+ * Returns MultiProviderStatus from GET /api/keys/status.
+ * Used by the settings page to display the three-provider selector with per-provider
+ * masked key status, active provider indicator, and last4 display.
+ *
  * The full key and encrypted blob are NEVER returned (AI-02).
+ * Returns a safe 3-provider default (all keys absent, anthropic active) on error.
  */
-export async function getKeyStatus(): Promise<{ has_api_key: boolean; last4: string | null }> {
+export async function getKeyStatus(): Promise<MultiProviderStatus> {
   const supabase = await createServerClient()
   const {
     data: { session },
@@ -69,13 +72,17 @@ export async function getKeyStatus(): Promise<{ has_api_key: boolean; last4: str
   const accessToken = session?.access_token
 
   try {
-    return await apiFetch<{ has_api_key: boolean; last4: string | null }>(
-      '/api/keys/status',
-      {},
-      accessToken
-    )
+    return await apiFetch<MultiProviderStatus>('/api/keys/status', {}, accessToken)
   } catch (err) {
     console.error('[getKeyStatus] fetch failed:', err)
-    return { has_api_key: false, last4: null }
+    // Safe default: all keys absent, anthropic active (D-05 fallback)
+    return {
+      active_provider: 'anthropic',
+      providers: [
+        { provider: 'anthropic', has_key: false, last4: null, is_active: true },
+        { provider: 'openai', has_key: false, last4: null, is_active: false },
+        { provider: 'gemini', has_key: false, last4: null, is_active: false },
+      ],
+    }
   }
 }

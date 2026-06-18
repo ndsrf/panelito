@@ -2,7 +2,8 @@
  * Settings page — D-05.
  *
  * Dedicated /settings route (not a drawer) for managing:
- * - API key rotation / disconnection (D-04)
+ * - Multi-provider API key management (Anthropic, OpenAI, Gemini) — D-09
+ * - Click-to-activate provider selection — D-05
  * - Global AI response cap (D-06)
  *
  * Max-width 640px, sections in cards.
@@ -25,11 +26,11 @@ export default async function SettingsPage() {
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Settings</h1>
           <p className="text-[14px] text-muted-foreground mt-1">
-            Configura tu integración con Anthropic y los límites de AI.
+            Configura tu integración con AI y los límites de respuestas.
           </p>
         </div>
 
-        <SettingsForm settings={settings} last4={keyStatus.last4} />
+        <SettingsForm settings={settings} keyStatus={keyStatus} />
       </div>
     </main>
   )
