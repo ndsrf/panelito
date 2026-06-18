@@ -17,12 +17,20 @@ export { MessageSchema, MessageInsertInputSchema } from "./message";
 export type { Branch } from "./branch";
 export { BranchSchema, MAIN_BRANCH } from "./branch";
 
-// API key types + schemas
-export type { ApiKeyVerifyRequest, ApiKeyVerifyResponse, CreatorSettings } from "./api-key";
+// API key types + schemas (multi-provider: D-10, D-11, D-13)
+export type {
+  ApiKeyVerifyRequest,
+  ApiKeyVerifyResponse,
+  CreatorSettings,
+  ProviderKeyStatus,
+  MultiProviderStatus,
+} from "./api-key";
 export {
   ApiKeyVerifyRequestSchema,
   ApiKeyVerifyResponseSchema,
   CreatorSettingsSchema,
+  ProviderKeyStatusSchema,
+  MultiProviderStatusSchema,
 } from "./api-key";
 
 // Panel widget types + schemas (AI-05, PANEL-01)
