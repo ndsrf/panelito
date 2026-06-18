@@ -157,7 +157,11 @@ export function Workspace({
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}
       <div className="flex-1 relative overflow-hidden">
         {/* Chat stream fills remaining space (LAYOUT-03, CHAT-01..05) */}
-        <ChatStream sessionId={liveSession.id} currentUserId={currentUserId} />
+        <ChatStream
+          sessionId={liveSession.id}
+          currentUserId={currentUserId}
+          onTriggerAIStream={() => openAIStream('', false).catch(console.error)}
+        />
 
         {/* Ephemeral streaming AI bubble (D-02):
             Shown only on the invoking client while localAIStreaming is true.

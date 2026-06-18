@@ -11,6 +11,15 @@
  * - isAI?: renders AI variant with Bot avatar, persona badge, Indigo accent border
  * - isStreaming?: shows streaming dots or blinking cursor while AI is typing
  * - streamingText?: the ephemeral token buffer to render mid-stream
+ *
+ * Phase 2 additions (REACT-01–05, Surface 3):
+ * - reactions?: ReactionCount[] — renders emoji + count badges below bubble
+ * - sessionId/onOptimisticReaction/onRevertReaction/onPostReaction/onTriggerAI
+ *   — reaction callback interface (delegated from MessageList via useReactions hook)
+ *
+ * Phase 2 additions (chart restore):
+ * - hasSnapshot?: true when message has a canvas_snapshot_state to restore
+ * - onChartRestore?: called when user taps the "ver gráfico" icon
  */
 
 import { useState, type ReactNode } from 'react'
@@ -20,7 +29,7 @@ import { useLongPress, useDoubleTap } from '@/hooks/use-long-press'
 import { Badge } from '@/components/ui/badge'
 import { QuickReactionPopover } from './QuickReactionPopover'
 import { MessageActionMenu } from './MessageActionMenu'
-import type { Message } from '@panelito/types'
+import type { Message, ReactionCount } from '@panelito/types'
 
 interface MessageBubbleProps {
   message: Message
@@ -35,6 +44,18 @@ interface MessageBubbleProps {
   hasSnapshot?: boolean
   /** Phase 2: called when the user taps the restore-chart icon */
   onChartRestore?: () => void
+  /** Phase 2 (Surface 3): reaction count badges to render below the bubble */
+  reactions?: ReactionCount[]
+  /** Phase 2: session id needed by the reaction popover */
+  sessionId?: string
+  /** Phase 2: called before the POST — optimistic badge appears immediately (D-10) */
+  onOptimisticReaction?: (emoji: string) => void
+  /** Phase 2: called on POST failure — silently reverts badge (Pitfall 6) */
+  onRevertReaction?: (emoji: string) => void
+  /** Phase 2: called with emoji — posts to server and returns triggersAI */
+  onPostReaction?: (emoji: string) => Promise<boolean>
+  /** Phase 2: called when reaction triggersAI — opens the AI invoke SSE stream */
+  onTriggerAI?: () => void
 }
 
 function formatTime(iso: string): string {
@@ -58,6 +79,12 @@ export function MessageBubble({
   streamingText,
   hasSnapshot = false,
   onChartRestore,
+  reactions,
+  sessionId = '',
+  onOptimisticReaction,
+  onRevertReaction,
+  onPostReaction,
+  onTriggerAI,
 }: MessageBubbleProps): ReactNode {
   const [reactionOpen, setReactionOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
@@ -68,6 +95,9 @@ export function MessageBubble({
 
   const longPressHandlers = useLongPress(() => setActionOpen(true), 500)
   const doubleTapHandlers = useDoubleTap(() => setReactionOpen(true))
+
+  // Reaction badges with count > 0 (zero-count hidden per Surface 3 spec)
+  const visibleReactions = reactions?.filter((r) => r.count > 0) ?? []
 
   return (
     <div
@@ -210,13 +240,39 @@ export function MessageBubble({
             </div>
           )}
         </div>
+
+        {/* Surface 3: Reaction badges — below bubble content, outside the bubble rectangle */}
+        {visibleReactions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {visibleReactions.map((r) => (
+              <span
+                key={r.emoji}
+                className="flex items-center gap-0.5 h-6 px-1.5 rounded-full text-[13px]"
+                style={{
+                  background: r.isOwn ? 'rgba(99,102,241,0.10)' : '#27272a',
+                  border: `1px solid ${r.isOwn ? '#6366f1' : '#3f3f46'}`,
+                  color: r.isOwn ? '#a5b4fc' : '#a1a1aa',
+                }}
+                aria-label={`${r.emoji} reaction, ${r.count} times`}
+              >
+                <span className="text-[14px]">{r.emoji}</span>
+                <span>{r.count}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* LAYOUT-06: Quick reaction popover (double-tap) — Phase 2 wires posting */}
       <QuickReactionPopover
         messageId={message.id}
+        sessionId={sessionId}
         open={reactionOpen}
         onOpenChange={setReactionOpen}
+        onOptimisticReaction={onOptimisticReaction}
+        onRevertReaction={onRevertReaction}
+        onPostReaction={onPostReaction}
+        onTriggerAI={onTriggerAI}
       />
 
       {/* LAYOUT-06: Contextual action menu (long-press) — Fork + Pin disabled in Phase 1 */}
