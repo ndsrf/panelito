@@ -13,10 +13,12 @@
  *          Used for cap warnings (SESS-12), auto-freeze notices (SESS-07), auto-name (SESS-09).
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useSessionStore } from '@/store/session-store'
 import { useSessionChannel } from '@/hooks/use-session-channel'
+import { usePanelStore } from '@/store/panel-store'
 import { apiFetch } from '@/lib/api'
+import { PanelWidgetSchema } from '@panelito/types'
 import { MessageBubble } from './MessageBubble'
 import type { Message } from '@panelito/types'
 
@@ -56,6 +58,12 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
   const messages = useSessionStore((s) => s.messages)
   const addMessage = useSessionStore((s) => s.addMessage)
   const setMessages = useSessionStore((s) => s.setMessages)
+  const setWidget = usePanelStore((s) => s.setWidget)
+
+  const handleChartRestore = useCallback((snapshot: unknown) => {
+    const parsed = PanelWidgetSchema.safeParse(snapshot)
+    if (parsed.success) setWidget(parsed.data)
+  }, [setWidget])
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Re-thinking: I'll use a ref to track if we should auto-scroll.
@@ -138,13 +146,19 @@ export function MessageList({ sessionId, currentUserId }: MessageListProps): Rea
             const isSystemMessage =
               msg.display_name === SYSTEM_DISPLAY_NAME ||
               msg.author_id === SYSTEM_AUTHOR_ID
-            return isSystemMessage ? (
-              <SystemMessageBubble key={msg.id} message={msg} />
-            ) : (
+            if (isSystemMessage) {
+              return <SystemMessageBubble key={msg.id} message={msg} />
+            }
+            const isAI = msg.role === 'assistant'
+            const hasSnapshot = isAI && msg.canvas_snapshot_state != null
+            return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 isOwn={msg.author_id === currentUserId}
+                isAI={isAI}
+                hasSnapshot={hasSnapshot}
+                onChartRestore={hasSnapshot ? () => handleChartRestore(msg.canvas_snapshot_state) : undefined}
               />
             )
           })}

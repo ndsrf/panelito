@@ -16,6 +16,8 @@ export const MessageSchema = z.object({
   parent_id: z.string().uuid().nullable(),
   /** Materialized path — "main" in Phase 1; branch paths added in Phase 3 */
   path_id: z.string().default("main"),
+  /** 'user' for human messages; 'assistant' for AI persona responses */
+  role: z.enum(['user', 'assistant']).default('user'),
   content: z.string().min(1).max(4000),
   /** NULL in Phase 1; full canvas schema added in Phase 2 */
   canvas_snapshot_state: z.unknown().nullable(),

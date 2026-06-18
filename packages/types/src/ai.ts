@@ -94,7 +94,9 @@ export interface AIProvider {
 export const renderPanelTool: ProviderTool = {
   name: 'render_panel',
   description:
-    'Renders a visual analytics widget in the analytics panel based on the conversation.',
+    'Renders a visual analytics widget in the analytics panel. ' +
+    'Pass widget-specific data properties at the TOP LEVEL (not nested in a "data" field). ' +
+    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[].',
   parameters: {
     type: 'object',
     properties: {
@@ -105,13 +107,63 @@ export const renderPanelTool: ProviderTool = {
       },
       title: {
         type: 'string',
-        description: 'Brief panel header title',
+        description: 'Brief panel header title (optional)',
       },
-      data: {
-        type: 'object',
-        description: 'Widget-specific data payload (varies by widget_type)',
+      // bento
+      cards: {
+        type: 'array',
+        description: 'Required when widget_type=bento. 1–6 concept cards.',
+        items: {
+          type: 'object',
+          properties: {
+            category: { type: 'string', description: 'Short category label (max 60 chars)' },
+            concept: { type: 'string', description: 'The concept or insight (max 120 chars)' },
+            relevance_score: { type: 'number', description: 'Relevance 0–100 (optional)' },
+          },
+          required: ['category', 'concept'],
+        },
+      },
+      // radar
+      axes: {
+        type: 'array',
+        description: 'Required when widget_type=radar. 3–8 named axes with 0–100 values.',
+        items: {
+          type: 'object',
+          properties: {
+            axis: { type: 'string', description: 'Axis label (max 60 chars)' },
+            value: { type: 'number', description: 'Score 0–100' },
+          },
+          required: ['axis', 'value'],
+        },
+      },
+      // scatter
+      points: {
+        type: 'array',
+        description: 'Required when widget_type=scatter. 1–20 points on consensus (x) vs impact (y).',
+        items: {
+          type: 'object',
+          properties: {
+            concept: { type: 'string', description: 'Point label (max 80 chars)' },
+            consensus: { type: 'number', description: 'Consensus level 0–100 (x-axis)' },
+            impact: { type: 'number', description: 'Impact level 0–100 (y-axis)' },
+          },
+          required: ['concept', 'consensus', 'impact'],
+        },
+      },
+      // pie
+      segments: {
+        type: 'array',
+        description: 'Required when widget_type=pie. 2–8 labeled segments with positive values.',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', description: 'Segment label (max 60 chars)' },
+            value: { type: 'number', description: 'Positive numeric value' },
+          },
+          required: ['label', 'value'],
+        },
       },
     },
-    required: ['widget_type', 'data'],
+    required: ['widget_type'],
   },
 }

@@ -41,8 +41,11 @@ import type { ProviderName } from '@panelito/types'
 const BASE_SYSTEM_PROMPT =
   'You are an AI facilitator for a collaborative discussion workspace. ' +
   'You analyze group conversations and provide structured insights. ' +
+  'IMPORTANT: Always write 1–3 sentences of analytical text in your response — ' +
+  'never reply with only a tool call and no text. ' +
   'When the conversation contains quantifiable data or comparisons, use the render_panel tool ' +
-  'to display a visual analytics widget. Choose the most appropriate widget type: ' +
+  'IN ADDITION to your text response (not instead of it). ' +
+  'Choose the most appropriate widget type: ' +
   'bento for key concept cards, radar for multi-axis comparisons, scatter for consensus vs impact, ' +
   'pie for proportional breakdowns.'
 

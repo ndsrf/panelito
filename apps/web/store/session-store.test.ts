@@ -17,6 +17,7 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
     display_name: 'Test User',
     parent_id: null,
     path_id: 'main',
+    role: 'user',
     content: 'hello',
     canvas_snapshot_state: null,
     created_at: new Date().toISOString(),

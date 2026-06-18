@@ -14,7 +14,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { Bot, FlaskConical } from 'lucide-react'
+import { Bot, FlaskConical, BarChart2 } from 'lucide-react'
 import { getAvatarColor, cn } from '@/lib/utils'
 import { useLongPress, useDoubleTap } from '@/hooks/use-long-press'
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +31,10 @@ interface MessageBubbleProps {
   isStreaming?: boolean
   /** Phase 2: accumulated token text during streaming */
   streamingText?: string
+  /** Phase 2: true when message has a canvas_snapshot_state to restore */
+  hasSnapshot?: boolean
+  /** Phase 2: called when the user taps the restore-chart icon */
+  onChartRestore?: () => void
 }
 
 function formatTime(iso: string): string {
@@ -52,6 +56,8 @@ export function MessageBubble({
   isAI = false,
   isStreaming = false,
   streamingText,
+  hasSnapshot = false,
+  onChartRestore,
 }: MessageBubbleProps): ReactNode {
   const [reactionOpen, setReactionOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
@@ -172,6 +178,21 @@ export function MessageBubble({
 
               {/* Final completed content (not streaming) */}
               {!isStreaming && message.content}
+
+              {/* Restore-chart affordance — shown when message has a saved widget snapshot */}
+              {!isStreaming && hasSnapshot && onChartRestore && (
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onChartRestore() }}
+                    className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Restaurar gráfico de este análisis"
+                  >
+                    <BarChart2 size={12} />
+                    ver gráfico
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* Human bubble content */
