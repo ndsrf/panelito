@@ -159,13 +159,15 @@ describe('renderPanelTool', () => {
 
 describe('compressHistory', () => {
   it('returns empty string when messages array is empty', async () => {
-    const mockClient = {
-      messages: { create: vi.fn() },
+    // compressHistory(adapter, model, messages) — short-circuits before calling adapter.stream()
+    const mockAdapter = {
+      stream: vi.fn(),
+      capabilities: vi.fn(),
     }
 
-    const result = await compressHistory(mockClient as never, [])
+    const result = await compressHistory(mockAdapter as never, 'test-model', [])
 
     expect(result).toBe('')
-    expect(mockClient.messages.create).not.toHaveBeenCalled()
+    expect(mockAdapter.stream).not.toHaveBeenCalled()
   })
 })

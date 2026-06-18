@@ -8,10 +8,13 @@
  *        cache_control has moved into AnthropicAdapter (adapters/anthropic.ts)
  *        where it is re-applied to the first user message's content block during
  *        the ProviderMessage[] → MessageParam[] conversion.
+ *
+ * AI-08 (D-03): compressHistory is now provider-agnostic — it accepts an AIProvider
+ *        and a model string, allowing any active provider to perform compression.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
-import type { ProviderMessage } from '@panelito/types'
+import type { AIProvider, ProviderMessage } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,35 +133,48 @@ export function assemblePromptArray(opts: AssembleOptions): ProviderMessage[] {
 }
 
 // ---------------------------------------------------------------------------
-// compressHistory — AI-08 sliding window history compression
+// compressHistory — AI-08 sliding window history compression (D-03 provider-aware)
 // ---------------------------------------------------------------------------
 
 /**
  * Compress older conversation history into a 3-5 sentence summary using
- * a lighter/faster model (claude-haiku-4-5-20251001 — same model as verifyApiKey).
+ * the active provider's compression model.
  *
  * Returns '' when messages is empty to short-circuit the API call.
  * The summary is passed as historicalSummary in assemblePromptArray().
  *
  * AI-08: Sliding window — last 8 messages passed raw; older messages compressed here.
+ * D-03: Uses the active provider's adapter so all tasks use the selected provider.
+ *
+ * @param adapter  Active AIProvider adapter (instantiated with the creator's key)
+ * @param model    The compression model for the active provider (from TASK_MODELS)
+ * @param messages Older messages to compress
  */
 export async function compressHistory(
-  client: Anthropic,
+  adapter: AIProvider,
+  model: string,
   messages: Message[]
 ): Promise<string> {
   if (messages.length === 0) return ''
 
-  const result = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
-    messages: [
-      {
-        role: 'user',
-        content: `Summarize this conversation in 3–5 sentences, capturing the key points, decisions, and unresolved questions:\n${JSON.stringify(messages)}`,
-      },
-    ],
-  })
+  const compressionPrompt = `Summarize this conversation in 3–5 sentences, capturing the key points, decisions, and unresolved questions:\n${JSON.stringify(messages)}`
 
-  const firstBlock = result.content[0]
-  return firstBlock?.type === 'text' ? firstBlock.text : ''
+  const compressionMessage: ProviderMessage = {
+    role: 'user',
+    content: compressionPrompt,
+  }
+
+  let summary = ''
+  for await (const event of adapter.stream([compressionMessage], [], {
+    model,
+    maxTokens: 512,
+    system: 'You are a concise summarizer. Produce a short, accurate summary of the conversation provided.',
+  })) {
+    if (event.type === 'text_delta') {
+      summary += event.text
+    }
+    // tool_use events are ignored; done event ends the iterator naturally
+  }
+
+  return summary
 }

@@ -1,19 +1,24 @@
 /**
- * AI invoke route — real SSE streaming with Anthropic Claude.
+ * AI invoke route — provider-agnostic SSE streaming via the adapter factory.
  *
  * POST /api/sessions/:id/invoke
  *
- * AI-03: Streams Claude text token-by-token via SSE (text_delta events)
+ * AI-03: Streams AI text token-by-token via SSE (text_delta events)
  * AI-04: Dual-channel separation — text_delta for chat bubbles, panel_update for widgets
+ * AI-05: PanelWidgetSchema.safeParse gate — invalid render_panel payloads dropped silently
  * AI-06: Branch-isolated context — message query filters .eq('path_id', 'main')
  * AI-07: Bot-activation matrix — returns 429 typing_hold while anyoneTyping=true (D-17)
  * AI-08: Sliding window — last 8 messages raw; older messages compressed via compressHistory
+ * D-03: All tasks (analysis + compression) use the active provider's adapter + model
+ * D-05: Provider selection from creator_settings.active_provider
  * PANEL-04: AI message row is inserted with canvas_snapshot_state = last panel_update payload
  *
  * T-02-05: Session ownership gate (creator_id === user.id → else 403)
  * T-02-06: API key decrypted server-side only — never written to any SSE event
  * T-02-07: Cap check before every invoke (429 if cap reached); cap increments only after stream
  * T-02-08: path_id filter prevents cross-branch context leakage
+ * T-04-12: PanelWidgetSchema gate on render_panel tool_use input (malformed payloads dropped)
+ * T-04-15: stream error emits generic 'stream_failed' — no provider-specific detail leaked
  */
 
 import { Hono } from 'hono'
@@ -22,11 +27,12 @@ import { createServiceClient } from '../lib/supabase'
 import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { assemblePromptArray, compressHistory, type Message } from '../lib/anthropic'
 import { checkCap, incrementCount } from '../lib/cap-guard'
-import { AnthropicAdapter, renderPanelTool } from '../lib/ai-provider'
+import { createAdapter } from '../lib/adapter-factory'
+import { TASK_MODELS } from '../lib/model-config'
 import { decryptKey } from '../lib/crypto'
 import { env } from '../lib/env'
-import Anthropic from '@anthropic-ai/sdk'
-import { PERSONA_LIBRARY } from '@panelito/types'
+import { PERSONA_LIBRARY, renderPanelTool, PanelWidgetSchema } from '@panelito/types'
+import type { ProviderName } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
 // Base system prompt for the facilitator
@@ -51,7 +57,7 @@ aiRouter.use('/*', requireAuth)
 /**
  * POST /api/sessions/:id/invoke
  *
- * Streams Claude tokens (text_delta SSE events) + panel widget updates (panel_update SSE events).
+ * Streams AI tokens (text_delta SSE events) + panel widget updates (panel_update SSE events).
  * After the stream completes, inserts the AI message row with canvas_snapshot_state.
  */
 aiRouter.post('/:id/invoke', async (c) => {
@@ -92,7 +98,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     anyoneTyping?: boolean
   }
 
-  // D-17: Return 429 typing_hold BEFORE any Claude call when a human is typing
+  // D-17: Return 429 typing_hold BEFORE any AI call when a human is typing
   // Cap is NOT incremented on this path (T-02-07)
   if (body.anyoneTyping) {
     return c.json({ error: 'typing_hold' }, 429)
@@ -116,11 +122,11 @@ aiRouter.post('/:id/invoke', async (c) => {
     .join('\n\n')
 
   // -------------------------------------------------------------------------
-  // 5. Fetch creator's plaintext Anthropic key (T-02-06)
+  // 5. Fetch creator's active provider + plaintext key (D-03, D-05, T-02-06)
   // -------------------------------------------------------------------------
   const { data: creatorSettings, error: settingsErr } = await supabase
     .from('creator_settings')
-    .select('encrypted_api_key')
+    .select('anthropic_api_key, openai_api_key, gemini_api_key, active_provider')
     .eq('user_id', session.creator_id)
     .maybeSingle()
 
@@ -129,20 +135,31 @@ aiRouter.post('/:id/invoke', async (c) => {
     return c.json({ error: 'server_error' }, 500)
   }
 
-  if (!creatorSettings?.encrypted_api_key) {
+  // Resolve active provider (default 'anthropic' if not set)
+  const providerName = ((creatorSettings?.active_provider) ?? 'anthropic') as ProviderName
+
+  // Resolve the encrypted key column for the active provider
+  const encryptedKey = creatorSettings?.[`${providerName}_api_key` as keyof typeof creatorSettings] as string | null | undefined
+
+  if (!encryptedKey) {
     return c.json({ error: 'no_api_key' }, 400)
   }
 
   let plaintextKey: string
   try {
-    plaintextKey = decryptKey(creatorSettings.encrypted_api_key, env.KEY_ENCRYPTION_SECRET)
+    plaintextKey = decryptKey(encryptedKey, env.KEY_ENCRYPTION_SECRET)
   } catch (err) {
     console.error('[ai] key decrypt error:', (err as Error).constructor.name)
     return c.json({ error: 'no_api_key' }, 400)
   }
 
   // -------------------------------------------------------------------------
-  // 6. Fetch last 8 messages (AI-06: path_id filter) + older for compression (AI-08)
+  // 6. Instantiate the adapter ONCE — used for both compression and streaming (D-03)
+  // -------------------------------------------------------------------------
+  const adapter = createAdapter(providerName, plaintextKey)
+
+  // -------------------------------------------------------------------------
+  // 7. Fetch last 8 messages (AI-06: path_id filter) + older for compression (AI-08)
   // -------------------------------------------------------------------------
   // Recent 8 messages (sliding window) — path-filtered to prevent cross-branch leakage
   const { data: recentData } = await supabase
@@ -174,8 +191,7 @@ aiRouter.post('/:id/invoke', async (c) => {
       content: m.content as string,
     }))
     try {
-      const haiku = new Anthropic({ apiKey: plaintextKey })
-      historicalSummary = await compressHistory(haiku, olderMessages)
+      historicalSummary = await compressHistory(adapter, TASK_MODELS[providerName].compression, olderMessages)
     } catch (err) {
       // Non-fatal: if compression fails, proceed without historical summary
       console.error('[ai] compressHistory error:', (err as Error).message)
@@ -184,7 +200,7 @@ aiRouter.post('/:id/invoke', async (c) => {
   }
 
   // -------------------------------------------------------------------------
-  // 7. Assemble prompt array (AI-11 cache breakpoint)
+  // 8. Assemble prompt array (AI-11 cache breakpoint via AnthropicAdapter)
   // -------------------------------------------------------------------------
   const promptArray = assemblePromptArray({
     systemPrompt: BASE_SYSTEM_PROMPT,
@@ -195,18 +211,17 @@ aiRouter.post('/:id/invoke', async (c) => {
   })
 
   // -------------------------------------------------------------------------
-  // 8. Open SSE stream
+  // 9. Open SSE stream
   // -------------------------------------------------------------------------
   return streamSSE(c, async (stream) => {
     let accumulatedText = ''
     let lastPanelUpdate: unknown = null
 
     try {
-      const provider = new AnthropicAdapter(plaintextKey)
-
-      for await (const event of provider.stream(promptArray, [renderPanelTool], {
-        model: 'claude-sonnet-4-6',
+      for await (const event of adapter.stream(promptArray, [renderPanelTool], {
+        model: TASK_MODELS[providerName].analysis,
         maxTokens: 2048,
+        system: BASE_SYSTEM_PROMPT + '\n\n' + personaInstructions,
       })) {
         if (event.type === 'text_delta') {
           accumulatedText += event.text
@@ -215,12 +230,19 @@ aiRouter.post('/:id/invoke', async (c) => {
             data: JSON.stringify({ text: event.text }),
           })
         } else if (event.type === 'tool_use' && event.name === 'render_panel') {
-          // AI-04: capture fully-accumulated tool_use input (never raw partial deltas)
-          lastPanelUpdate = event.input
-          await stream.writeSSE({
-            event: 'panel_update',
-            data: JSON.stringify(event.input),
-          })
+          // AI-05 / T-04-12: validate render_panel payload through PanelWidgetSchema
+          // before emitting panel_update SSE — malformed payloads are dropped silently
+          const parsed = PanelWidgetSchema.safeParse(event.input)
+          if (parsed.success) {
+            lastPanelUpdate = parsed.data
+            await stream.writeSSE({
+              event: 'panel_update',
+              data: JSON.stringify(parsed.data),
+            })
+          } else {
+            // Drop the malformed payload — do not crash, do not write SSE
+            console.error('[render_panel] schema validation failed', parsed.error.flatten())
+          }
         }
         // done event breaks the iterator naturally
       }
@@ -247,13 +269,14 @@ aiRouter.post('/:id/invoke', async (c) => {
         // Stream already open — log only, don't abort the SSE connection
       }
 
-      // T-02-07: increment cap ONLY after a completed real Claude stream
+      // T-02-07: increment cap ONLY after a completed real AI stream
       // (never on the typing_hold 429 path or during streaming)
       await incrementCount(supabase, sessionId)
 
       await stream.writeSSE({ event: 'done', data: '{}' })
     } catch (err) {
       console.error('[ai] stream error:', (err as Error).message)
+      // T-04-15: emit generic error — no provider-specific detail leaked to participants
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({ message: 'stream_failed' }),
