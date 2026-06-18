@@ -72,7 +72,7 @@ export class OpenAIAdapter implements AIProvider {
       // DO NOT call stream.finalMessage() — kills first-token latency (anti-pattern)
       const stream = client.chat.completions.stream({
         model: options.model,
-        max_tokens: options.maxTokens,
+        max_completion_tokens: options.maxTokens,
         messages: oaiMessages,
         ...(oaiTools.length > 0 ? { tools: oaiTools } : {}),
       })
