@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="100%" height="100%">
+  <defs>
+    <!-- Fondo y Degradados Oscuros -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#010204" />
+      <stop offset="50%" stop-color="#050609" />
+      <stop offset="100%" stop-color="#020204" />
+    </linearGradient>
+    
+    <!-- Filtros de Resplandor (Glow Effect) -->
+    <filter id="glow-heavy" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-subtle" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Lienzo de Fondo -->
+  <rect width="1200" height="750" fill="url(#bg-grad)" />
+  <circle cx="1000" cy="200" r="160" fill="#a855f7" opacity="0.08" filter="url(#glow-heavy)" />
+
+  <!-- CONTENEDOR DISPOSITIVO PRINCIPAL (Mockup de la App) -->
+  <g transform="translate(150, 75)">
+    <!-- Marco de la Pantalla -->
+    <rect width="900" height="600" rx="16" fill="#040508" stroke="#111520" stroke-width="2" />
+    
+    <!-- BARRA SUPERIOR DE LA VENTANA -->
+    <rect width="900" height="40" rx="16" fill="#070a0f" />
+    <!-- Botones de Sistema -->
+    <circle cx="25" cy="20" r="5" fill="#ef4444" opacity="0.6"/>
+    <circle cx="41" cy="20" r="5" fill="#f59e0b" opacity="0.6"/>
+    <circle cx="57" cy="20" r="5" fill="#10b981" opacity="0.6"/>
+    <!-- URL de la sala -->
+    <rect width="180" height="16" rx="4" fill="#0f141c" x="360" y="12"/>
+    <text x="394" y="24" fill="#475569" font-family="sans-serif" font-size="10" letter-spacing="1">multiverse.io/room/euro-strategy</text>
+
+    <!-- ==================== PANEL ANALÍTICO SUPERIOR (40%): EUROPA + TARTA ==================== -->
+    <g transform="translate(20, 55)">
+      <!-- Marco del Canvas Superior -->
+      <rect width="860" height="210" rx="8" fill="#060911" stroke="#5b21b6" stroke-width="1" />
+      <text x="20" y="25" fill="#a78bfa" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="1">MÓDULO GEOPOLÍTICO: DISTRIBUCIÓN DE MERCADO CONTINENTAL</text>
+      
+      <!-- LADO IZQUIERDO: MAPA DE EUROPA DIGITAL (translate 20, 45) -->
+      <g transform="translate(20, 45)">
+        <rect width="460" height="145" rx="6" fill="#0a1120" stroke="#1e293b" stroke-width="1"/>
+        
+        <!-- Perfil Abstracto de Europa / Líneas de Costa Estilizadas -->
+        <!-- Península Ibérica -->
+        <path d="M 40,115 L 75,115 L 85,90 " fill="none" stroke="#1e293b" stroke-width="1.5"/>
+        <!-- Francia / Central / Italia -->
+        <path d="M 85,90 L 115,75 L 140,85 L 160,115 L 175,135 M 150,90 L 210,80 L 240,105" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+        <!-- Escandinavia / Norte -->
+        <path d="M 180,45 L 210,15 L 240,20 L 230,50 L 205,60" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+        <!-- Reino Unido (Isla separada) -->
+        <path d="M 95,55 L 115,35 L 125,50 L 110,65 Z" fill="#141f36" stroke="#1e293b" stroke-width="1"/>
+
+        <!-- Nodos de Red / Conexiones entre Capitales (Mapeo de Datos) -->
+        <!-- Líneas de la Red Multiverso -->
+        <line x1="75" y1="105" x2="135" y2="75" stroke="#a855f7" stroke-width="1" stroke-dasharray="2 2"/>
+        <line x1="135" y1="75" x2="205" y2="55" stroke="#a855f7" stroke-width="1"/>
+        <line x1="135" y1="75" x2="110" y2="45" stroke="#00f2fe" stroke-width="1"/>
+        <line x1="205" y1="55" x2="215" y2="105" stroke="#a855f7" stroke-width="1"/>
+        <line x1="205" y1="55" x2="320" y2="45" stroke="#34d399" stroke-width="1" stroke-dasharray="3 3"/>
+
+        <!-- Pulsos luminosos en los nodos estratégicos -->
+        <circle cx="75" cy="105" r="4" fill="#a855f7"/> <!-- Madrid -->
+        <circle cx="110" cy="45" r="4" fill="#00f2fe"/>  <!-- Londres -->
+        <circle cx="135" cy="75" r="5" fill="#a855f7" filter="url(#glow-subtle)"/> <!-- París (Activo) -->
+        <circle cx="205" cy="55" r="5" fill="#a855f7" filter="url(#glow-subtle)"/> <!-- Berlín -->
+        <circle cx="215" cy="105" r="4" fill="#a855f7"/> <!-- Roma -->
+        <circle cx="320" cy="45" r="4" fill="#34d399"/>  <!-- Europa Este -->
+
+        <text x="145" y="72" fill="#ffffff" font-family="sans-serif" font-size="8" font-weight="bold">Hub Central</text>
+      </g>
+
+      <!-- LADO DERECHO: GRÁFICO DE TARTA PURO (translate 500, 45) -->
+      <g transform="translate(500, 45)">
+        <rect width="340" height="145" rx="6" fill="#0a1120" stroke="#1e293b" stroke-width="1"/>
+        
+        <!-- Render de Porciones de Tarta (Centro en 80,72, Radio 50) -->
+        <!-- Porción 1: Eurozona (45% - Morado/Indigo brillante) -->
+        <path d="M 80,72 L 80,22 A 50 50 0 0 1 128,88 Z" fill="#7c3aed" filter="url(#glow-subtle)"/>
+        
+        <!-- Porción 2: Región Norte/UK (35% - Cyan de la rama activa) -->
+        <path d="M 80,72 L 128,88 A 50 50 0 0 1 42,104 Z" fill="#00f2fe"/>
+        
+        <!-- Porción 3: Mercados Emergentes (20% - Esmeralda) -->
+        <path d="M 80,72 L 42,104 A 50 50 0 0 1 80,22 Z" fill="#10b981" opacity="0.8"/>
+
+        <!-- Leyenda Técnica Lateral -->
+        <g transform="translate(155, 25)">
+          <!-- Item 1 -->
+          <rect width="10" height="10" rx="2" fill="#7c3aed"/>
+          <text x="18" y="9" fill="#f8fafc" font-family="sans-serif" font-size="10" font-weight="600">Eurozona Core: 45%</text>
+          
+          <!-- Item 2 -->
+          <rect width="10" height="10" rx="2" fill="#00f2fe" y="25"/>
+          <text x="18" y="34" fill="#00f2fe" font-family="sans-serif" font-size="10" font-weight="bold">Rama Atlántica: 35%</text>
+          
+          <!-- Item 3 -->
+          <rect width="10" height="10" rx="2" fill="#10b981" y="50" opacity="0.8"/>
+          <text x="18" y="59" fill="#94a3b8" font-family="sans-serif" font-size="10">E. del Este / Otros: 20%</text>
+          
+          <!-- Métrica global destacada abajo -->
+          <text x="0" y="95" fill="#475569" font-family="sans-serif" font-size="10">Volumen Total Est: <tspan fill="#ffffff" font-weight="bold">4.2MM €</tspan></text>
+        </g>
+      </g>
+    </g>
+
+    <!-- ==================== BARRA DIVISORIA / NAVEGADOR DE RAMAS ==================== -->
+    <g transform="translate(20, 278)">
+      <rect width="860" height="34" rx="6" fill="#0d0e16" stroke="#1e1b4b" stroke-width="1"/>
+      <g transform="translate(15, 7)">
+        <rect width="125" height="20" rx="4" fill="#024e6b" stroke="#00f2fe" stroke-width="1" filter="url(#glow-subtle)"/>
+        <circle cx="12" cy="10" r="4" fill="#00f2fe"/>
+        <text x="24" y="14" fill="#ffffff" font-family="sans-serif" font-size="10" font-weight="bold">Rama Atlántica</text>
+      </g>
+      <text x="720" y="21" fill="#475569" font-family="sans-serif" font-size="10" font-style="italic">Sincronizando porciones...</text>
+    </g>
+
+    <!-- ==================== CHAT INFERIOR ==================== -->
+    <g transform="translate(20, 325)">
+      <rect width="860" height="255" rx="8" fill="#04060a" stroke="#11111f" stroke-width="1"/>
+      
+      <!-- Mensaje de Bot Geopolítico -->
+      <g transform="translate(20, 25)">
+        <circle cx="20" cy="20" r="14" fill="#13102b" stroke="#a78bfa" stroke-width="1"/>
+        <text x="15" y="23" fill="#a78bfa" font-family="sans-serif" font-size="10" font-weight="bold">🇪🇺</text>
+        <text x="45" y="14" fill="#a78bfa" font-family="sans-serif" font-size="10" font-weight="bold" letter-spacing="0.5">GEO_BOT: EXPANSIÓN CONTINENTAL</text>
+        
+        <rect x="45" y="22" width="700" height="65" rx="6" fill="#0b0a17" stroke="#5b21b6" stroke-width="1"/>
+        <text x="57" y="42" fill="#f1f5f9" font-family="sans-serif" font-size="11" font-weight="500">He procesado la segmentación del continente. La "Rama Atlántica" (UK/Norte) aporta un 35% neto.</text>
+        <text x="57" y="62" fill="#94a3b8" font-family="sans-serif" font-size="11">La tarta analítica superior ya refleja el impacto de este vector en la cuota de mercado del grupo.</text>
+      </g>
+
+      <!-- Caja de texto de entrada -->
+      <g transform="translate(20, 210)">
+        <rect width="820" height="32" rx="6" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+        <text x="15" y="20" fill="#475569" font-family="sans-serif" font-size="11">Bifurca un mercado (ej. "analizar Alemania en rama separada") o consulta a @geo...</text>
+      </g>
+    </g>
+  </g>
+</svg>
+ 

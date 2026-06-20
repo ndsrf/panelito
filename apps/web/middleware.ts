@@ -54,6 +54,14 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Landing page (/) is public — authenticated users land at /sessions/new instead.
+  if (pathname === "/") {
+    if (user) {
+      return NextResponse.redirect(new URL("/sessions/new", request.url));
+    }
+    return response;
+  }
+
   // Auth gate: if not authenticated AND not on an /auth/*, /join/*, or /api/* path, redirect to sign-in
   // /api/* is handled by the Hono API's internal requireAuth middleware.
   if (!user && !pathname.startsWith("/auth/") && !pathname.startsWith("/join/") && !pathname.startsWith("/api/")) {
@@ -76,8 +84,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico
-     * - *.svg files
+     * - *.svg and *.png files (Open Graph images)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.svg$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png)$|opengraph-image).*)",
   ],
 };

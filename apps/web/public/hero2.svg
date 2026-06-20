@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020203" />
+      <stop offset="50%" stop-color="#05070a" />
+      <stop offset="100%" stop-color="#010304" />
+    </linearGradient>
+    <linearGradient id="emerald-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="1" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.2" />
+    </linearGradient>
+    <filter id="glow-heavy" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-subtle" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="1200" height="750" fill="url(#bg-grad)" />
+  <circle cx="200" cy="550" r="180" fill="#059669" opacity="0.08" filter="url(#glow-heavy)" />
+
+  <!-- Mockup de la App -->
+  <g transform="translate(150, 75)">
+    <!-- Marco -->
+    <rect width="900" height="600" rx="16" fill="#040608" stroke="#0f171c" stroke-width="2" />
+    
+    <!-- BARRA SUPERIOR -->
+    <rect width="900" height="40" rx="16" fill="#070a0f" />
+    <circle cx="25" cy="20" r="5" fill="#ef4444" opacity="0.6"/>
+    <circle cx="41" cy="20" r="5" fill="#f59e0b" opacity="0.6"/>
+    <circle cx="57" cy="20" r="5" fill="#10b981" opacity="0.6"/>
+    <rect width="180" height="16" rx="4" fill="#0f141c" x="360" y="12"/>
+    <text x="395" y="24" fill="#475569" font-family="sans-serif" font-size="10" letter-spacing="1">multiverse.io/room/culinary-lab</text>
+
+    <!-- ==================== PANEL SUPERIOR: BALANCE MOLECULAR (40%) ==================== -->
+    <g transform="translate(20, 55)">
+      <rect width="860" height="210" rx="8" fill="#070c12" stroke="#064e3b" stroke-width="1" />
+      <text x="20" y="25" fill="#34d399" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="1">LABORATORIO CULINARIO: BALANCE DE COMPOSICIÓN (MÁSTER HELADERO)</text>
+      
+      <!-- Widget 1: Donut Chart de Macronutrientes (Izquierda) -->
+      <g transform="translate(60, 45)">
+        <circle cx="60" cy="65" r="45" fill="none" stroke="#1e293b" stroke-width="16"/>
+        <!-- Sectores de nutrientes simulados -->
+        <circle cx="60" cy="65" r="45" fill="none" stroke="#059669" stroke-width="16" stroke-dasharray="120 280" stroke-dashoffset="0" filter="url(#glow-subtle)"/>
+        <circle cx="60" cy="65" r="45" fill="none" stroke="#34d399" stroke-width="16" stroke-dasharray="80 280" stroke-dashoffset="-120"/>
+        <circle cx="60" cy="65" r="45" fill="none" stroke="#60efff" stroke-width="16" stroke-dasharray="50 280" stroke-dashoffset="-200"/>
+        
+        <text x="130" y="45" fill="#34d399" font-family="sans-serif" font-size="10" font-weight="bold">■ Grasas: 8%</text>
+        <text x="130" y="65" fill="#60efff" font-family="sans-serif" font-size="10" font-weight="bold">■ Azúcares (POD): 16%</text>
+        <text x="130" y="85" fill="#94a3b8" font-family="sans-serif" font-size="10">■ Agua/Otros: 76%</text>
+      </g>
+
+      <!-- Widget 2: Barra Física Termodinámica / Punto de Congelación (Centro-Derecha) -->
+      <g transform="translate(340, 55)">
+        <rect width="220" height="110" rx="6" fill="#0b131f" stroke="#1e293b" stroke-width="1"/>
+        <text x="15" y="25" fill="#f1f5f9" font-family="sans-serif" font-size="11" font-weight="600">Riesgo de Cristalización</text>
+        
+        <!-- Barra Térmica (Termómetro PAC/POD) -->
+        <rect width="190" height="14" rx="3" fill="#1e293b" x="15" y="42"/>
+        <rect width="130" height="14" rx="3" fill="#059669" x="15" y="42" filter="url(#glow-subtle)"/>
+        <line x1="145" y1="36" x2="145" y2="62" stroke="#60efff" stroke-width="2"/>
+        
+        <text x="15" y="75" fill="#64748b" font-family="sans-serif" font-size="9">PAC (Punto Anticongelante):</text>
+        <text x="15" y="90" fill="#60efff" font-family="sans-serif" font-size="11" font-weight="bold">-11.8°C (Óptimo)</text>
+      </g>
+
+      <!-- Widget 3: Tarjeta Bento de Estabilizantes (Derecha) -->
+      <g transform="translate(590, 55)">
+        <rect width="230" height="110" rx="6" fill="#0b131f" stroke="#064e3b" stroke-width="1"/>
+        <text x="15" y="25" fill="#34d399" font-family="sans-serif" font-size="10" font-weight="bold" letter-spacing="0.5">SÓLIDOS TOTALES</text>
+        <text x="15" y="55" fill="#ffffff" font-family="sans-serif" font-size="24" font-weight="bold">36.4%</text>
+        <rect width="85" height="16" rx="4" fill="#064e3b" x="15" y="75"/>
+        <text x="22" y="87" fill="#a7f3d0" font-family="sans-serif" font-size="9" font-weight="bold">Estructura Estable</text>
+      </g>
+    </g>
+
+    <!-- ==================== NAVEGADOR DE RAMAS ==================== -->
+    <g transform="translate(20, 278)">
+      <rect width="860" height="34" rx="6" fill="#0a0f18" stroke="#064e3b" stroke-width="1"/>
+      <g transform="translate(15, 7)">
+        <rect width="110" height="20" rx="4" fill="#064e3b" stroke="#34d399" stroke-width="1" filter="url(#glow-subtle)"/>
+        <circle cx="12" cy="10" r="4" fill="#34d399"/>
+        <text x="24" y="14" fill="#ffffff" font-family="sans-serif" font-size="10" font-weight="bold">Variante Turrón</text>
+      </g>
+      <text x="730" y="21" fill="#475569" font-family="sans-serif" font-size="10" font-style="italic">Sincronizado al céntimo</text>
+    </g>
+
+    <!-- ==================== CHAT INFERIOR ==================== -->
+    <g transform="translate(20, 325)">
+      <rect width="860" height="255" rx="8" fill="#04060a" stroke="#0f171c" stroke-width="1"/>
+      
+      <!-- Mensaje de Bot Maestro Heladero -->
+      <g transform="translate(20, 25)">
+        <circle cx="20" cy="20" r="14" fill="#0c1917" stroke="#34d399" stroke-width="1" filter="url(#glow-subtle)"/>
+        <text x="16" y="23" fill="#34d399" font-family="sans-serif" font-size="10" font-weight="bold">🍦</text>
+        <text x="45" y="14" fill="#34d399" font-family="sans-serif" font-size="10" font-weight="bold" letter-spacing="0.5">LAB_BOT: MAESTRO HELADERO</text>
+        
+        <rect x="45" y="22" width="700" height="65" rx="6" fill="#071211" stroke="#047857" stroke-width="1"/>
+        <text x="57" y="42" fill="#f1f5f9" font-family="sans-serif" font-size="11" font-weight="500">He recalculado los parámetros para la bifurcación "Variante Turrón". El aporte graso del fruto seco es alto.</text>
+        <text x="57" y="62" fill="#94a3b8" font-family="sans-serif" font-size="11">Para compensar y mantener el PAC a -11.8°C, sugiero retirar 20g de sacarosa e inyectar 15g de eritritol.</text>
+      </g>
+
+      <!-- Caja de texto -->
+      <g transform="translate(20, 210)">
+        <rect width="820" height="32" rx="6" fill="#0b1118" stroke="#064e3b" stroke-width="1"/>
+        <text x="15" y="20" fill="#475569" font-family="sans-serif" font-size="11">Añade un ingrediente (ej. "añadir 50g de nata") o equilibra con @maestro...</text>
+      </g>
+    </g>
+  </g>
+</svg>
