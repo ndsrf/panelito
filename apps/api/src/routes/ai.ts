@@ -252,6 +252,16 @@ aiRouter.post('/:id/invoke', async (c) => {
       // Guard: skip insert when content is empty (Anthropic error before first token)
       // to avoid violating messages_content_check (content length >= 1).
       // -----------------------------------------------------------------------
+      // Ensure we always have text if a panel update was rendered, so that the message bubble and link are created.
+      if (!accumulatedText.trim() && lastPanelUpdate) {
+        accumulatedText = "He actualizado el panel con el gráfico correspondiente."
+        // Also stream this fallback text to the client so it appears immediately
+        await stream.writeSSE({
+          event: 'text_delta',
+          data: JSON.stringify({ text: accumulatedText }),
+        })
+      }
+
       if (accumulatedText.length > 0) {
         const { data: row, error: insertError } = await supabase
           .from('messages')
