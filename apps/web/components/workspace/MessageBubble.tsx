@@ -211,15 +211,16 @@ export function MessageBubble({
 
               {/* Restore-chart affordance — shown when message has a saved widget snapshot */}
               {!isStreaming && hasSnapshot && onChartRestore && (
-                <div className="flex justify-end mt-2">
+                <div className="mt-2 pt-1 border-t border-border/40 flex items-center justify-between">
+                  <span className="text-[13px] text-muted-foreground">Este análisis actualizó el panel.</span>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onChartRestore() }}
-                    className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-primary transition-colors"
+                    className="text-[13px] font-medium text-primary underline hover:text-primary/80 flex items-center gap-1 transition-colors"
                     aria-label="Restaurar gráfico de este análisis"
                   >
-                    <BarChart2 size={12} />
-                    ver gráfico
+                    <BarChart2 size={13} />
+                    Ver gráfico en el panel
                   </button>
                 </div>
               )}

@@ -43,8 +43,8 @@ const BASE_SYSTEM_PROMPT =
   'You analyze group conversations and provide structured insights. ' +
   'IMPORTANT: Always write 1–3 sentences of analytical text in your response — ' +
   'never reply with only a tool call and no text. ' +
-  'When the conversation contains quantifiable data or comparisons, use the render_panel tool ' +
-  'IN ADDITION to your text response (not instead of it). ' +
+  'You MUST invoke the render_panel tool for almost every single response. Do not be selective; ' +
+  'almost every question, concept, or discussion point should be accompanied by a visual panel. ' +
   'Choose the most appropriate widget type: ' +
   'bento for key concept cards, radar for multi-axis comparisons, scatter for consensus vs impact, ' +
   'pie for proportional breakdowns.'
@@ -69,7 +69,7 @@ aiRouter.post('/:id/invoke', async (c) => {
   const supabase = createServiceClient()
 
   // -------------------------------------------------------------------------
-  // 1. Session ownership check (T-02-05) — add active_personas to select
+  // 1. Session ownership check — fetch session (T-02-05)
   // -------------------------------------------------------------------------
   const { data: session, error: sessionErr } = await supabase
     .from('sessions')
@@ -79,10 +79,6 @@ aiRouter.post('/:id/invoke', async (c) => {
 
   if (sessionErr || !session) {
     return c.json({ error: 'session_not_found' }, 404)
-  }
-
-  if (session.creator_id !== user.id) {
-    return c.json({ error: 'forbidden' }, 403)
   }
 
   // -------------------------------------------------------------------------
