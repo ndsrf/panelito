@@ -79,6 +79,37 @@ export function useReactions(
   // Used to dedupe Realtime echo of our own reaction
   const ownPendingRef = useRef<OwnPendingSet>(new Set())
 
+  // Load initial reaction counts on mount
+  useEffect(() => {
+    apiFetch<any[]>(`/api/sessions/${sessionId}/reactions`)
+      .then((rows) => {
+        setReactionsMap((prev) => {
+          const next = cloneMap(prev)
+          for (const row of rows) {
+            const emojiMap = getOrCreateEmojiMap(next, row.message_id)
+            const existing = emojiMap.get(row.emoji)
+            const isOwn = row.author_id === currentUserId
+
+            if (existing) {
+              emojiMap.set(row.emoji, {
+                ...existing,
+                count: existing.count + 1,
+                isOwn: existing.isOwn || isOwn,
+              })
+            } else {
+              emojiMap.set(row.emoji, {
+                emoji: row.emoji,
+                count: 1,
+                isOwn,
+              })
+            }
+          }
+          return next
+        })
+      })
+      .catch((err) => console.error('[useReactions] fetch failed', err))
+  }, [sessionId, currentUserId])
+
   // -----------------------------------------------------------------------
   // Helpers — pure mutations on a ReactionsMap clone
   // -----------------------------------------------------------------------

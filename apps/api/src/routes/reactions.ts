@@ -35,6 +35,26 @@ const reactionsRouter = new Hono<{ Variables: AuthVariables }>()
 
 reactionsRouter.use('*', requireAuth)
 
+// ---------------------------------------------------------------------------
+// GET /api/sessions/:id/reactions — Fetch all reactions in the session
+// ---------------------------------------------------------------------------
+reactionsRouter.get('/', async (c) => {
+  const sessionId = c.req.param('id')
+  const supabase = createServiceClient()
+
+  const { data: reactions, error: fetchError } = await supabase
+    .from('reactions')
+    .select('message_id, author_id, emoji')
+    .eq('session_id', sessionId)
+
+  if (fetchError) {
+    console.error('[reactions] fetch error', fetchError)
+    return c.json({ error: 'fetch_failed', message: fetchError.message }, 500)
+  }
+
+  return c.json(reactions ?? [], 200)
+})
+
 // T-02-07: 60 reactions/min per user — defends against reaction-spam → AI cost
 const reactionRateLimit = rateLimit({
   keyFn: (c) => `${(c.get('user') as { id: string }).id}:reactions`,

@@ -37,7 +37,7 @@
  * - Streaming dots + placeholder swap (UI-SPEC Surface 6)
  */
 
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { AnalyticsPanel } from '@/components/workspace/AnalyticsPanel'
 import { BranchNavigator } from '@/components/workspace/BranchNavigator'
 import { ChatStream } from '@/components/workspace/ChatStream'
@@ -48,6 +48,7 @@ import { useSessionStatus } from '@/hooks/use-session-status'
 import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
 import { useSessionStore } from '@/store/session-store'
+import { apiFetch } from '@/lib/api'
 import type { Session, Message } from '@panelito/types'
 
 /** Regex to detect @analista mention (case-insensitive, AI-07) */
@@ -88,6 +89,19 @@ export function Workspace({
 
   // Read live session from store; fall back to server-fetched session if not yet set
   const liveSession = useSessionStore((s) => s.session) ?? session
+
+  // Automatically unfreeze the session if the creator returns/logs in (auto-unfreeze)
+  useEffect(() => {
+    if (isCreator && liveSession.status === 'frozen') {
+      apiFetch<any>(`/api/sessions/${liveSession.id}/unfreeze`, { method: 'POST' })
+        .then((updatedSession) => {
+          if (updatedSession) {
+            useSessionStore.getState().setSession(updatedSession)
+          }
+        })
+        .catch((err) => console.error('[Workspace] Auto-unfreeze failed:', err))
+    }
+  }, [isCreator, liveSession.id, liveSession.status])
 
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
