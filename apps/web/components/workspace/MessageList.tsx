@@ -21,7 +21,7 @@
  * - AI messages with canvas_snapshot_state get hasSnapshot + onChartRestore props
  */
 
-import { useEffect, useRef, useCallback, type ReactNode } from 'react'
+import { useEffect, useRef, useCallback, useState, type ReactNode } from 'react'
 import { useSessionStore } from '@/store/session-store'
 import { useSessionChannel } from '@/hooks/use-session-channel'
 import { usePanelStore } from '@/store/panel-store'
@@ -83,6 +83,27 @@ export function MessageList({
   const addMessage = useSessionStore((s) => s.addMessage)
   const setMessages = useSessionStore((s) => s.setMessages)
   const setWidget = usePanelStore((s) => s.setWidget)
+
+  const [showEphemeral, setShowEphemeral] = useState(false)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | undefined
+    if (isAIStreaming) {
+      setShowEphemeral(true)
+    } else {
+      const hasAssistantMessage = messages.length > 0 && messages[messages.length - 1]?.role === 'assistant'
+      if (hasAssistantMessage) {
+        setShowEphemeral(false)
+      } else {
+        timer = setTimeout(() => {
+          setShowEphemeral(false)
+        }, 2000)
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isAIStreaming, messages])
 
   const handleChartRestore = useCallback((snapshot: unknown) => {
     const parsed = PanelWidgetSchema.safeParse(snapshot)
@@ -236,12 +257,12 @@ export function MessageList({
           })}
 
           {/* Ephemeral streaming AI bubble (D-02): moved inside MessageList for scrolling flow */}
-          {isAIStreaming && streamingMessage && (
+          {showEphemeral && streamingMessage && (
             <MessageBubble
               message={streamingMessage}
               isOwn={false}
               isAI={true}
-              isStreaming={true}
+              isStreaming={isAIStreaming}
               streamingText={streamingMessage.content}
             />
           )}

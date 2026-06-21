@@ -257,7 +257,7 @@ aiRouter.post('/:id/invoke', async (c) => {
       // to avoid violating messages_content_check (content length >= 1).
       // -----------------------------------------------------------------------
       if (accumulatedText.length > 0) {
-        const { error: insertError } = await supabase
+        const { data: row, error: insertError } = await supabase
           .from('messages')
           .insert({
             session_id: sessionId,
@@ -269,10 +269,18 @@ aiRouter.post('/:id/invoke', async (c) => {
             content: accumulatedText,
             canvas_snapshot_state: lastPanelUpdate ?? null,
           })
+          .select()
+          .single()
 
-        if (insertError) {
+        if (insertError || !row) {
           console.error('[ai] message insert error', insertError)
           // Stream already open — log only, don't abort the SSE connection
+        } else {
+          // Broadcast the new AI message to all participants in real-time
+          supabase
+            .channel(`session:${sessionId}`)
+            .httpSend('new_message', row)
+            .catch((err) => console.error('[ai] broadcast failed', err))
         }
 
         // T-02-07: increment cap ONLY after a completed real AI stream with content
