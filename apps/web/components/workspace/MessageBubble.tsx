@@ -102,7 +102,7 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'message-bubble flex items-start gap-3 px-4 py-2',
+        'message-bubble flex items-start gap-3 px-4 py-2 relative',
         isOwn && !isAI && 'flex-row-reverse'
       )}
       data-message-id={message.id}

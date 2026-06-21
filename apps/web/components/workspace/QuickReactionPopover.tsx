@@ -83,9 +83,9 @@ export function QuickReactionPopover({
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      {/* Invisible trigger — opened programmatically via useLongPress/useDoubleTap */}
+      {/* Ephemeral trigger — spans the message bubble container for accurate alignment */}
       <PopoverTrigger asChild>
-        <span className="sr-only" aria-hidden />
+        <span className="absolute inset-0 pointer-events-none" aria-hidden />
       </PopoverTrigger>
       <PopoverContent
         className="w-auto p-2"
