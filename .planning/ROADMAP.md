@@ -11,7 +11,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
 | 1 | Live Session Shell | ✓ Complete | 7/7 |
-| 2 | AI + Analytics | 3/6 | In Progress|  |
+| 2 | AI + Analytics | 6/6 | Complete   | 2026-06-21 |
 | 3 | The Multiverse | Conversation branching — fork, navigate, isolate, switch timelines | BRANCH-01–06, AI-09 | 5 criteria |
 | 4 | Multi-AI Providers | 4/4 | Complete    | 2026-06-18 |
 
@@ -89,7 +89,7 @@ Plans:
 4. All 4 power reactions (🧠🔥📌🎯) produce the correct AI behavior; reactions apply optimistically on the local client
 5. Each AI message is clearly labeled with "Analista Científico" persona badge; creator can toggle the persona off mid-session and the AI stops responding
 
-**Plans:** 3/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -106,15 +106,15 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 02-04-PLAN.md — Widget slice: 4 Recharts widgets + registry + AnalyticsPanel dynamic zone + AnimatePresence morph + branch badge (PANEL-01/02/03/04)
+- [x] 02-04-PLAN.md — Widget slice: 4 Recharts widgets + registry + AnalyticsPanel dynamic zone + AnimatePresence morph + branch badge (PANEL-01/02/03/04)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 02-05-PLAN.md — Reactions slice: optimistic popover POST + reaction badges + Realtime sync + reaction-triggered AI (REACT-01..05)
+- [x] 02-05-PLAN.md — Reactions slice: optimistic popover POST + reaction badges + Realtime sync + reaction-triggered AI (REACT-01..05)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 02-06-PLAN.md — Persona slice: personas toggle route + creation-form picker + CreatorControls drawer with live Switch + OFF stops AI (PERSONA-01/02/03)
+- [x] 02-06-PLAN.md — Persona slice: personas toggle route + creation-form picker + CreatorControls drawer with live Switch + OFF stops AI (PERSONA-01/02/03)
 
 ---
 
