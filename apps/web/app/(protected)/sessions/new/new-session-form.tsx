@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+import { Switch } from '@/components/ui/switch'
+import { FlaskConical } from 'lucide-react'
+
 type ModeOption = {
   value: 'strategy' | 'debate' | 'red_team'
   label: string
@@ -59,10 +62,21 @@ export function NewSessionForm() {
     defaultValues: {
       title: null,
       mode: 'strategy',
+      active_personas: ['analista_cientifico'],
     },
   })
 
   const selectedMode = watch('mode')
+  const activePersonas = watch('active_personas') || []
+  const isAnalistaActive = activePersonas.includes('analista_cientifico')
+
+  const toggleAnalista = () => {
+    if (isAnalistaActive) {
+      setValue('active_personas', activePersonas.filter(p => p !== 'analista_cientifico'))
+    } else {
+      setValue('active_personas', [...activePersonas, 'analista_cientifico'])
+    }
+  }
 
   const onSubmit = async (data: SessionCreateInput) => {
     setServerError(null)
@@ -134,6 +148,54 @@ export function NewSessionForm() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Persona section — D-12, PERSONA-01 */}
+        <div className="space-y-2">
+          <label className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider">Analista IA</label>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={toggleAnalista}
+              className={cn(
+                'w-full rounded-md border p-4 text-left transition-colors',
+                'bg-card hover:bg-muted flex items-center gap-3',
+                isAnalistaActive
+                  ? 'border-primary ring-2 ring-primary ring-offset-0'
+                  : 'border-border'
+              )}
+            >
+              {/* Persona avatar — Indigo tinted, FlaskConical icon */}
+              <div 
+                className={cn(
+                  "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 transition-opacity",
+                  isAnalistaActive ? "opacity-100" : "opacity-60"
+                )}
+                style={{ 
+                  background: 'rgba(99,102,241,0.15)', 
+                  border: isAnalistaActive ? '1px solid rgba(99,102,241,0.50)' : '1px solid rgba(161,161,170,0.30)' 
+                }}
+              >
+                <FlaskConical size={20} className={isAnalistaActive ? "text-indigo-400" : "text-zinc-400"} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] font-medium text-foreground">Analista Científico</div>
+                <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2">
+                  Analiza datos, detecta falacias y estructura la información cuantitativa.
+                </div>
+              </div>
+              <div onClick={(e) => e.stopPropagation()}>
+                <Switch
+                  checked={isAnalistaActive}
+                  onCheckedChange={toggleAnalista}
+                  aria-label={isAnalistaActive ? 'Desactivar Analista Científico' : 'Activar Analista Científico'}
+                />
+              </div>
+            </button>
+          </div>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            Puedes activar o desactivar los analistas durante la sesión.
+          </p>
         </div>
 
         {/* Server error */}

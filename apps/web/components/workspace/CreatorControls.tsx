@@ -1,30 +1,10 @@
-'use client'
-
-/**
- * CreatorControls — Freeze, Unfreeze, and Close buttons for the session creator.
- *
- * SESS-05: Freeze button — sets status to 'frozen'.
- * SESS-06: Close button — sets status to 'closed'.
- * SESS-07: Unfreeze button — creator can override an auto-freeze (sets status to 'active').
- * T-04-04: UI gate — only renders if currentUserId === session.creator_id (checked in workspace.tsx).
- *          Server gate (Plan 03/07 Hono routes) re-checks; UI gate alone is NOT the security boundary.
- *
- * Layout:
- *   - Desktop (≥768px): floating button row in the analytics panel top-right corner.
- *   - Mobile (<768px): buttons inside a shadcn Sheet triggered by a ⋯ icon.
- *
- * Both destructive buttons use variant="destructive" with AlertDialog confirmation per UI-SPEC.
- * Unfreeze uses variant="outline" (non-destructive).
- * On success: router.refresh() to sync status without full reload.
- *
- * Plan 07: reads live session from session store for reactive button states.
- */
-
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Snowflake, X, PlayCircle } from 'lucide-react'
+import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +19,7 @@ import {
 import { apiFetch, ApiError } from '@/lib/api'
 import { ShareButton } from '@/app/(protected)/sessions/[id]/share-button'
 import type { Session } from '@panelito/types'
+import { cn } from '@/lib/utils'
 
 interface CreatorControlsProps {
   session: Session
@@ -214,14 +195,72 @@ function CloseButton({ sessionId, status, onAction }: ActionButtonsProps): React
  * - Close: always except when already closed
  */
 export function CreatorControls({ session, shortCode, sessionTitle }: CreatorControlsProps): ReactNode {
+  const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [analystasOpen, setAnalystasOpen] = useState(false)
+  const [toggling, setToggling] = useState(false)
+  
+  const activePersonas = session.active_personas || []
+  const isAnalistaActive = activePersonas.includes('analista_cientifico')
 
-  const actionButtons = (
-    <div className="flex items-center gap-2">
-      <ShareButton shortCode={shortCode} sessionTitle={sessionTitle} />
-      <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
-      <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
-      <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
+  const [localAnalistaActive, setLocalAnalistaActive] = useState<boolean | null>(null)
+  const [prevActivePersonas, setPrevActivePersonas] = useState(session.active_personas)
+
+  if (session.active_personas !== prevActivePersonas) {
+    setPrevActivePersonas(session.active_personas)
+    setLocalAnalistaActive(null)
+  }
+
+  const isChecked = localAnalistaActive !== null ? localAnalistaActive : isAnalistaActive
+
+  const handlePersonaToggle = async (checked: boolean) => {
+    setLocalAnalistaActive(checked)
+    setToggling(true)
+    try {
+      await apiFetch(`/api/sessions/${session.id}/personas`, {
+        method: 'POST',
+        body: JSON.stringify({
+          personaId: 'analista_cientifico',
+          active: checked,
+        }),
+      })
+      router.refresh()
+    } catch {
+      setLocalAnalistaActive(!checked)
+      toast.error('No se pudo cambiar el analista. Inténtalo de nuevo.')
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  const personaCard = (
+    <div className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3 text-left">
+      <div className="flex items-center gap-3">
+        <div 
+          className={cn(
+            "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 transition-opacity",
+            isChecked ? "opacity-100" : "opacity-60"
+          )}
+          style={{ 
+            background: 'rgba(99,102,241,0.15)', 
+            border: isChecked ? '1px solid rgba(99,102,241,0.50)' : '1px solid rgba(161,161,170,0.30)' 
+          }}
+        >
+          <FlaskConical size={20} className={isChecked ? "text-indigo-400" : "text-zinc-400"} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-medium text-foreground">Analista Científico</div>
+          <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-tight">
+            Analiza datos, detecta falacias y estructura la información cuantitativa.
+          </div>
+        </div>
+      </div>
+      <Switch
+        checked={isChecked}
+        disabled={toggling}
+        onCheckedChange={handlePersonaToggle}
+        aria-label={isChecked ? 'Desactivar Analista Científico' : 'Activar Analista Científico'}
+      />
     </div>
   )
 
@@ -229,8 +268,35 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
     <>
       {/* Desktop: float in analytics panel (shown via parent CSS media query) */}
       <div className="hidden md:flex items-center gap-2">
-        {actionButtons}
+        <ShareButton shortCode={shortCode} sessionTitle={sessionTitle} />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-9 gap-2" 
+          onClick={() => setAnalystasOpen(true)}
+        >
+          <Users className="h-4 w-4" />
+          Analistas
+        </Button>
+        <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
+        <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
+        <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
       </div>
+
+      {/* Desktop Analyst drawer Sheet */}
+      <Sheet open={analystasOpen} onOpenChange={setAnalystasOpen}>
+        <SheetContent side="right" className="w-80" aria-describedby={undefined}>
+          <SheetHeader>
+            <SheetTitle>Analistas activos</SheetTitle>
+          </SheetHeader>
+          <div className="pt-6 space-y-4">
+            {personaCard}
+            <p className="text-[13px] text-muted-foreground">
+              Los cambios se aplican de inmediato a los mensajes siguientes.
+            </p>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Mobile: Sheet triggered by ⋯ icon */}
       <div className="md:hidden">
@@ -249,6 +315,14 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
               <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
               <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
               <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
+              
+              <div className="border-t border-border pt-4 mt-2 space-y-3">
+                <div className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider text-left">Analistas activos</div>
+                {personaCard}
+                <p className="text-[13px] text-muted-foreground text-left">
+                  Los cambios se aplican de inmediato a los mensajes siguientes.
+                </p>
+              </div>
             </div>
           </SheetContent>
         </Sheet>

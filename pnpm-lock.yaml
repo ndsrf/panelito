@@ -7,6 +7,13 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@google/genai':
+        specifier: ^2.8.0
+        version: 2.8.0
+      openai:
+        specifier: ^6.44.0
+        version: 6.44.0(ws@8.21.0)(zod@4.4.3)
     devDependencies:
       sharp:
         specifier: ^0.35.1

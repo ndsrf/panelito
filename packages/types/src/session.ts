@@ -23,6 +23,7 @@ export const SessionSchema = z.object({
   status: z.enum(["active", "frozen", "closed"]),
   ai_response_count: z.number().int().nonnegative(),
   ai_response_cap: z.number().int().positive(),
+  active_personas: z.array(z.string()),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -36,6 +37,7 @@ export type Session = z.infer<typeof SessionSchema>;
 export const SessionCreateInputSchema = z.object({
   title: z.string().min(1).max(120).nullable().optional(),
   mode: z.enum(["strategy", "debate", "red_team"]).nullable().optional(),
+  active_personas: z.array(z.string()).optional(),
 });
 
 export type SessionCreateInput = z.infer<typeof SessionCreateInputSchema>;

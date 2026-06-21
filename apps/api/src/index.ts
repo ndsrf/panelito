@@ -7,6 +7,7 @@ import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
 import reactionsRouter from "./routes/reactions";
+import personasRouter from "./routes/personas";
 import { createServiceClient } from "./lib/supabase";
 
 // -----------------------------------------------------------------------
@@ -73,5 +74,11 @@ app.route("/sessions", aiRouter); // aiRouter has internal /:id/invoke
 // POST /api/sessions/:id/reactions
 // -------------------------------------------------------
 app.route("/sessions/:id/reactions", reactionsRouter);
+
+// -------------------------------------------------------
+// Personas route (PERSONA-02)
+// POST /api/sessions/:id/personas
+// -------------------------------------------------------
+app.route("/sessions/:id/personas", personasRouter);
 
 export default app;

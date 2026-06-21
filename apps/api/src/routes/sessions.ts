@@ -79,6 +79,7 @@ sessionsRouter.post('/', requireAuth, sessionCreateRateLimit, async (c) => {
         creator_id: user.id,
         title: parsed.data.title ?? null,
         mode: parsed.data.mode ?? null,
+        active_personas: parsed.data.active_personas ?? ['analista_cientifico'],
         short_code: await generateShortCodeViaRpc(supabase),
       })
       .select()
