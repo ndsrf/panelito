@@ -154,6 +154,17 @@ export function MessageList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
+  // Automatically sync the panel to the latest snapshot in the message history when messages load or update
+  useEffect(() => {
+    const latestSnapshotMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === 'assistant' && m.canvas_snapshot_state != null)
+
+    if (latestSnapshotMsg?.canvas_snapshot_state) {
+      usePanelStore.getState().setWidget(latestSnapshotMsg.canvas_snapshot_state as any)
+    }
+  }, [messages])
+
   // Polling fallback
   useEffect(() => {
     const poll = async () => {
