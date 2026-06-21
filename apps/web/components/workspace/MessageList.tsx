@@ -29,7 +29,7 @@ import { useReactions } from '@/hooks/use-reactions'
 import { apiFetch } from '@/lib/api'
 import { PanelWidgetSchema } from '@panelito/types'
 import { MessageBubble } from './MessageBubble'
-import type { Message } from '@panelito/types'
+import type { Message, PanelWidget } from '@panelito/types'
 
 /** Sentinel display_name used for system messages (set in API by sessions-helpers.ts). */
 const SYSTEM_DISPLAY_NAME = 'system'
@@ -176,7 +176,7 @@ export function MessageList({
       .find((m) => m.role === 'assistant' && m.canvas_snapshot_state != null)
 
     if (latestSnapshotMsg?.canvas_snapshot_state) {
-      usePanelStore.getState().setWidget(latestSnapshotMsg.canvas_snapshot_state as any)
+      usePanelStore.getState().setWidget(latestSnapshotMsg.canvas_snapshot_state as PanelWidget)
     }
   }, [messages])
 
