@@ -62,7 +62,7 @@ reactionsRouter.post('/', reactionRateLimit, async (c) => {
 
   // Upsert: deduplicate per (message_id, author_id, emoji) — REACT-04
   // ignoreDuplicates: true means we don't fail on a repeat tap of the same emoji
-  const { data: row, error: insertError } = await supabase
+  const { data: rows, error: insertError } = await supabase
     .from('reactions')
     .upsert(
       {
@@ -74,25 +74,34 @@ reactionsRouter.post('/', reactionRateLimit, async (c) => {
       { onConflict: 'message_id,author_id,emoji', ignoreDuplicates: true }
     )
     .select()
-    .single()
 
   if (insertError) {
     console.error('[reactions] insert error', insertError)
     return c.json({ error: 'insert_failed', message: insertError.message }, 500)
   }
 
-  // D-09: 🔥 (Intensify) + 📌 (Pin to Panel) + 🎯 (Simplify) trigger AI follow-up
-  // 🧠 (Insight) marks for summary only — does NOT trigger AI (D-11)
+  const row = rows?.[0]
   const triggersAI = ['🔥', '📌', '🎯'].includes(body.emoji)
 
-  // Broadcast the new reaction to all session participants in real-time
-  // (ensures delivery under LongPoll and WebSockets alike)
-  supabase
-    .channel(`session:${sessionId}`)
-    .httpSend('new_reaction', row)
-    .catch((err) => console.error('[reactions] broadcast failed', err))
+  // Only broadcast if it is a new reaction (not a duplicate ignore)
+  if (row) {
+    // Broadcast the new reaction to all session participants in real-time
+    // (ensures delivery under LongPoll and WebSockets alike)
+    supabase
+      .channel(`session:${sessionId}`)
+      .httpSend('new_reaction', row)
+      .catch((err) => console.error('[reactions] broadcast failed', err))
+  }
 
-  return c.json({ ...row, triggersAI }, 201)
+  return c.json({
+    id: row?.id,
+    message_id: body.messageId,
+    session_id: sessionId,
+    author_id: user.id,
+    emoji: body.emoji,
+    created_at: row?.created_at || new Date().toISOString(),
+    triggersAI
+  }, 201)
 })
 
 export default reactionsRouter
