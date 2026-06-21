@@ -44,7 +44,7 @@ export function useSessionStatus(sessionId: string, initialSession: Session): vo
 
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase.channel(`session-status:${sessionId}`)
+    const channel = supabase.channel(`session:${sessionId}`)
 
     channel
       .on(
