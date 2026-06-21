@@ -192,6 +192,7 @@ export function Workspace({
           shortCode={shortCode}
           autoFreezeReason={liveSession.status === 'frozen' ? (liveSession as Session & { auto_freeze_reason?: string }).auto_freeze_reason : undefined}
           onAfterSend={handleAfterSend}
+          localAIStreaming={localAIStreaming}
         />
       </div>
     </div>

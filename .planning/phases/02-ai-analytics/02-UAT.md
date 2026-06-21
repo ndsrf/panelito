@@ -34,8 +34,8 @@ result: pass
 ### 3. POST /api/sessions/:id/invoke SSE stream
 expected: |
   Sending a message with "@analista" triggers an SSE connection from the client to `/invoke`. The server returns streamed `text_delta` tokens and a final `panel_update` event with widget payload, then inserts the AI response to the DB.
-result: issue
-reported: "I think we are using long poll all the time rather than using supabase sockets. I was told it is because WSL but I see the same behaviour in Vercel where I see the message on the screen and then it appears again a few miliseconds later. For example that also happens when analista types, I see the message, and the it dissappears and then back again."
+result: pass
+reported: ""
 severity: major
 
 ### 4. Typing Hold Gate on Invoke
@@ -86,17 +86,10 @@ result: pass
 ## Summary
 
 total: 12
-passed: 11
-issues: 1
+passed: 12
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
-- truth: "POST /api/sessions/:id/invoke SSE stream"
-  status: failed
-  reason: "User reported: I think we are using long poll all the time rather than using supabase sockets. I was told it is because WSL but I see the same behaviour in Vercel where I see the message on the screen and then it appears again a few miliseconds later. For example that also happens when analista types, I see the message, and the it dissappears and then back again."
-  severity: major
-  test: 3
-  artifacts: []
-  missing: []

@@ -85,11 +85,25 @@ export function MessageList({
   const setWidget = usePanelStore((s) => s.setWidget)
 
   const [showEphemeral, setShowEphemeral] = useState(false)
+  const knownMessageIdsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!isAIStreaming) {
+      knownMessageIdsRef.current = new Set(messages.map((m) => m.id))
+    }
+  }, [isAIStreaming, messages])
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined
     if (isAIStreaming) {
-      setShowEphemeral(true)
+      const hasNewMsg = messages.some(
+        (m) => m.role === 'assistant' && !knownMessageIdsRef.current.has(m.id)
+      )
+      if (hasNewMsg) {
+        setShowEphemeral(false)
+      } else {
+        setShowEphemeral(true)
+      }
     } else {
       const hasAssistantMessage = messages.length > 0 && messages[messages.length - 1]?.role === 'assistant'
       if (hasAssistantMessage) {
@@ -269,7 +283,7 @@ export function MessageList({
           })}
 
           {/* Ephemeral streaming AI bubble (D-02): moved inside MessageList for scrolling flow */}
-          {showEphemeral && streamingMessage && (
+          {showEphemeral && streamingMessage && !messages.some(m => m.role === 'assistant' && !knownMessageIdsRef.current.has(m.id)) && (
             <MessageBubble
               message={streamingMessage}
               isOwn={false}

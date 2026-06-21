@@ -19,7 +19,7 @@ function Thrower(): never {
 describe('AnalyticsPanel', () => {
   it('renders the D-07a variant (no API key) with a Settings link', () => {
     render(<AnalyticsPanel hasApiKey={false} />)
-    expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /configuración/i })).toBeInTheDocument()
   })
 
   it('renders the D-08 variant (key set) with branded empty state', () => {

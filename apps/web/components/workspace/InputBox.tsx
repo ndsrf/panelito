@@ -24,7 +24,7 @@
  *   - isAIStreaming: disables send, sets opacity 0.5, swaps placeholder, shows streaming dots
  */
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useViewport } from '@/hooks/use-viewport'
@@ -48,6 +48,8 @@ interface InputBoxProps {
    * The workspace uses this to detect @analista mentions and open the AI stream.
    */
   onAfterSend?: (content: string) => void
+  /** Phase 2: local streaming state to be synchronized to presence */
+  localAIStreaming?: boolean
 }
 
 /**
@@ -61,6 +63,7 @@ export function InputBox({
   shortCode,
   autoFreezeReason,
   onAfterSend,
+  localAIStreaming,
 }: InputBoxProps): ReactNode {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -72,7 +75,14 @@ export function InputBox({
   // Typing presence hook — throttled to <=1 track()/sec (CHAT-06).
   // Phase 2: isAIStreaming read from presence — session-wide soft-lock (AI-07 / D-04).
   // InputBox is the single owner of the presence channel for this client (one subscriber per userId).
-  const { setTyping, isAIStreaming } = useTypingPresence(sessionId, userId, displayName)
+  const { setTyping, setAIStreaming, isAIStreaming } = useTypingPresence(sessionId, userId, displayName)
+
+  // Sync localAIStreaming to presence channel so other clients receive it
+  useEffect(() => {
+    if (localAIStreaming !== undefined) {
+      setAIStreaming(localAIStreaming)
+    }
+  }, [localAIStreaming, setAIStreaming])
 
   // SESS-07/11/12: read live status from store; fall back to prop if store not yet set
   const liveSession = useSessionStore((s) => s.session)
