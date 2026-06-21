@@ -85,8 +85,12 @@ reactionsRouter.post('/', reactionRateLimit, async (c) => {
   // 🧠 (Insight) marks for summary only — does NOT trigger AI (D-11)
   const triggersAI = ['🔥', '📌', '🎯'].includes(body.emoji)
 
-  // Realtime broadcast is automatic via the supabase_realtime publication
-  // added in migration 0005 — no manual httpSend needed.
+  // Broadcast the new reaction to all session participants in real-time
+  // (ensures delivery under LongPoll and WebSockets alike)
+  supabase
+    .channel(`session:${sessionId}`)
+    .httpSend('new_reaction', row)
+    .catch((err) => console.error('[reactions] broadcast failed', err))
 
   return c.json({ ...row, triggersAI }, 201)
 })

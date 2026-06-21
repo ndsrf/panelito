@@ -116,6 +116,7 @@ export function MessageList({
     applyOptimistic,
     revert,
     postReaction,
+    ingest,
   } = useReactions(sessionId, currentUserId)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -136,8 +137,8 @@ export function MessageList({
     }
   }, [])
 
-  // Subscribe to live messages via Supabase Realtime broadcast
-  useSessionChannel(sessionId, useSessionStore.getState().addMessage)
+  // Subscribe to live messages and reactions via Supabase Realtime broadcast
+  useSessionChannel(sessionId, useSessionStore.getState().addMessage, ingest)
 
   // Load initial message history on mount
   useEffect(() => {

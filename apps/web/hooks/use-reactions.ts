@@ -247,9 +247,7 @@ export function useReactions(
         // Server confirmed — clean up snapshot (don't need to revert)
         const key = `${messageId}:${emoji}`
         snapshotRef.current.delete(key)
-        // ownPendingRef entry cleaned up by ingest() when the Realtime echo arrives,
-        // but clear here too to be safe in case the echo doesn't arrive
-        ownPendingRef.current.delete(key)
+        // Note: ownPendingRef entry will be cleaned up by ingest() when the Realtime broadcast echo arrives.
 
         // D-09: return triggersAI so caller can open /invoke SSE stream
         return response.triggersAI ?? false
@@ -263,39 +261,6 @@ export function useReactions(
     },
     [sessionId, applyOptimistic, revert]
   )
-
-  // -----------------------------------------------------------------------
-  // Supabase Realtime subscription — postgres_changes INSERT on public.reactions
-  // Mirrors use-session-channel.ts pattern
-  // -----------------------------------------------------------------------
-
-  const ingestRef = useRef(ingest)
-  ingestRef.current = ingest
-
-  useEffect(() => {
-    const supabase = createClient()
-
-    const channel = supabase
-      .channel(`reactions:${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'reactions',
-          filter: `session_id=eq.${sessionId}`,
-        },
-        ({ new: row }) => {
-          // Cast to Reaction — the row matches our schema
-          ingestRef.current(row as Reaction)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel).catch(() => {})
-    }
-  }, [sessionId])
 
   return {
     getReactionCounts,

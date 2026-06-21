@@ -10,15 +10,19 @@
 import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePanelStore } from '@/store/panel-store'
-import type { Message } from '@panelito/types'
+import type { Message, Reaction } from '@panelito/types'
 
 export function useSessionChannel(
   sessionId: string,
-  onMessage: (msg: Message) => void
+  onMessage: (msg: Message) => void,
+  onReaction?: (reaction: Reaction) => void
 ): void {
-  // Use a ref for the callback to avoid re-subscribing on every render
+  // Use a ref for the callbacks to avoid re-subscribing on every render
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
+
+  const onReactionRef = useRef(onReaction)
+  onReactionRef.current = onReaction
 
   useEffect(() => {
     const supabase = createClient()
@@ -37,6 +41,11 @@ export function useSessionChannel(
         // Apply live panel updates during assistant tool calls
         if (payload) {
           usePanelStore.getState().setWidget(payload as any)
+        }
+      })
+      .on('broadcast', { event: 'new_reaction' }, ({ payload }) => {
+        if (payload && onReactionRef.current) {
+          onReactionRef.current(payload as Reaction)
         }
       })
       .subscribe()
