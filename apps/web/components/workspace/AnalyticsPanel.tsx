@@ -20,7 +20,7 @@
 import { Component, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
-import { AlertTriangle, KeyRound } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, KeyRound } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { usePanelStore } from '@/store/panel-store'
@@ -141,7 +141,7 @@ function StateKeySet(): ReactNode {
  * Separated as a client component function so the error boundary (class component)
  * can wrap it without needing to call hooks itself.
  */
-function WidgetZone({ hasApiKey, isStreaming }: { hasApiKey: boolean; isStreaming: boolean }) {
+function WidgetZone({ hasApiKey, isStreaming, isCreator }: { hasApiKey: boolean; isStreaming: boolean; isCreator?: boolean }) {
   const { widgetType, widgetData, branchId } = usePanelStore()
   const WidgetComponent = widgetType ? widgetRegistry.get(widgetType) : null
 
@@ -152,21 +152,36 @@ function WidgetZone({ hasApiKey, isStreaming }: { hasApiKey: boolean; isStreamin
         className="flex items-center justify-between px-4 border-b border-border flex-shrink-0"
         style={{ height: 36 }}
       >
-        {/* Branch badge — "Main" with Indigo 500 treatment */}
-        <Badge
-          className="text-[13px] gap-1.5 py-0.5"
-          style={{
-            background: 'rgba(99,102,241,0.2)',
-            border: '1px solid #6366f1',
-            color: '#a5b4fc',
-          }}
-        >
-          <span
-            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ background: '#6366f1' }}
-          />
-          Main
-        </Badge>
+        <div className="flex items-center gap-2">
+          {/* Back to sessions — creator only */}
+          {isCreator && (
+            <Link
+              href="/sessions"
+              className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+              style={{ fontSize: 13 }}
+              aria-label="Volver a sesiones"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sesiones</span>
+            </Link>
+          )}
+
+          {/* Branch badge — "Main" with Indigo 500 treatment */}
+          <Badge
+            className="text-[13px] gap-1.5 py-0.5"
+            style={{
+              background: 'rgba(99,102,241,0.2)',
+              border: '1px solid #6366f1',
+              color: '#a5b4fc',
+            }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ background: '#6366f1' }}
+            />
+            Main
+          </Badge>
+        </div>
 
         {/* "Analizando..." pulse — only while AI is streaming */}
         {isStreaming && (
@@ -222,23 +237,14 @@ function WidgetZone({ hasApiKey, isStreaming }: { hasApiKey: boolean; isStreamin
 
 interface AnalyticsPanelProps {
   hasApiKey: boolean
-  /**
-   * Phase 2: isStreaming — passed from workspace while AI is generating a response.
-   * When true, the panel header shows "Analizando..." with a pulsing dot (PANEL-03).
-   */
   isStreaming?: boolean
+  isCreator?: boolean
 }
 
-/**
- * AnalyticsPanel — the top 40% analytics segment of the workspace.
- *
- * @param hasApiKey - Whether the creator has a verified Anthropic API key.
- * @param isStreaming - Phase 2: true while AI is generating a response (for "Analizando..." label).
- */
-export function AnalyticsPanel({ hasApiKey, isStreaming = false }: AnalyticsPanelProps): ReactNode {
+export function AnalyticsPanel({ hasApiKey, isStreaming = false, isCreator }: AnalyticsPanelProps): ReactNode {
   return (
     <AnalyticsPanelErrorBoundary>
-      <WidgetZone hasApiKey={hasApiKey} isStreaming={isStreaming} />
+      <WidgetZone hasApiKey={hasApiKey} isStreaming={isStreaming} isCreator={isCreator} />
     </AnalyticsPanelErrorBoundary>
   )
 }

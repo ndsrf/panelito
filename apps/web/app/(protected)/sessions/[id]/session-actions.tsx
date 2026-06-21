@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Snowflake, X } from 'lucide-react'
+import { Snowflake, X, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiFetch, ApiError } from '@/lib/api'
 import type { Session, SessionStatus } from '@panelito/types'
@@ -25,6 +25,7 @@ interface SessionActionsProps {
 export function SessionActions({ sessionId, status }: SessionActionsProps) {
   const router = useRouter()
   const [freezePending, setFreezePending] = useState(false)
+  const [unfreezePending, setUnfreezePending] = useState(false)
   const [closePending, setClosePending] = useState(false)
 
   const handleFreeze = async () => {
@@ -38,6 +39,20 @@ export function SessionActions({ sessionId, status }: SessionActionsProps) {
       }
     } finally {
       setFreezePending(false)
+    }
+  }
+
+  const handleUnfreeze = async () => {
+    setUnfreezePending(true)
+    try {
+      await apiFetch<Session>(`/api/sessions/${sessionId}/unfreeze`, { method: 'POST' })
+      router.refresh()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        console.error('Unfreeze failed:', err.status)
+      }
+    } finally {
+      setUnfreezePending(false)
     }
   }
 
@@ -68,6 +83,20 @@ export function SessionActions({ sessionId, status }: SessionActionsProps) {
         >
           <Snowflake className="h-4 w-4" />
           {freezePending ? 'Congelando...' : 'Congelar'}
+        </Button>
+      )}
+
+      {/* Unfreeze button — only when session is frozen */}
+      {status === 'frozen' && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleUnfreeze}
+          disabled={unfreezePending}
+          className="h-9 gap-2"
+        >
+          <Play className="h-4 w-4" />
+          {unfreezePending ? 'Reactivando...' : 'Reactivar'}
         </Button>
       )}
 

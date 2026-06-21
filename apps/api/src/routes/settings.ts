@@ -5,7 +5,7 @@
  * PUT /api/settings  — update api_response_cap and/or active_provider
  *
  * NEVER returns anthropic_api_key, openai_api_key, or gemini_api_key (AI-02, T-04-07).
- * has_api_key is computed from (anthropic_api_key IS NOT NULL) for backward compatibility.
+ * has_api_key is true when ANY of the three provider key columns is non-null.
  */
 
 import { Hono } from 'hono'
@@ -40,7 +40,7 @@ settingsRouter.use('/*', requireAuth)
  * GET /api/settings
  *
  * Returns the public-safe CreatorSettings shape.
- * has_api_key is derived from (anthropic_api_key IS NOT NULL) — never the blob.
+ * has_api_key is true when any provider key is set — never the blob itself.
  * All three key columns are stripped server-side before responding (T-04-07).
  */
 settingsRouter.get('/', async (c) => {
@@ -73,7 +73,7 @@ settingsRouter.get('/', async (c) => {
   const { anthropic_api_key: _a, openai_api_key: _o, gemini_api_key: _g, ...rest } = data
   return c.json({
     ...rest,
-    has_api_key: _a !== null,
+    has_api_key: _a !== null || _o !== null || _g !== null,
   }, 200)
 })
 
@@ -140,7 +140,7 @@ settingsRouter.put('/', async (c) => {
   const { anthropic_api_key: _a, openai_api_key: _o, gemini_api_key: _g, ...rest } = data
   return c.json({
     ...rest,
-    has_api_key: _a !== null,
+    has_api_key: _a !== null || _o !== null || _g !== null,
   }, 200)
 })
 

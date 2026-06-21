@@ -119,6 +119,90 @@ async function generateShortCodeViaRpc(
 }
 
 /**
+ * GET /api/sessions
+ * Returns paginated sessions created by the authenticated creator.
+ * Query params: page (default 1), limit fixed at 10.
+ * Each session includes last_message and participant_count derived from messages.
+ */
+sessionsRouter.get('/', requireAuth, async (c) => {
+  const user = c.get('user')
+  const supabase = createServiceClient()
+
+  const pageParam = c.req.query('page') ?? '1'
+  const page = Math.max(1, parseInt(pageParam, 10) || 1)
+  const limit = 10
+  const offset = (page - 1) * limit
+
+  try {
+    const { data: sessions, count, error } = await supabase
+      .from('sessions')
+      .select('*', { count: 'exact' })
+      .eq('creator_id', user.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      return c.json({ error: toClientError(error) }, 500)
+    }
+
+    const sessionList = sessions ?? []
+    const total = count ?? 0
+
+    if (sessionList.length === 0) {
+      return c.json({ sessions: [], total, page, total_pages: Math.ceil(total / limit) }, 200)
+    }
+
+    const sessionIds = sessionList.map((s) => s.id)
+
+    // Fetch all messages for these sessions to derive last_message and participant_count.
+    // With 10 sessions per page this is a bounded, small query.
+    const [{ data: messages }, { data: authors }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('id, session_id, content, display_name, created_at')
+        .in('session_id', sessionIds)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('messages')
+        .select('session_id, author_id')
+        .in('session_id', sessionIds),
+    ])
+
+    // Last message per session (messages already sorted DESC — first hit per session_id wins)
+    const lastMessageMap = new Map<string, { content: string; display_name: string; created_at: string }>()
+    for (const msg of (messages ?? [])) {
+      if (!lastMessageMap.has(msg.session_id)) {
+        lastMessageMap.set(msg.session_id, {
+          content: msg.content,
+          display_name: msg.display_name,
+          created_at: msg.created_at,
+        })
+      }
+    }
+
+    // Distinct participant count per session
+    const participantMap = new Map<string, Set<string>>()
+    for (const { session_id, author_id } of (authors ?? [])) {
+      if (!participantMap.has(session_id)) participantMap.set(session_id, new Set())
+      participantMap.get(session_id)!.add(author_id)
+    }
+
+    const enriched = sessionList.map((session) => ({
+      ...session,
+      last_message: lastMessageMap.get(session.id) ?? null,
+      participant_count: participantMap.get(session.id)?.size ?? 0,
+    }))
+
+    return c.json(
+      { sessions: enriched, total, page, total_pages: Math.ceil(total / limit) },
+      200
+    )
+  } catch (err) {
+    return c.json({ error: toClientError(err) }, 500)
+  }
+})
+
+/**
  * GET /api/sessions/:id
  * Returns the session for the authenticated user (creator or guest with anon token).
  *

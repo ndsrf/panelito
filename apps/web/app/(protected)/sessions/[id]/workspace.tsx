@@ -37,13 +37,14 @@
  * - Streaming dots + placeholder swap (UI-SPEC Surface 6)
  */
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { AnalyticsPanel } from '@/components/workspace/AnalyticsPanel'
 import { BranchNavigator } from '@/components/workspace/BranchNavigator'
 import { ChatStream } from '@/components/workspace/ChatStream'
 import { InputBox } from '@/components/workspace/InputBox'
 import { MessageBubble } from '@/components/workspace/MessageBubble'
 import { CreatorControls } from '@/components/workspace/CreatorControls'
+import { useRouter } from 'next/navigation'
 import { useSessionStatus } from '@/hooks/use-session-status'
 import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
@@ -79,6 +80,7 @@ export function Workspace({
   currentUserDisplayName,
   shortCode,
 }: WorkspaceProps): ReactNode {
+  const router = useRouter()
   const isCreator = currentUserId === session.creator_id
 
   // SESS-07/09/11/12: Subscribe to live session_status_change broadcasts
@@ -90,18 +92,23 @@ export function Workspace({
   // Read live session from store; fall back to server-fetched session if not yet set
   const liveSession = useSessionStore((s) => s.session) ?? session
 
-  // Automatically unfreeze the session if the creator returns/logs in (auto-unfreeze)
+  // Auto-unfreeze: when the server says the session is frozen and the creator opens it,
+  // reactivate immediately. Uses `session` (server prop) not `liveSession` (store) so it
+  // fires based on server truth even when the client store has stale state.
+  const didAutoUnfreeze = useRef(false)
   useEffect(() => {
-    if (isCreator && liveSession.status === 'frozen') {
-      apiFetch<any>(`/api/sessions/${liveSession.id}/unfreeze`, { method: 'POST' })
+    if (isCreator && session.status === 'frozen' && !didAutoUnfreeze.current) {
+      didAutoUnfreeze.current = true
+      apiFetch<Session>(`/api/sessions/${session.id}/unfreeze`, { method: 'POST' })
         .then((updatedSession) => {
           if (updatedSession) {
             useSessionStore.getState().setSession(updatedSession)
+            router.refresh()
           }
         })
         .catch((err) => console.error('[Workspace] Auto-unfreeze failed:', err))
     }
-  }, [isCreator, liveSession.id, liveSession.status])
+  }, [isCreator, session.id, session.status, router])
 
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
@@ -151,7 +158,7 @@ export function Workspace({
       {/* Top 40%: Analytics Panel with Error Boundary (LAYOUT-02, LAYOUT-07) */}
       <div className="relative">
         {/* isStreaming: shows "Analizando..." in panel header while AI is streaming (Plan 04) */}
-        <AnalyticsPanel hasApiKey={hasApiKey} isStreaming={localAIStreaming} />
+        <AnalyticsPanel hasApiKey={hasApiKey} isStreaming={localAIStreaming} isCreator={isCreator} />
 
         {/* Creator controls: overlayed at top-right of analytics panel */}
         {isCreator && (

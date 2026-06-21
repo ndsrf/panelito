@@ -54,10 +54,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Landing page (/) is public — authenticated users land at /sessions/new instead.
+  // Landing page (/) is public — authenticated users land at /sessions instead.
   if (pathname === "/") {
     if (user) {
-      return NextResponse.redirect(new URL("/sessions/new", request.url));
+      return NextResponse.redirect(new URL("/sessions", request.url));
     }
     return response;
   }
