@@ -71,7 +71,7 @@ export async function freezeSession(
 
   // Broadcast session_status_change to all clients
   supabase
-    .channel(`session:${sessionId}`)
+    .channel(`session-status:${sessionId}`)
     .httpSend('session_status_change', {
       status: 'frozen',
       reason,
@@ -143,7 +143,7 @@ export async function unfreezeSession(
   }
 
   supabase
-    .channel(`session:${sessionId}`)
+    .channel(`session-status:${sessionId}`)
     .httpSend('session_status_change', {
       status: 'active',
       reason,
@@ -211,7 +211,7 @@ export async function closeSession(
   }
 
   supabase
-    .channel(`session:${sessionId}`)
+    .channel(`session-status:${sessionId}`)
     .httpSend('session_status_change', {
       status: 'closed',
       reason,

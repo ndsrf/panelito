@@ -25,15 +25,35 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 // Mock apiFetch so network calls never fire during tests
-vi.mock('@/lib/api', () => ({
-  apiFetch: vi.fn(),
-  ApiError: class ApiError extends Error {
+vi.mock('@/lib/api', () => {
+  const mockFetch = vi.fn().mockImplementation((url: string, options?: any) => {
+    console.log('[test apiFetch mock] URL:', url, 'Options:', options)
+    if (url.includes('/reactions') && (!options || options.method === 'GET' || !options.method)) {
+      return Promise.resolve([])
+    }
+    if (options && options.method === 'POST') {
+      if ((mockFetch as any).__shouldFail) {
+        return Promise.reject(new (mockFetch as any).ApiError(500, { error: 'insert_failed' }))
+      }
+      const body = JSON.parse(options.body)
+      const res = { id: 'r-post', triggersAI: ['🔥', '📌', '🎯'].includes(body.emoji) }
+      console.log('[test apiFetch mock] POST returning:', res)
+      return Promise.resolve(res)
+    }
+    return Promise.resolve([])
+  })
+  const ApiError = class ApiError extends Error {
     constructor(public status: number, public body: unknown) {
       super(`API error ${status}`)
       this.name = 'ApiError'
     }
-  },
-}))
+  }
+  ;(mockFetch as any).ApiError = ApiError
+  return {
+    apiFetch: mockFetch,
+    ApiError,
+  }
+})
 
 // We test the internal logic of the hook by pulling out the pure functions.
 // The hook itself uses React (useState + useEffect) which requires renderHook.
@@ -227,10 +247,16 @@ describe('useReactions', () => {
 
   describe('postReaction', () => {
     it('calls applyOptimistic then apiFetch, returns triggersAI signal', async () => {
-      const mockFetch = vi.mocked(apiFetch)
-      mockFetch.mockResolvedValueOnce({ id: 'r4', triggersAI: true } as never)
-
       const { result } = renderHook(() => useReactions(SESSION_ID, CURRENT_USER))
+
+      // Wait for mount fetch to settle
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+      act(() => {
+        result.current.applyOptimistic(MSG_1, '🔥')
+      })
 
       let triggersAI: boolean | undefined
       await act(async () => {
@@ -245,11 +271,17 @@ describe('useReactions', () => {
     })
 
     it('silently reverts on ApiError — no thrown error, count returns to 0', async () => {
-      const { ApiError } = await import('@/lib/api')
-      const mockFetch = vi.mocked(apiFetch)
-      mockFetch.mockRejectedValueOnce(new ApiError(500, { error: 'insert_failed' }) as never)
-
+      ;(apiFetch as any).__shouldFail = true
       const { result } = renderHook(() => useReactions(SESSION_ID, CURRENT_USER))
+
+      // Wait for mount fetch to settle
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+      act(() => {
+        result.current.applyOptimistic(MSG_1, '📌')
+      })
 
       await act(async () => {
         // Should not throw
@@ -259,13 +291,16 @@ describe('useReactions', () => {
       // Badge should have been reverted — count back to 0, entry hidden
       const counts = result.current.getReactionCounts(MSG_1)
       expect(counts.find((r) => r.emoji === '📌')).toBeUndefined()
+      ;(apiFetch as any).__shouldFail = false
     })
 
     it('returns false for triggersAI when emoji is 🧠', async () => {
-      const mockFetch = vi.mocked(apiFetch)
-      mockFetch.mockResolvedValueOnce({ id: 'r5', triggersAI: false } as never)
-
       const { result } = renderHook(() => useReactions(SESSION_ID, CURRENT_USER))
+
+      // Wait for mount fetch to settle
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
 
       let triggersAI: boolean | undefined
       await act(async () => {

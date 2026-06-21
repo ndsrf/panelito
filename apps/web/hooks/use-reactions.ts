@@ -79,35 +79,42 @@ export function useReactions(
   // Used to dedupe Realtime echo of our own reaction
   const ownPendingRef = useRef<OwnPendingSet>(new Set())
 
-  // Load initial reaction counts on mount
+  // Load initial reaction counts on mount and poll every 2 seconds
   useEffect(() => {
-    apiFetch<any[]>(`/api/sessions/${sessionId}/reactions`)
-      .then((rows) => {
-        setReactionsMap((prev) => {
-          const next = cloneMap(prev)
-          for (const row of rows) {
-            const emojiMap = getOrCreateEmojiMap(next, row.message_id)
-            const existing = emojiMap.get(row.emoji)
-            const isOwn = row.author_id === currentUserId
+    const fetchReactions = () => {
+      apiFetch<any[]>(`/api/sessions/${sessionId}/reactions`)
+        .then((rows) => {
+          setReactionsMap(() => {
+            const next = new Map()
+            for (const row of rows) {
+              const emojiMap = getOrCreateEmojiMap(next, row.message_id)
+              const existing = emojiMap.get(row.emoji)
+              const isOwn = row.author_id === currentUserId
 
-            if (existing) {
-              emojiMap.set(row.emoji, {
-                ...existing,
-                count: existing.count + 1,
-                isOwn: existing.isOwn || isOwn,
-              })
-            } else {
-              emojiMap.set(row.emoji, {
-                emoji: row.emoji,
-                count: 1,
-                isOwn,
-              })
+              if (existing) {
+                emojiMap.set(row.emoji, {
+                  ...existing,
+                  count: existing.count + 1,
+                  isOwn: existing.isOwn || isOwn,
+                })
+              } else {
+                emojiMap.set(row.emoji, {
+                  emoji: row.emoji,
+                  count: 1,
+                  isOwn,
+                })
+              }
             }
-          }
-          return next
+            return next
+          })
         })
-      })
-      .catch((err) => console.error('[useReactions] fetch failed', err))
+        .catch((err) => console.error('[useReactions] fetch failed', err))
+    }
+
+    fetchReactions()
+
+    const intervalId = setInterval(fetchReactions, 2000)
+    return () => clearInterval(intervalId)
   }, [sessionId, currentUserId])
 
   // -----------------------------------------------------------------------
@@ -218,11 +225,13 @@ export function useReactions(
 
   const ingest = useCallback(
     (reaction: Reaction) => {
+      console.log('[useReactions] Ingesting reaction broadcast:', reaction, 'CurrentUserId:', currentUserId)
       const key = `${reaction.message_id}:${reaction.emoji}`
       const isOwn = reaction.author_id === currentUserId
 
       // Dedupe: if this is an echo of our own optimistic apply, skip it
       if (isOwn && ownPendingRef.current.has(key)) {
+        console.log('[useReactions] Deduplicating local echo for:', key)
         // We already counted it optimistically — remove from pending so future
         // ingests for the same key are not skipped
         ownPendingRef.current.delete(key)
@@ -263,8 +272,8 @@ export function useReactions(
 
   const postReaction = useCallback(
     async (messageId: string, emoji: string): Promise<boolean> => {
-      // D-10: Optimistic UI — badge appears before server confirmation
-      applyOptimistic(messageId, emoji)
+      // Note: applyOptimistic is already called by the caller (QuickReactionPopover onOptimisticReaction)
+      // to render the UI badge instantly. Do not call it again here to avoid double-counting.
 
       try {
         const response = await apiFetch<{ id: string; triggersAI: boolean }>(

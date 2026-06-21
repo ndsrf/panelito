@@ -98,7 +98,7 @@ export async function maybeAutoName(
 
   // Broadcast the title change to all clients
   supabase
-    .channel(`session:${sessionId}`)
+    .channel(`session-status:${sessionId}`)
     .httpSend('session_status_change', { title, status: 'active' })
     .catch((err: unknown) => console.error('[auto-name] broadcast error:', err))
 }

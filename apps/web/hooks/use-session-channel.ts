@@ -44,6 +44,7 @@ export function useSessionChannel(
         }
       })
       .on('broadcast', { event: 'new_reaction' }, ({ payload }) => {
+        console.log('[useSessionChannel] Received new_reaction broadcast:', payload)
         if (payload && onReactionRef.current) {
           onReactionRef.current(payload as Reaction)
         }

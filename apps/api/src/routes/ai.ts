@@ -238,6 +238,11 @@ aiRouter.post('/:id/invoke', async (c) => {
               event: 'panel_update',
               data: JSON.stringify(parsed.data),
             })
+            // Broadcast the panel update to all session participants in real-time
+            supabase
+              .channel(`session:${sessionId}`)
+              .httpSend('panel_update', parsed.data)
+              .catch((err) => console.error('[ai] panel_update broadcast failed', err))
           } else {
             // Drop the malformed payload — do not crash, do not write SSE
             console.error('[render_panel] schema validation failed', parsed.error.flatten())
