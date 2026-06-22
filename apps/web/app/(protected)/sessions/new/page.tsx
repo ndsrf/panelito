@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
 import { NewSessionForm } from './new-session-form'
 
@@ -11,7 +12,8 @@ import { NewSessionForm } from './new-session-form'
  * D-06: No AI response cap field on this form (cap is global in /settings).
  */
 export default async function NewSessionPage() {
-  await requireUser()
+  const user = await requireUser()
+  if (user.is_anonymous) redirect('/')
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center p-6">

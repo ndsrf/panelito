@@ -54,9 +54,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Landing page (/) is public — authenticated users land at /sessions instead.
+  // Landing page (/) is public — authenticated creators land at /sessions instead.
+  // Anonymous users (guests) stay on the landing page; they have no session list.
   if (pathname === "/") {
-    if (user) {
+    if (user && !user.is_anonymous) {
       return NextResponse.redirect(new URL("/sessions", request.url));
     }
     return response;

@@ -131,10 +131,13 @@ export function Workspace({
 
   // Map AI stream error states to user-visible messages (shown briefly below the input)
   const aiErrorMessage =
-    aiStatus === 'no_api_key' ? 'Conecta tu API key de Anthropic en Configuración para activar el Analista.' :
-    aiStatus === 'no_persona' ? 'El Analista está desactivado. Actívalo en los controles de sesión.' :
-    aiStatus === 'error' ? 'El Analista no pudo responder. Verifica tu conexión e inténtalo de nuevo.' :
-    null
+    aiStatus === 'no_api_key'
+      ? (isCreator
+          ? 'Conecta tu API key en Configuración para activar el Analista.'
+          : 'El Analista no está disponible en este momento.')
+      : aiStatus === 'no_persona' ? 'El Analista está desactivado. Actívalo en los controles de sesión.' :
+      aiStatus === 'error' ? 'El Analista no pudo responder. Verifica tu conexión e inténtalo de nuevo.' :
+      null
 
   // Build an ephemeral streaming AI message object for the bubble (D-02).
   // While localAIStreaming is true, this ephemeral bubble renders below the message list.

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Plus, Users, MessageSquare, Clock, LogOut } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase/server'
@@ -53,7 +54,8 @@ export default async function SessionsPage({
 }: {
   searchParams: Promise<{ page?: string }>
 }) {
-  await requireUser()
+  const user = await requireUser()
+  if (user.is_anonymous) redirect('/')
 
   const { page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
