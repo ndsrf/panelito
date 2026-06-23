@@ -95,6 +95,7 @@ aiRouter.post('/:id/invoke', async (c) => {
   const body = await c.req.json().catch(() => ({})) as {
     userMessage?: string
     anyoneTyping?: boolean
+    branchId?: string
   }
 
   // D-17: Return 429 typing_hold BEFORE any AI call when a human is typing
@@ -104,6 +105,28 @@ aiRouter.post('/:id/invoke', async (c) => {
   }
 
   const userMessage = body.userMessage ?? ''
+
+  // Resolve branch and ancestor paths for branch isolation
+  let activeBranchId = body.branchId || null
+  let activePathId = 'main'
+  let ancestorPaths = ['main']
+
+  if (activeBranchId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeBranchId)
+    if (isUuid) {
+      const { data: branch } = await supabase
+        .from('branches')
+        .select('id, path_id')
+        .eq('id', activeBranchId)
+        .eq('session_id', sessionId)
+        .single()
+      if (branch) {
+        activePathId = branch.path_id
+        const pathSegments = branch.path_id.split('.')
+        ancestorPaths = pathSegments.map((_: string, i: number) => pathSegments.slice(0, i + 1).join('.'))
+      }
+    }
+  }
 
   // -------------------------------------------------------------------------
   // 4. Resolve active persona system prompt (PERSONA-02 server-side gate)
@@ -165,7 +188,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     .from('messages')
     .select('role, content')
     .eq('session_id', sessionId)
-    .eq('path_id', 'main')  // AI-06 / T-02-08: branch isolation
+    .in('path_id', ancestorPaths)  // AI-06 / T-02-08: branch isolation
     .order('created_at', { ascending: false })
     .limit(8)
 
@@ -179,7 +202,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     .from('messages')
     .select('role, content')
     .eq('session_id', sessionId)
-    .eq('path_id', 'main')
+    .in('path_id', ancestorPaths)
     .order('created_at', { ascending: false })
     .range(8, 58)  // up to 50 older messages to compress
 
@@ -275,7 +298,8 @@ aiRouter.post('/:id/invoke', async (c) => {
             author_id: session.creator_id, // AI rows attributed to session creator
             display_name: 'Analista Científico',
             parent_id: null,
-            path_id: 'main',
+            path_id: activePathId,
+            branch_id: activeBranchId,
             role: 'assistant',
             content: accumulatedText,
             canvas_snapshot_state: lastPanelUpdate ?? null,

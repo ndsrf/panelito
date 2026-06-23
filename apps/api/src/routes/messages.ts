@@ -28,6 +28,7 @@ const PostMessageBodySchema = z.object({
   display_name: z.string().min(1).max(60).optional(),
   parent_id: z.string().uuid().nullable().optional(),
   path_id: z.string().optional().default('main'),
+  branch_id: z.string().uuid().nullable().optional(),
 })
 
 const messagesRouter = new Hono<{ Variables: AuthVariables }>()
@@ -95,6 +96,22 @@ messagesRouter.post('/', messageRateLimit, async (c) => {
     displayName = metadataName || (user.email?.split('@')[0] ?? 'Creador')
   }
 
+  // Resolve branch_id and path_id consistency
+  let pathId = body.path_id || 'main'
+  let branchId = body.branch_id || null
+  if (body.branch_id) {
+    const { data: branch } = await supabase
+      .from('branches')
+      .select('id, path_id')
+      .eq('id', body.branch_id)
+      .eq('session_id', sessionId)
+      .single()
+    if (branch) {
+      pathId = branch.path_id
+      branchId = branch.id
+    }
+  }
+
   // Insert the message via service-role client (bypasses RLS — we already verified status above)
   const { data: row, error: insertError } = await supabase
     .from('messages')
@@ -103,7 +120,8 @@ messagesRouter.post('/', messageRateLimit, async (c) => {
       author_id: user.id,
       display_name: displayName,
       parent_id: body.parent_id ?? null,
-      path_id: body.path_id ?? 'main',
+      path_id: pathId,
+      branch_id: branchId,
       content: body.content,
       canvas_snapshot_state: null,
     })
@@ -152,14 +170,36 @@ messagesRouter.get('/', async (c) => {
     return c.json({ error: 'not_found', message: 'Session not found or access denied.' }, 404)
   }
 
-  // Fetch messages — only main branch, ordered ASC, last 200
+  // Fetch messages in the active branch ancestry, ordered ASC, last 200
+  const branchId = c.req.query('branchId')
+  let ancestorPaths = ['main']
+
+  if (branchId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(branchId)
+    if (isUuid) {
+      const { data: branch } = await supabase
+        .from('branches')
+        .select('path_id')
+        .eq('id', branchId)
+        .eq('session_id', sessionId)
+        .single()
+
+      if (branch) {
+        const pathSegments = branch.path_id.split('.')
+        ancestorPaths = pathSegments.map((_: string, i: number) => pathSegments.slice(0, i + 1).join('.'))
+      }
+    } else if (branchId === 'main') {
+      ancestorPaths = ['main']
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _userId = user.id // accessed for RLS validation; removed from actual query
   const { data: messages, error: fetchError } = await supabase
     .from('messages')
     .select('*')
     .eq('session_id', sessionId)
-    .eq('path_id', 'main')
+    .in('path_id', ancestorPaths)
     .order('created_at', { ascending: true })
     .limit(200)
 

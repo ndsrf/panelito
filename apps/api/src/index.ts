@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { env } from "./lib/env";
 import sessionsRouter from "./routes/sessions";
 import messagesRouter from "./routes/messages";
+import branchesRouter from "./routes/branches";
 import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
@@ -66,6 +67,7 @@ app.use("/sessions/:id/*", async (c, next) => {
 // -------------------------------------------------------
 app.route("/sessions", sessionsRouter);
 app.route("/sessions/:id/messages", messagesRouter);
+app.route("/sessions/:id/branches", branchesRouter);
 app.route("/keys", keysRouter);
 app.route("/settings", settingsRouter);
 app.route("/sessions", aiRouter); // aiRouter has internal /:id/invoke
