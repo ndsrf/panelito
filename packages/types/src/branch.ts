@@ -8,21 +8,25 @@ import { z } from "zod";
 
 export const BranchSchema = z.object({
   id: z.string(),
-  label: z.string(),
-  color_hex: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  session_id: z.string().uuid().optional(),
+  parent_id: z.string().uuid().nullable().optional(),
   path_id: z.string(),
+  label: z.string(),
+  color: z.string(),
+  fork_message_id: z.string().uuid().nullable().optional(),
+  is_archived: z.boolean().optional(),
+  created_at: z.string().optional(),
 });
 
 export type Branch = z.infer<typeof BranchSchema>;
 
 /**
- * MAIN_BRANCH — the single static branch in Phase 1.
- * The Branch Navigator renders this constant directly so it works
- * without any DB read in Phase 1.
+ * MAIN_BRANCH — the default main branch
  */
 export const MAIN_BRANCH: Branch = {
   id: "main",
-  label: "Main",
-  color_hex: "#6366f1",
+  label: "Principal",
+  color: "#6366f1",
   path_id: "main",
+  is_archived: false,
 };
