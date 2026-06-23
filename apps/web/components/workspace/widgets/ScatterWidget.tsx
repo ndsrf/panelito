@@ -12,6 +12,7 @@
  * - No Legend
  */
 
+import { useState, useEffect } from 'react'
 import {
   ScatterChart,
   Scatter,
@@ -31,8 +32,8 @@ function renderTooltip(props: TooltipContentProps) {
   const point = payload[0]?.payload as { x: number; y: number; concept: string } | undefined
   if (!point) return null
   return (
-    <div className="bg-card border border-border rounded-md p-2 text-[15px] text-foreground max-w-[200px]">
-      <div className="text-[13px] text-muted-foreground mb-1 truncate">{point.concept}</div>
+    <div className="bg-card border border-border rounded-md p-2 text-[15px] text-foreground max-w-[280px]">
+      <div className="text-[13px] text-muted-foreground mb-1 break-words">{point.concept}</div>
       <div>
         <span className="text-muted-foreground">Consenso:</span> {point.x}
         {' | '}
@@ -44,51 +45,66 @@ function renderTooltip(props: TooltipContentProps) {
 
 interface ScatterWidgetProps {
   data: Extract<PanelWidget, { widget_type: 'scatter' }>
+  isFullscreen?: boolean
 }
 
 export function ScatterWidget({ data }: ScatterWidgetProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
   const chartData = data.points.map((p) => ({
     x: p.consensus,
     y: p.impact,
     concept: p.concept,
   }))
 
+  if (!mounted) {
+    return <div className="w-full h-full min-h-0" />
+  }
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ScatterChart margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
-        <CartesianGrid stroke="rgba(63,63,70,0.4)" strokeDasharray="3 3" />
-        <XAxis
-          dataKey="x"
-          type="number"
-          domain={[0, 100]}
-          name="Consenso"
-          label={{
-            value: 'Consenso',
-            position: 'insideBottom',
-            offset: -10,
-            fontSize: 11,
-            fill: '#a1a1aa',
-          }}
-          tick={{ fontSize: 11, fill: '#a1a1aa' }}
-        />
-        <YAxis
-          dataKey="y"
-          type="number"
-          domain={[0, 100]}
-          name="Impacto"
-          label={{
-            value: 'Impacto',
-            angle: -90,
-            position: 'insideLeft',
-            offset: 10,
-            fontSize: 11,
-            fill: '#a1a1aa',
-          }}
-          tick={{ fontSize: 11, fill: '#a1a1aa' }}
-        />
-        <Scatter data={chartData} fill="#6366f1" />
-        <Tooltip content={renderTooltip} cursor={{ strokeDasharray: '3 3' }} />
-      </ScatterChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full min-h-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ScatterChart margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
+          <CartesianGrid stroke="rgba(63,63,70,0.4)" strokeDasharray="3 3" />
+          <XAxis
+            dataKey="x"
+            type="number"
+            domain={[0, 100]}
+            name="Consenso"
+            label={{
+              value: 'Consenso',
+              position: 'insideBottom',
+              offset: -10,
+              fontSize: 11,
+              fill: '#a1a1aa',
+            }}
+            tick={{ fontSize: 11, fill: '#a1a1aa' }}
+          />
+          <YAxis
+            dataKey="y"
+            type="number"
+            domain={[0, 100]}
+            name="Impacto"
+            label={{
+              value: 'Impacto',
+              angle: -90,
+              position: 'insideLeft',
+              offset: 10,
+              fontSize: 11,
+              fill: '#a1a1aa',
+            }}
+            tick={{ fontSize: 11, fill: '#a1a1aa' }}
+          />
+          <Scatter data={chartData} fill="#6366f1" />
+          <Tooltip content={renderTooltip} cursor={{ strokeDasharray: '3 3' }} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

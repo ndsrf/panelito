@@ -17,14 +17,16 @@ const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 
 interface MapWidgetProps {
   data: Extract<PanelWidget, { widget_type: 'map' }>
+  isFullscreen?: boolean
 }
 
-export function MapWidget({ data }: MapWidgetProps) {
+export function MapWidget({ data, isFullscreen }: MapWidgetProps) {
   const highlighted = new Map(data.countries.map((c) => [c.code.toUpperCase(), c]))
   const highlightColor = data.highlight_color ?? '#6366f1'
 
-  const legendItems = data.countries.slice(0, 10)
-  const overflow = data.countries.length - 10
+  const maxLegend = isFullscreen ? 30 : 10
+  const legendItems = data.countries.slice(0, maxLegend)
+  const overflow = data.countries.length - maxLegend
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">

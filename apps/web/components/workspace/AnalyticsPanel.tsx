@@ -18,7 +18,8 @@
  *   b) hasApiKey=true  → branded empty state with tagline (D-07b / D-08)
  */
 
-import { Component, type ReactNode } from 'react'
+import { Component, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { AlertTriangle, ChevronLeft, KeyRound } from 'lucide-react'
@@ -143,8 +144,33 @@ function StateKeySet(): ReactNode {
  * can wrap it without needing to call hooks itself.
  */
 function WidgetZone({ hasApiKey, isStreaming, isCreator }: { hasApiKey: boolean; isStreaming: boolean; isCreator?: boolean }) {
-  const { widgetType, widgetData, branchId } = usePanelStore()
+  const { widgetType, widgetData, branchId, fullscreenWidget, setFullscreenWidget } = usePanelStore()
   const WidgetComponent = widgetType ? widgetRegistry.get(widgetType) : null
+  const lastClickRef = useRef(0)
+  const overlayClickRef = useRef(0)
+
+  const handleRootWidgetClick = (e: React.MouseEvent) => {
+    if (widgetType !== 'layout' && widgetData) {
+      const now = Date.now()
+      if (now - lastClickRef.current < 300) {
+        console.log('[AnalyticsPanel] Manual double click captured on root widget:', widgetData)
+        e.stopPropagation()
+        setFullscreenWidget(widgetData)
+      } else {
+        lastClickRef.current = now
+      }
+    }
+  }
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    const now = Date.now()
+    if (now - overlayClickRef.current < 300) {
+      console.log('[AnalyticsPanel] Manual double click captured on overlay background to close')
+      setFullscreenWidget(null)
+    } else {
+      overlayClickRef.current = now
+    }
+  }
 
   return (
     <div className="analytics-panel bg-card flex flex-col border-b border-border">
@@ -203,7 +229,9 @@ function WidgetZone({ hasApiKey, isStreaming, isCreator }: { hasApiKey: boolean;
               animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
               exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
               transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="h-full"
+              className="h-full cursor-zoom-in"
+              onClickCapture={handleRootWidgetClick}
+              title="Doble clic para pantalla completa"
             >
               <WidgetComponent data={widgetData} />
             </motion.div>
@@ -221,6 +249,51 @@ function WidgetZone({ hasApiKey, isStreaming, isCreator }: { hasApiKey: boolean;
           )}
         </AnimatePresence>
       </div>
+
+      {/* Fullscreen Overlay */}
+      {fullscreenWidget && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] bg-background/95 backdrop-blur-md flex flex-col p-6 md:p-12 animate-in fade-in zoom-in-95 duration-200 cursor-zoom-out"
+          onClickCapture={handleOverlayClick}
+        >
+          {/* Top control bar */}
+          <div className="flex items-center justify-between mb-6 shrink-0" onDoubleClick={(e) => e.stopPropagation()}>
+            <span className="text-[13px] sm:text-[15px] font-medium text-zinc-400 capitalize bg-muted border border-border px-2.5 py-1 rounded-md">
+              {fullscreenWidget.widget_type} Vista Completa
+            </span>
+            <button
+              onClick={() => setFullscreenWidget(null)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[14px] font-medium text-muted-foreground hover:text-foreground bg-muted border border-border hover:border-zinc-500 rounded-md transition-all cursor-pointer"
+              aria-label="Cerrar vista de pantalla completa"
+            >
+              <span className="hidden sm:inline">Cerrar</span>
+              <span className="text-lg leading-none">✕</span>
+            </button>
+          </div>
+
+          {/* Large widget render zone */}
+          <div
+            className="flex-1 min-h-0 w-full overflow-hidden bg-card border border-border rounded-xl p-6 md:p-8 flex flex-col"
+            onClickCapture={(e) => {
+              e.stopPropagation()
+              const now = Date.now()
+              if (now - overlayClickRef.current < 300) {
+                console.log('[AnalyticsPanel] Manual double click captured on inner widget container to close')
+                setFullscreenWidget(null)
+              } else {
+                overlayClickRef.current = now
+              }
+            }}
+          >
+            {(() => {
+              const FullscreenComp = widgetRegistry.get(fullscreenWidget.widget_type)
+              if (!FullscreenComp) return null
+              return <FullscreenComp data={fullscreenWidget} isFullscreen={true} />
+            })()}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Accessibility: sr-only status for streaming state */}
       {isStreaming && (

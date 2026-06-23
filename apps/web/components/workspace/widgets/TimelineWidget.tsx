@@ -13,9 +13,10 @@ import type { PanelWidget } from '@panelito/types'
 
 interface TimelineWidgetProps {
   data: Extract<PanelWidget, { widget_type: 'timeline' }>
+  isFullscreen?: boolean
 }
 
-export function TimelineWidget({ data }: TimelineWidgetProps) {
+export function TimelineWidget({ data, isFullscreen }: TimelineWidgetProps) {
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {data.title && (
@@ -29,7 +30,7 @@ export function TimelineWidget({ data }: TimelineWidgetProps) {
           {data.events.map((event, index) => (
             <div key={index} className="flex items-start">
               {/* Event node */}
-              <div className="flex flex-col items-center w-36">
+              <div className={`flex flex-col items-center ${isFullscreen ? 'w-56 px-2' : 'w-36'}`}>
                 {/* Date label */}
                 <span className="text-[11px] text-zinc-400 mb-1.5 text-center leading-tight">
                   {event.date}

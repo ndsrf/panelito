@@ -22,6 +22,7 @@ interface PanelStoreState {
   widgetData: PanelWidget | null
   branchId: string
   snapshotState: PanelWidget | null
+  fullscreenWidget: PanelWidget | null
 
   /**
    * setWidget — update active widget from a schema-validated PanelWidget.
@@ -46,6 +47,11 @@ interface PanelStoreState {
    * If snapshot is null (branch has no AI history), clears the widget display.
    */
   hydrateFromSnapshot: (snapshot: PanelWidget | null) => void
+
+  /**
+   * setFullscreenWidget — set or clear the widget currently displayed in fullscreen mode.
+   */
+  setFullscreenWidget: (widget: PanelWidget | null) => void
 }
 
 export const usePanelStore = create<PanelStoreState>((set) => ({
@@ -53,6 +59,7 @@ export const usePanelStore = create<PanelStoreState>((set) => ({
   widgetData: null,
   branchId: 'main',
   snapshotState: null,
+  fullscreenWidget: null,
 
   setWidget: (widget) =>
     set({
@@ -62,7 +69,7 @@ export const usePanelStore = create<PanelStoreState>((set) => ({
     }),
 
   clearWidget: () =>
-    set({ widgetType: null, widgetData: null }),
+    set({ widgetType: null, widgetData: null, fullscreenWidget: null }),
 
   setBranchId: (branchId) => set({ branchId }),
 
@@ -72,5 +79,8 @@ export const usePanelStore = create<PanelStoreState>((set) => ({
     set({
       widgetType: snapshot?.widget_type ?? null,
       widgetData: snapshot,
+      fullscreenWidget: null,
     }),
+
+  setFullscreenWidget: (fullscreenWidget) => set({ fullscreenWidget }),
 }))

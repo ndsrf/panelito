@@ -29,7 +29,7 @@ import { MapWidget } from './MapWidget'
  * Each concrete component accepts a narrowed PanelWidget variant but is cast
  * to this type for uniform registry access.
  */
-export type WidgetComponent = ComponentType<{ data: PanelWidget }>
+export type WidgetComponent = ComponentType<{ data: PanelWidget; isFullscreen?: boolean }>
 
 /**
  * widgetRegistry — Map from widget_type to its renderer component.

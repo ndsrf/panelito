@@ -11,6 +11,7 @@
  * - Custom Tooltip typed with TooltipContentProps (Recharts 3.x): "[label]: X%"
  */
 
+import { useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts'
 import type { TooltipContentProps } from 'recharts'
 import type { PanelWidget } from '@panelito/types'
@@ -33,37 +34,53 @@ function renderTooltip(props: TooltipContentProps) {
 
 interface PieWidgetProps {
   data: Extract<PanelWidget, { widget_type: 'pie' }>
+  isFullscreen?: boolean
 }
 
-export function PieWidget({ data }: PieWidgetProps) {
+export function PieWidget({ data, isFullscreen }: PieWidgetProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
   const total = data.segments.reduce((acc, s) => acc + s.value, 0)
 
   // Inject totalSum into each entry so the tooltip can calculate percentage
+  const maxSegments = isFullscreen ? 12 : 6
   const chartData = data.segments
-    .slice(0, 6)
+    .slice(0, maxSegments)
     .map((s) => ({ name: s.label, value: s.value, totalSum: total }))
 
+  if (!mounted) {
+    return <div className="w-full h-full min-h-0" />
+  }
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          innerRadius="40%"
-          outerRadius="70%"
-          paddingAngle={3}
-          stroke="#09090b"
-          strokeWidth={2}
-        >
-          {chartData.map((_entry, index) => (
-            <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
-          ))}
-        </Pie>
-        <Tooltip content={renderTooltip} />
-        <Legend
-          wrapperStyle={{ fontSize: 13, color: '#a1a1aa', paddingTop: 8 }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full min-h-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <PieChart>
+          <Pie
+            data={chartData}
+            dataKey="value"
+            innerRadius="40%"
+            outerRadius="70%"
+            paddingAngle={3}
+            stroke="#09090b"
+            strokeWidth={2}
+          >
+            {chartData.map((_entry, index) => (
+              <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
+            ))}
+          </Pie>
+          <Tooltip content={renderTooltip} />
+          <Legend
+            wrapperStyle={{ fontSize: 13, color: '#a1a1aa', paddingTop: 8 }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
