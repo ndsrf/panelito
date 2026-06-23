@@ -60,10 +60,11 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 | 260618-guest-join-auth-fix | Fixed guest join flow (redirect to sign-in) and guest display names | 2026-06-18 | - | [260618-guest-join-auth-fix](./quick/20260618-guest-join-auth-fix/) |
 | 260618-scroll-fix | Fixed chat panel scrolling and added auto-scroll functionality | 2026-06-18 | - | [260618-scroll-fix-fixed-chat-panel-scrolling](./quick/20260618-scroll-fix/) |
 | 260613-cnb | I cannot see the QR share functionality that in theory was added at phase 1 - wave 2 | 2026-06-13 | 6a19fb1 | [260613-cnb-i-cannot-see-the-qr-share-functionality-](./quick/260613-cnb-i-cannot-see-the-qr-share-functionality-/) |
+| 260624-09x | long press to show the fork menu does not work on mobile - when I long press I select the text, which is not right. I think we need to use another mechanism. | 2026-06-23 | 33c07bd | [260624-09x-long-press-to-show-the-fork-menu-does-no](./quick/260624-09x-long-press-to-show-the-fork-menu-does-no/) |
 
 ---
 *State initialized: 2026-06-08 · Phase 1 completed: 2026-06-13*
-Last activity: 2026-06-21
+Last activity: 2026-06-23 - Completed quick task 260624-09x: long press fork menu mobile fix
 
 ## Session
 
