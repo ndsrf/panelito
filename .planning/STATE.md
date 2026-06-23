@@ -62,10 +62,11 @@ See: .planning/PROJECT.md (updated 2026-06-08)
 | 260613-cnb | I cannot see the QR share functionality that in theory was added at phase 1 - wave 2 | 2026-06-13 | 6a19fb1 | [260613-cnb-i-cannot-see-the-qr-share-functionality-](./quick/260613-cnb-i-cannot-see-the-qr-share-functionality-/) |
 | 260624-09x | long press to show the fork menu does not work on mobile - when I long press I select the text, which is not right. I think we need to use another mechanism. | 2026-06-23 | 33c07bd | [260624-09x-long-press-to-show-the-fork-menu-does-no](./quick/260624-09x-long-press-to-show-the-fork-menu-does-no/) |
 | 260624-1av | The panel needs to be responsive to use as much space as possible, for example, for the Cards. I would also like to be able to show more than 1 graph if possible and there is space, for example a bar chart and 2 cards. | 2026-06-23 | fba944e | [260624-1av-the-panel-needs-to-be-responsive-to-use-](./quick/260624-1av-the-panel-needs-to-be-responsive-to-use-/) |
+| 260624-1pn | please also add a map chart and a timeline chart so we can show historical things in a map and also with a timeline. Add a line chart so we can show things in a line (like time). | 2026-06-23 | 91975ad | [260624-1pn-please-also-add-a-map-chart-and-a-timeli](./quick/260624-1pn-please-also-add-a-map-chart-and-a-timeli/) |
 
 ---
 *State initialized: 2026-06-08 · Phase 1 completed: 2026-06-13*
-Last activity: 2026-06-24 - Completed quick task 260624-1av: responsive panel with bar chart and multi-widget layout
+Last activity: 2026-06-24 - Completed quick task 260624-1pn: line chart, timeline, and map chart widgets
 
 ## Session
 
