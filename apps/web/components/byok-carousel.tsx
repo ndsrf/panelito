@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Lock, Database, Network } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function EncryptionDiagram() {
   return (
@@ -110,8 +110,8 @@ export function BYOKCarousel() {
     { id: 'encryption', title: 'Datos encriptados', component: EncryptionDiagram },
   ]
 
-  const next = useCallback(() => setCurrent(c => (c + 1) % slides.length), [])
-  const prev = useCallback(() => setCurrent(c => (c - 1 + slides.length) % slides.length), [])
+  const next = useCallback(() => setCurrent(c => (c + 1) % slides.length), [slides.length])
+  const prev = useCallback(() => setCurrent(c => (c - 1 + slides.length) % slides.length), [slides.length])
 
   useEffect(() => {
     const id = setInterval(next, 4000)

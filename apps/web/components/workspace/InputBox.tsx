@@ -89,8 +89,6 @@ export function InputBox({
   const status = liveSession?.status ?? sessionStatus
 
   const activeBranchId = useSessionStore((s) => s.activeBranchId)
-  const branches = useSessionStore((s) => s.branches)
-  const activeBranch = branches.find((b) => b.id === activeBranchId)
 
   const isReadOnly = status !== 'active'
   const isFrozen = status === 'frozen'

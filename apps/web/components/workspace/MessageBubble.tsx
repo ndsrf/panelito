@@ -277,7 +277,6 @@ export function MessageBubble({
       {/* LAYOUT-06: Quick reaction popover (double-tap) — Phase 2 wires posting */}
       <QuickReactionPopover
         messageId={message.id}
-        sessionId={sessionId}
         open={reactionOpen}
         onOpenChange={setReactionOpen}
         onOptimisticReaction={onOptimisticReaction}

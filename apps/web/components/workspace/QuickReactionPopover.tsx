@@ -25,8 +25,6 @@ const REACTION_EMOJIS = ['🧠', '🔥', '📌', '🎯'] as const
 
 interface QuickReactionPopoverProps {
   messageId: string
-  /** Phase 2: session identifier for the reaction POST URL */
-  sessionId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Phase 2: called immediately when an emoji is tapped (D-10 optimistic) */
@@ -47,7 +45,6 @@ interface QuickReactionPopoverProps {
  */
 export function QuickReactionPopover({
   messageId,
-  sessionId: _sessionId,
   open,
   onOpenChange,
   onOptimisticReaction,

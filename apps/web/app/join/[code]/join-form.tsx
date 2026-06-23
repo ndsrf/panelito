@@ -18,7 +18,6 @@ const DisplayNameSchema = z.object({
 type DisplayNameInput = z.infer<typeof DisplayNameSchema>
 
 interface JoinFormProps {
-  sessionId: string
   shortCode: string
   sessionStatus: 'active' | 'frozen' | 'closed'
 }
@@ -32,7 +31,7 @@ interface JoinFormProps {
  * D-02: No interstitial — direct router.push to workspace on submit.
  * D-03: Frozen/closed sessions show a note but still allow join (read-only in workspace).
  */
-export function JoinForm({ sessionId, shortCode, sessionStatus }: JoinFormProps) {
+export function JoinForm({ shortCode, sessionStatus }: JoinFormProps) {
   const router = useRouter()
   const [isCheckingSaved, setIsCheckingSaved] = useState(true)
   const [serverError, setServerError] = useState<string | null>(null)

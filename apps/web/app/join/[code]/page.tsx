@@ -87,7 +87,6 @@ export default async function JoinPage({
 
         {/* Join form (client component) */}
         <JoinForm
-          sessionId={session.id}
           shortCode={code}
           sessionStatus={session.status}
         />

@@ -3,7 +3,7 @@ import { requireUser, getUser } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase/server'
 import { apiFetch } from '@/lib/api'
 import { getCreatorSettings } from '@/lib/creator-settings'
-import type { Session } from '@panelito/types'
+import type { Session, Branch } from '@panelito/types'
 import { Workspace } from './workspace'
 
 /**
@@ -65,9 +65,9 @@ export default async function WorkspacePage({
     user?.email?.split('@')[0] ||
     'User'
 
-  let branches: any[] = []
+  let branches: Branch[] = []
   try {
-    branches = await apiFetch<any[]>(`/api/sessions/${id}/branches`, {}, accessToken)
+    branches = await apiFetch<Branch[]>(`/api/sessions/${id}/branches`, {}, accessToken)
   } catch (err) {
     console.error('Failed to fetch branches:', err)
   }
