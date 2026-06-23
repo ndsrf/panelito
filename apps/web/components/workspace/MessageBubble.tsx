@@ -178,7 +178,7 @@ export function MessageBubble({
           {isAI ? (
             /* AI bubble content: card background + 2px Indigo left border + wider max-width (UI-SPEC Surface 2) */
             <div
-              className="rounded-lg rounded-tl-none p-3 pr-3 text-[15px] text-foreground leading-relaxed max-w-[90%] break-words cursor-pointer select-text bg-card pl-4"
+              className="rounded-lg rounded-tl-none p-3 pr-3 text-[15px] text-foreground leading-relaxed max-w-[90%] break-words cursor-pointer select-none bubble-pressable bg-card pl-4"
               style={{ borderLeft: '2px solid #818cf8' }}
               {...longPressHandlers}
               {...doubleTapHandlers}
@@ -233,7 +233,7 @@ export function MessageBubble({
             /* Human bubble content */
             <div
               className={cn(
-                'rounded-lg p-3 text-[15px] text-foreground leading-relaxed max-w-[80%] break-words cursor-pointer select-text relative overflow-hidden',
+                'rounded-lg p-3 text-[15px] text-foreground leading-relaxed max-w-[80%] break-words cursor-pointer select-none bubble-pressable relative overflow-hidden',
                 isOwn ? 'bg-muted rounded-tr-none' : 'bg-card border border-border rounded-tl-none'
               )}
               {...longPressHandlers}
