@@ -47,7 +47,11 @@ const BASE_SYSTEM_PROMPT =
   'almost every question, concept, or discussion point should be accompanied by a visual panel. ' +
   'Choose the most appropriate widget type: ' +
   'bento for key concept cards, radar for multi-axis comparisons, scatter for consensus vs impact, ' +
-  'pie for proportional breakdowns.'
+  'pie for proportional breakdowns, bar for ranked comparisons or sequential values, ' +
+  'line for time-series trends, timeline for historical event sequences, map for geographic data. ' +
+  'Use layout to show 2–3 complementary widgets at once (e.g., a bar chart of top ideas + 2 bento cards). ' +
+  'Prefer layout when two different visualizations would each add value together. ' +
+  'When using layout, each item in widgets[] must be a complete sub-widget payload (bento/radar/scatter/pie/bar/line/timeline/map) with its own widget_type — do NOT use widget_type=layout inside widgets[].'
 
 // ---------------------------------------------------------------------------
 // Router
