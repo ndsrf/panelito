@@ -72,7 +72,7 @@
 
 /* Analytics panel: exactly 40% of locked height, insulated from keyboard (LAYOUT-02) */
 .analytics-panel {
-  height: calc(var(--app-height) * 0.40);
+  height: var(--analytics-panel-height, calc(var(--app-height) * 0.40));
   flex-shrink: 0;
   overflow: hidden;
 }

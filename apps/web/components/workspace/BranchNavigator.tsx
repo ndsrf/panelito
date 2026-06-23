@@ -22,13 +22,22 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
-export function BranchNavigator(): ReactNode {
+interface BranchNavigatorProps {
+  onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void
+  onResetHeight?: () => void
+}
+
+export function BranchNavigator({
+  onPointerDown,
+  onResetHeight,
+}: BranchNavigatorProps): ReactNode {
   const branches = useSessionStore((s) => s.branches)
   const activeBranchId = useSessionStore((s) => s.activeBranchId)
   const setBranchId = useSessionStore((s) => s.setBranchId)
   const typingUsers = useSessionStore((s) => s.typingUsers)
   
   const containerRef = useRef<HTMLDivElement>(null)
+  const lastTapRef = useRef<number>(0)
 
   // Ensure Principal (main) is always present in the list
   const activeBranches = branches.filter((b) => !b.is_archived)
@@ -58,13 +67,36 @@ export function BranchNavigator(): ReactNode {
     }
   }, [activeBranchId, branches])
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    if (!target.closest('button') && !target.closest('.ml-auto')) {
+      const now = Date.now()
+      if (now - lastTapRef.current < 300) {
+        onResetHeight?.()
+      }
+      lastTapRef.current = now
+    }
+  }
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    if (!target.closest('button') && !target.closest('.ml-auto')) {
+      onResetHeight?.()
+    }
+  }
+
   return (
     <div
       ref={containerRef}
+      onPointerDown={onPointerDown}
+      onDoubleClick={handleDoubleClick}
+      onTouchStart={handleTouchStart}
       className="branch-navigator flex items-center px-4 gap-2 overflow-x-auto select-none scrollbar-none h-[48px]"
       style={{
         background: `linear-gradient(90deg, ${hexToRgba(activeColor, 0.25)} 0%, #09090b 60%)`,
         transition: 'background 0.5s ease',
+        cursor: 'ns-resize',
+        touchAction: 'pan-x',
       }}
     >
       <div className="flex items-center gap-2 py-1.5 flex-shrink-0">

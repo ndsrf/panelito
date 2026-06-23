@@ -37,7 +37,7 @@
  * - Streaming dots + placeholder swap (UI-SPEC Surface 6)
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnalyticsPanel } from '@/components/workspace/AnalyticsPanel'
 import { BranchNavigator } from '@/components/workspace/BranchNavigator'
 import { ChatStream } from '@/components/workspace/ChatStream'
@@ -84,6 +84,59 @@ export function Workspace({
 }: WorkspaceProps): ReactNode {
   const router = useRouter()
   const isCreator = currentUserId === session.creator_id
+
+  const [panelHeight, setPanelHeight] = useState<number | null>(null)
+  const isDraggingRef = useRef(false)
+  const startYRef = useRef(0)
+  const startHeightRef = useRef(0)
+  const workspaceRef = useRef<HTMLDivElement>(null)
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDraggingRef.current = true
+    startYRef.current = e.clientY
+
+    const panelEl = workspaceRef.current?.querySelector('.analytics-panel')
+    if (panelEl) {
+      startHeightRef.current = panelEl.getBoundingClientRect().height
+    }
+  }
+
+  const handleResetHeight = () => {
+    setPanelHeight(null)
+  }
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current) return
+
+      const deltaY = e.clientY - startYRef.current
+      let newHeight = startHeightRef.current + deltaY
+
+      if (workspaceRef.current) {
+        const workspaceHeight = workspaceRef.current.getBoundingClientRect().height
+        const minHeight = 80
+        const maxHeight = workspaceHeight - 120
+        if (newHeight < minHeight) newHeight = minHeight
+        if (newHeight > maxHeight) newHeight = maxHeight
+      }
+
+      setPanelHeight(newHeight)
+    }
+
+    const handlePointerUp = () => {
+      isDraggingRef.current = false
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+    }
+  }, [])
 
   // Hydrate branches into Zustand store
   useEffect(() => {
@@ -169,7 +222,15 @@ export function Workspace({
   } as unknown as Message
 
   return (
-    <div className="workspace-shell relative">
+    <div
+      ref={workspaceRef}
+      className="workspace-shell relative"
+      style={
+        {
+          '--analytics-panel-height': panelHeight !== null ? `${panelHeight}px` : undefined,
+        } as React.CSSProperties
+      }
+    >
       {/* Top 40%: Analytics Panel with Error Boundary (LAYOUT-02, LAYOUT-07) */}
       <div className="relative">
         {/* isStreaming: shows "Analizando..." in panel header while AI is streaming (Plan 04) */}
@@ -188,7 +249,10 @@ export function Workspace({
       </div>
 
       {/* 48px sticky Branch Navigator divider (LAYOUT-05, CHAT-06) */}
-      <BranchNavigator />
+      <BranchNavigator
+        onPointerDown={handlePointerDown}
+        onResetHeight={handleResetHeight}
+      />
 
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}
       <div className="flex-1 relative overflow-hidden flex flex-col">
