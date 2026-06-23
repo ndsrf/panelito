@@ -96,13 +96,13 @@ export const renderPanelTool: ProviderTool = {
   description:
     'Renders a visual analytics widget in the analytics panel. ' +
     'Pass widget-specific data properties at the TOP LEVEL (not nested in a "data" field). ' +
-    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[].',
+    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[]; bar → bars[]; layout → widgets[].',
   parameters: {
     type: 'object',
     properties: {
       widget_type: {
         type: 'string',
-        enum: ['bento', 'radar', 'scatter', 'pie'],
+        enum: ['bento', 'radar', 'scatter', 'pie', 'bar', 'layout'],
         description: 'The type of widget to render',
       },
       title: {
@@ -162,6 +162,27 @@ export const renderPanelTool: ProviderTool = {
           },
           required: ['label', 'value'],
         },
+      },
+      // bar
+      bars: {
+        type: 'array',
+        description: 'Required when widget_type=bar. 2–12 labeled bars.',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', description: 'Bar label (max 60 chars)' },
+            value: { type: 'number', description: 'Numeric value' },
+          },
+          required: ['label', 'value'],
+        },
+      },
+      // layout
+      widgets: {
+        type: 'array',
+        description: 'Required when widget_type=layout. 2–3 sub-widgets displayed side by side. Each sub-widget is a full render_panel payload (bento/radar/scatter/pie/bar) without widget_type=layout (no nesting).',
+        items: { type: 'object' },
+        minItems: 2,
+        maxItems: 3,
       },
     },
     required: ['widget_type'],

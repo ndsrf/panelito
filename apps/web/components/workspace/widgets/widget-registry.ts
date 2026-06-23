@@ -18,6 +18,8 @@ import { BentoGrid } from './BentoGrid'
 import { RadarWidget } from './RadarWidget'
 import { ScatterWidget } from './ScatterWidget'
 import { PieWidget } from './PieWidget'
+import { BarWidget } from './BarWidget'
+import { LayoutWidget } from './LayoutWidget'
 
 /**
  * WidgetComponent — the common props interface for all widget renderers.
@@ -37,4 +39,6 @@ export const widgetRegistry = new Map<PanelWidget['widget_type'], WidgetComponen
   ['radar', RadarWidget as WidgetComponent],
   ['scatter', ScatterWidget as WidgetComponent],
   ['pie', PieWidget as WidgetComponent],
+  ['bar', BarWidget as WidgetComponent],
+  ['layout', LayoutWidget as WidgetComponent],
 ])
