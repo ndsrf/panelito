@@ -1,5 +1,5 @@
 ---
-status: testing
+status: complete
 phase: 02-ai-analytics
 source:
   - 02-01-SUMMARY.md
@@ -9,15 +9,12 @@ source:
   - 02-05-SUMMARY.md
   - 02-06-SUMMARY.md
 started: 2026-06-21T20:03:04Z
-updated: 2026-06-21T20:03:04Z
+updated: 2026-06-23T00:00:00Z
 ---
 
 ## Current Test
-number: 12
-name: CreatorControls in-session Persona management drawer
-expected: |
-  The session workspace renders an "Analistas" button in CreatorControls. On desktop, this opens a right-side Sheet containing a switch. On mobile, it shows the persona switch inline in the bottom sheet. Toggling the Switch off stops AI responses (409 no_active_persona). An API failure optimistically reverts the switch and shows a toast.
-awaiting: user response
+
+[testing complete]
 
 ## Tests
 
