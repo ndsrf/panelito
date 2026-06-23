@@ -31,6 +31,26 @@ const BarItemSchema = z.object({
   value: z.number(),
 })
 
+
+// line, timeline, map sub-schemas
+const LinePointSchema = z.object({
+  x: z.string().max(60),
+  y: z.number(),
+})
+
+const TimelineEventSchema = z.object({
+  date: z.string().max(40),
+  label: z.string().max(120),
+  description: z.string().max(240).optional(),
+})
+
+const MapCountrySchema = z.object({
+  code: z.string().length(2),
+  label: z.string().max(80),
+  value: z.number().optional(),
+})
+
+
 // -----------------------------------------------------------------------
 // BasePanelWidgetSchema — all variants except layout (no self-reference)
 // Used as the type for nested widgets inside the layout variant.
@@ -63,6 +83,22 @@ export const BasePanelWidgetSchema = z.discriminatedUnion('widget_type', [
     widget_type: z.literal('bar'),
     title: z.string().optional(),
     bars: z.array(BarItemSchema).min(2).max(12),
+  }),
+  z.object({
+    widget_type: z.literal('line'),
+    title: z.string().optional(),
+    line_points: z.array(LinePointSchema).min(2).max(50),
+  }),
+  z.object({
+    widget_type: z.literal('timeline'),
+    title: z.string().optional(),
+    events: z.array(TimelineEventSchema).min(1).max(20),
+  }),
+  z.object({
+    widget_type: z.literal('map'),
+    title: z.string().optional(),
+    countries: z.array(MapCountrySchema).min(1).max(50),
+    highlight_color: z.string().optional(),
   }),
 ])
 

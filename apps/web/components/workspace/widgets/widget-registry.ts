@@ -20,6 +20,9 @@ import { ScatterWidget } from './ScatterWidget'
 import { PieWidget } from './PieWidget'
 import { BarWidget } from './BarWidget'
 import { LayoutWidget } from './LayoutWidget'
+import { LineWidget } from './LineWidget'
+import { TimelineWidget } from './TimelineWidget'
+import { MapWidget } from './MapWidget'
 
 /**
  * WidgetComponent — the common props interface for all widget renderers.
@@ -41,4 +44,7 @@ export const widgetRegistry = new Map<PanelWidget['widget_type'], WidgetComponen
   ['pie', PieWidget as WidgetComponent],
   ['bar', BarWidget as WidgetComponent],
   ['layout', LayoutWidget as WidgetComponent],
+  ['line', LineWidget as WidgetComponent],
+  ['timeline', TimelineWidget as WidgetComponent],
+  ['map', MapWidget as WidgetComponent],
 ])
