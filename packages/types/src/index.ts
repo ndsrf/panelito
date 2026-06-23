@@ -35,8 +35,8 @@ export {
 
 // Panel widget types + schemas (AI-05, PANEL-01)
 // FrontendStreamEvent renamed from AIStreamEvent to avoid clash with adapter-side AIStreamEvent
-export type { PanelWidget, FrontendStreamEvent } from "./panel";
-export { PanelWidgetSchema } from "./panel";
+export type { PanelWidget, BasePanelWidget, FrontendStreamEvent } from "./panel";
+export { PanelWidgetSchema, BasePanelWidgetSchema } from "./panel";
 
 // Provider-agnostic AI interface + types (D-01, D-02, Phase 4)
 export type {

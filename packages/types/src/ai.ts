@@ -96,13 +96,13 @@ export const renderPanelTool: ProviderTool = {
   description:
     'Renders a visual analytics widget in the analytics panel. ' +
     'Pass widget-specific data properties at the TOP LEVEL (not nested in a "data" field). ' +
-    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[].',
+    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[]; bar → bars[]; layout → widgets[]; line → line_points[]; timeline → events[]; map → countries[].',
   parameters: {
     type: 'object',
     properties: {
       widget_type: {
         type: 'string',
-        enum: ['bento', 'radar', 'scatter', 'pie'],
+        enum: ['bento', 'radar', 'scatter', 'pie', 'bar', 'layout', 'line', 'timeline', 'map'],
         description: 'The type of widget to render',
       },
       title: {
@@ -162,6 +162,73 @@ export const renderPanelTool: ProviderTool = {
           },
           required: ['label', 'value'],
         },
+      },
+      // bar
+      bars: {
+        type: 'array',
+        description: 'Required when widget_type=bar. 2–12 labeled bars.',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', description: 'Bar label (max 60 chars)' },
+            value: { type: 'number', description: 'Numeric value' },
+          },
+          required: ['label', 'value'],
+        },
+      },
+      // layout
+      widgets: {
+        type: 'array',
+        description: 'Required when widget_type=layout. 2–3 sub-widgets displayed side by side. Each sub-widget is a full render_panel payload (bento/radar/scatter/pie/bar/line/timeline/map) without widget_type=layout (no nesting).',
+        items: { type: 'object' },
+        minItems: 2,
+        maxItems: 3,
+      },
+      // line
+      line_points: {
+        type: 'array',
+        description: 'Required when widget_type=line. 2–50 data points. Each point: { x: string (label or date), y: number }.',
+        items: {
+          type: 'object',
+          properties: {
+            x: { type: 'string', description: 'Label or date string (max 60 chars)' },
+            y: { type: 'number', description: 'Numeric value' },
+          },
+          required: ['x', 'y'],
+        },
+      },
+      // timeline
+      events: {
+        type: 'array',
+        description: 'Required when widget_type=timeline. 1–20 events. Each: { date: string, label: string, description?: string }.',
+        items: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', description: 'Display date string (max 40 chars), e.g. "Jan 2024"' },
+            label: { type: 'string', description: 'Event name (max 120 chars)' },
+            description: { type: 'string', description: 'Optional detail (max 240 chars)' },
+          },
+          required: ['date', 'label'],
+        },
+      },
+      // map
+      countries: {
+        type: 'array',
+        description: 'Required when widget_type=map. 1–50 countries. Each: { code: ISO alpha-2 string (e.g. "US"), label: string, value?: number }.',
+        items: {
+          type: 'object',
+          properties: {
+            code: { type: 'string', description: 'ISO 3166-1 alpha-2 country code, e.g. "US", "BR"' },
+            label: { type: 'string', description: 'Country display name (max 80 chars)' },
+            value: { type: 'number', description: 'Optional numeric value' },
+          },
+          required: ['code', 'label'],
+        },
+      },
+      // map highlight color
+      highlight_color: {
+        type: 'string',
+        description: 'Optional hex color for map highlights (e.g. "#6366f1"). Defaults to indigo if omitted.',
       },
     },
     required: ['widget_type'],
