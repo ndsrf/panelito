@@ -83,6 +83,12 @@ export function MessageList({
   const addMessage = useSessionStore((s) => s.addMessage)
   const setMessages = useSessionStore((s) => s.setMessages)
   const setWidget = usePanelStore((s) => s.setWidget)
+  const activeBranchId = useSessionStore((s) => s.activeBranchId)
+  const branches = useSessionStore((s) => s.branches)
+
+  const activeBranch = branches.find((b) => b.id === activeBranchId)
+  const activePath = activeBranch?.path_id || 'main'
+  const activeColor = activeBranch?.color || '#6366f1'
 
   const [showEphemeral, setShowEphemeral] = useState(false)
   const knownMessageIdsRef = useRef<Set<string>>(new Set())
@@ -154,9 +160,9 @@ export function MessageList({
   // Subscribe to live messages and reactions via Supabase Realtime broadcast
   useSessionChannel(sessionId, useSessionStore.getState().addMessage, ingest)
 
-  // Load initial message history on mount
+  // Load initial message history on mount or branch change
   useEffect(() => {
-    apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
+    apiFetch<Message[]>(`/api/sessions/${sessionId}/messages?branchId=${activeBranchId}`)
       .then((msgs) => {
         setMessages(msgs)
         requestAnimationFrame(() => {
@@ -167,7 +173,7 @@ export function MessageList({
       })
       .catch((err) => console.error('[MessageList] history load failed', err))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId])
+  }, [sessionId, activeBranchId])
 
   // Automatically sync the panel to the latest snapshot in the message history when messages load or update
   useEffect(() => {
@@ -184,7 +190,7 @@ export function MessageList({
   useEffect(() => {
     const poll = async () => {
       try {
-        const msgs = await apiFetch<Message[]>(`/api/sessions/${sessionId}/messages`)
+        const msgs = await apiFetch<Message[]>(`/api/sessions/${sessionId}/messages?branchId=${activeBranchId}`)
         const knownIds = new Set(useSessionStore.getState().messages.map((m) => m.id))
         const newMsgs = msgs.filter((m) => !knownIds.has(m.id))
         if (newMsgs.length > 0) {
@@ -197,7 +203,7 @@ export function MessageList({
     const id = setInterval(poll, 2000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId])
+  }, [sessionId, activeBranchId])
 
   // CHAT-03: Auto-scroll to bottom if the flag is set.
   useEffect(() => {
@@ -264,22 +270,45 @@ export function MessageList({
             const isAI = msg.role === 'assistant'
             const hasSnapshot = isAI && msg.canvas_snapshot_state != null
             const callbacks = makeReactionCallbacks(msg.id)
-            return (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                isOwn={msg.author_id === currentUserId}
-                isAI={isAI}
-                hasSnapshot={hasSnapshot}
-                onChartRestore={hasSnapshot ? () => handleChartRestore(msg.canvas_snapshot_state) : undefined}
-                reactions={getReactionCounts(msg.id)}
-                sessionId={sessionId}
-                onOptimisticReaction={callbacks.onOptimisticReaction}
-                onRevertReaction={callbacks.onRevertReaction}
-                onPostReaction={callbacks.onPostReaction}
-                onTriggerAI={callbacks.onTriggerAI}
-              />
+
+            // D-11: dim historical parent messages (ancestors of active branch)
+            const isAncestor = msg.path_id !== activePath
+
+            const bubble = (
+              <div key={msg.id} className={isAncestor ? 'opacity-50 transition-opacity duration-300' : ''}>
+                <MessageBubble
+                  message={msg}
+                  isOwn={msg.author_id === currentUserId}
+                  isAI={isAI}
+                  hasSnapshot={hasSnapshot}
+                  onChartRestore={hasSnapshot ? () => handleChartRestore(msg.canvas_snapshot_state) : undefined}
+                  reactions={getReactionCounts(msg.id)}
+                  sessionId={sessionId}
+                  onOptimisticReaction={callbacks.onOptimisticReaction}
+                  onRevertReaction={callbacks.onRevertReaction}
+                  onPostReaction={callbacks.onPostReaction}
+                  onTriggerAI={callbacks.onTriggerAI}
+                />
+              </div>
             )
+
+            // D-10: visual separator immediately after the fork point parent message
+            if (activeBranch && activeBranch.fork_message_id === msg.id) {
+              return (
+                <div key={`wrapper-${msg.id}`}>
+                  {bubble}
+                  <div className="flex items-center justify-center my-4 px-4">
+                    <div className="flex-grow border-t" style={{ borderColor: activeColor }} />
+                    <span className="mx-4 text-xs font-semibold uppercase tracking-wider select-none" style={{ color: activeColor }}>
+                      Bifurcado aquí: {activeBranch.label}
+                    </span>
+                    <div className="flex-grow border-t" style={{ borderColor: activeColor }} />
+                  </div>
+                </div>
+              )
+            }
+
+            return bubble
           })}
 
           {/* Ephemeral streaming AI bubble (D-02): moved inside MessageList for scrolling flow */}

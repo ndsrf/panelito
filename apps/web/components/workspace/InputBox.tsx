@@ -88,6 +88,10 @@ export function InputBox({
   const liveSession = useSessionStore((s) => s.session)
   const status = liveSession?.status ?? sessionStatus
 
+  const activeBranchId = useSessionStore((s) => s.activeBranchId)
+  const branches = useSessionStore((s) => s.branches)
+  const activeBranch = branches.find((b) => b.id === activeBranchId)
+
   const isReadOnly = status !== 'active'
   const isFrozen = status === 'frozen'
   const isClosed = status === 'closed'
@@ -117,12 +121,12 @@ export function InputBox({
         body: JSON.stringify({
           content,
           display_name: resolvedDisplayName,
+          branch_id: activeBranchId === 'main' ? null : activeBranchId,
         }),
       })
       // Phase 2: notify workspace of the sent content for @analista detection
       onAfterSend?.(content)
-    }
- catch (err) {
+    } catch (err) {
       console.error('[InputBox] send failed', err)
       // Restore draft on error so user does not lose their message
       setDraft(content)
@@ -176,6 +180,17 @@ export function InputBox({
             : isClosed
               ? 'Esta sesion ha finalizado — no puedes enviar mensajes.'
               : null}
+        </div>
+      )}
+
+      {/* Active branch input indicator (D-16) */}
+      {activeBranch && activeBranchId !== 'main' && (
+        <div
+          className="flex items-center px-4 pt-1.5 pb-0.5 text-xs select-none gap-1 bg-zinc-950/20"
+          style={{ color: activeBranch.color }}
+        >
+          <span>📍 Respondiendo en:</span>
+          <span className="font-semibold">{activeBranch.label}</span>
         </div>
       )}
 

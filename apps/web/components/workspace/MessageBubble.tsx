@@ -88,6 +88,7 @@ export function MessageBubble({
 }: MessageBubbleProps): ReactNode {
   const [reactionOpen, setReactionOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
+  const [isForking, setIsForking] = useState(false)
 
   // Human avatar — only used when isAI is false
   const avatarColor = getAvatarColor(message.author_id)
@@ -229,7 +230,7 @@ export function MessageBubble({
             /* Human bubble content */
             <div
               className={cn(
-                'rounded-lg p-3 text-[15px] text-foreground leading-relaxed max-w-[80%] break-words cursor-pointer select-text',
+                'rounded-lg p-3 text-[15px] text-foreground leading-relaxed max-w-[80%] break-words cursor-pointer select-text relative overflow-hidden',
                 isOwn ? 'bg-muted rounded-tr-none' : 'bg-card border border-border rounded-tl-none'
               )}
               {...longPressHandlers}
@@ -237,6 +238,12 @@ export function MessageBubble({
               role="article"
               aria-label={`Message from ${message.display_name}`}
             >
+              {isForking && (
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center gap-2 text-sm text-primary select-none z-10 font-medium">
+                  <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Bifurcando...
+                </div>
+              )}
               {message.content}
             </div>
           )}
@@ -280,6 +287,10 @@ export function MessageBubble({
       <MessageActionMenu
         open={actionOpen}
         onOpenChange={setActionOpen}
+        messageId={message.id}
+        messageRole={message.role as any}
+        sessionId={sessionId}
+        setIsForking={setIsForking}
       />
     </div>
   )
