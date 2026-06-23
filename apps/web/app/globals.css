@@ -110,6 +110,22 @@
   background: var(--muted-foreground);
 }
 
+/* ============================================================
+ * Pressable bubble — LAYOUT-06 long-press gesture target
+ *
+ * Disables native iOS/Android text-selection callout and magnifier on
+ * message bubbles so the long-press => MessageActionMenu gesture wins.
+ * Tailwind's select-none covers most browsers; the webkit properties
+ * below cover Safari on iOS and the stock Android browser which Tailwind
+ * cannot reach via CSS class alone.
+ * ============================================================ */
+.bubble-pressable {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;    /* Suppress iOS long-press image/text menu */
+  -webkit-tap-highlight-color: transparent; /* Remove grey tap flash on Android */
+}
+
 /* Input box: absolutely positioned, keyboard-aware bottom offset (LAYOUT-04) */
 .input-box {
   position: absolute;
