@@ -26,12 +26,19 @@ const PieSegmentSchema = z.object({
   value: z.number().min(0),
 })
 
+const BarItemSchema = z.object({
+  label: z.string().max(60),
+  value: z.number(),
+})
+
 // -----------------------------------------------------------------------
-// PanelWidgetSchema — discriminated union on widget_type
+// BasePanelWidgetSchema — all variants except layout (no self-reference)
+// Used as the type for nested widgets inside the layout variant.
 // AI-05: safeParse never throws; malformed payloads silently rejected
+// T-1av-01: nested layout.widgets items validated against BasePanelWidgetSchema
 // -----------------------------------------------------------------------
 
-export const PanelWidgetSchema = z.discriminatedUnion('widget_type', [
+export const BasePanelWidgetSchema = z.discriminatedUnion('widget_type', [
   z.object({
     widget_type: z.literal('bento'),
     title: z.string().optional(),
@@ -51,6 +58,26 @@ export const PanelWidgetSchema = z.discriminatedUnion('widget_type', [
     widget_type: z.literal('pie'),
     title: z.string().optional(),
     segments: z.array(PieSegmentSchema).min(2).max(8),
+  }),
+  z.object({
+    widget_type: z.literal('bar'),
+    title: z.string().optional(),
+    bars: z.array(BarItemSchema).min(2).max(12),
+  }),
+])
+
+export type BasePanelWidget = z.infer<typeof BasePanelWidgetSchema>
+
+// -----------------------------------------------------------------------
+// PanelWidgetSchema — full discriminated union including layout
+// layout.widgets items are BasePanelWidget — no recursive nesting allowed
+// -----------------------------------------------------------------------
+
+export const PanelWidgetSchema = z.discriminatedUnion('widget_type', [
+  ...BasePanelWidgetSchema.options,
+  z.object({
+    widget_type: z.literal('layout'),
+    widgets: z.array(BasePanelWidgetSchema).min(2).max(3),
   }),
 ])
 

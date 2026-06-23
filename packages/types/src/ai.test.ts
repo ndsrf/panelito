@@ -4,8 +4,8 @@
  * Behavior assertions:
  *   - ProviderSchema.parse('openai') returns 'openai'; ProviderSchema.parse('xai') throws
  *   - renderPanelTool.name === 'render_panel'
- *   - renderPanelTool.parameters.required includes 'widget_type' and 'data'
- *   - renderPanelTool.parameters.properties.widget_type.enum deep-equals ['bento','radar','scatter','pie']
+ *   - renderPanelTool.parameters.required includes 'widget_type'
+ *   - renderPanelTool.parameters.properties.widget_type.enum deep-equals ['bento','radar','scatter','pie','bar','layout']
  *   - AIProvider interface compile-time check via typed mock
  */
 
@@ -38,15 +38,14 @@ describe('renderPanelTool', () => {
     expect(renderPanelTool).not.toHaveProperty('input_schema')
   })
 
-  it('required includes widget_type and data', () => {
+  it('required includes widget_type', () => {
     const required = (renderPanelTool.parameters as Record<string, unknown>).required as string[]
     expect(required).toContain('widget_type')
-    expect(required).toContain('data')
   })
 
-  it('widget_type enum deep-equals bento radar scatter pie', () => {
+  it('widget_type enum deep-equals bento radar scatter pie bar layout', () => {
     const props = (renderPanelTool.parameters as Record<string, unknown>).properties as Record<string, { enum?: string[] }>
-    expect(props['widget_type']?.enum).toEqual(['bento', 'radar', 'scatter', 'pie'])
+    expect(props['widget_type']?.enum).toEqual(['bento', 'radar', 'scatter', 'pie', 'bar', 'layout'])
   })
 })
 
