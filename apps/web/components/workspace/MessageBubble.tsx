@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * MessageBubble — renders a single message with avatar + immutability (CHAT-02, CHAT-05)
@@ -22,7 +23,7 @@
  * - onChartRestore?: called when user taps the "ver gráfico" icon
  */
 
-import { useState, type ReactNode } from 'react'
+import { useState, useRef, type ReactNode } from 'react'
 import { Bot, FlaskConical, BarChart2 } from 'lucide-react'
 import { getAvatarColor, cn } from '@/lib/utils'
 import { useLongPress, useDoubleTap } from '@/hooks/use-long-press'
@@ -89,6 +90,7 @@ export function MessageBubble({
   const [reactionOpen, setReactionOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
   const [isForking, setIsForking] = useState(false)
+  const bubbleRef = useRef<HTMLDivElement>(null)
 
   // Human avatar — only used when isAI is false
   const avatarColor = getAvatarColor(message.author_id)
@@ -102,6 +104,7 @@ export function MessageBubble({
 
   return (
     <div
+      ref={bubbleRef}
       className={cn(
         'message-bubble flex items-start gap-3 px-4 py-2 relative',
         isOwn && !isAI && 'flex-row-reverse'
@@ -291,6 +294,7 @@ export function MessageBubble({
         messageRole={message.role as any}
         sessionId={sessionId}
         setIsForking={setIsForking}
+        bubbleRef={bubbleRef}
       />
     </div>
   )

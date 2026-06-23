@@ -44,7 +44,8 @@ interface UseAIStreamReturn {
   /** Open the SSE invoke stream for the current session */
   openAIStream: (
     userMessage: string,
-    anyoneTyping: boolean
+    anyoneTyping: boolean,
+    branchId?: string
   ) => Promise<void>
   /** Reset streaming state after the stream ends */
   resetStream: () => void
@@ -96,7 +97,7 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
   }, [])
 
   const openAIStream = useCallback(
-    async (userMessage: string, anyoneTyping: boolean): Promise<void> => {
+    async (userMessage: string, anyoneTyping: boolean, branchId?: string): Promise<void> => {
       // Abort any previous in-flight stream
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -128,7 +129,7 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
         const response = await fetch(`${API_URL}/api/sessions/${sessionId}/invoke`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ userMessage, anyoneTyping }),
+          body: JSON.stringify({ userMessage, anyoneTyping, branchId }),
           signal: controller.signal,
         })
 

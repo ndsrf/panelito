@@ -32,7 +32,7 @@ export function BranchNavigator(): ReactNode {
 
   // Ensure Principal (main) is always present in the list
   const activeBranches = branches.filter((b) => !b.is_archived)
-  if (!activeBranches.some((b) => b.id === 'main')) {
+  if (!activeBranches.some((b) => b.path_id === 'main')) {
     activeBranches.unshift({
       id: 'main',
       label: 'Principal',
@@ -75,13 +75,16 @@ export function BranchNavigator(): ReactNode {
               key={branch.id}
               onClick={() => setBranchId(branch.id)}
               data-active={isActive ? 'true' : 'false'}
-              className="flex items-center gap-2 rounded-full border px-3 py-1 min-h-[32px] cursor-pointer transition-all duration-200 select-none hover:brightness-110 active:scale-95"
+              className="flex items-center gap-2 rounded-full border px-3 py-1 min-h-[32px] cursor-pointer select-none hover:brightness-110 active:scale-95"
               style={{
-                backgroundColor: hexToRgba(branch.color, isActive ? 0.25 : 0.10),
+                backgroundColor: hexToRgba(branch.color, isActive ? 0.30 : 0.08),
                 borderColor: branch.color,
                 color: branch.color,
                 borderWidth: isActive ? '2px' : '1px',
-                fontWeight: isActive ? 600 : 400,
+                fontWeight: isActive ? 700 : 400,
+                boxShadow: isActive ? `0 0 12px ${hexToRgba(branch.color, 0.5)}` : 'none',
+                transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             >
               {/* Branch status/indicator dot */}

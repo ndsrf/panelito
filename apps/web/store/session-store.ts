@@ -109,7 +109,17 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     usePanelStore.getState().hydrateFromSnapshot(latestSnapshot)
   },
 
-  setBranches: (branches) => set({ branches }),
+  setBranches: (branches) =>
+    set((state) => {
+      let activeBranchId = state.activeBranchId
+      if (activeBranchId === 'main') {
+        const dbMain = branches.find((b) => b.path_id === 'main')
+        if (dbMain) {
+          activeBranchId = dbMain.id
+        }
+      }
+      return { branches, activeBranchId }
+    }),
 
   addBranch: (branch) =>
     set((state) => {

@@ -48,6 +48,7 @@ loadEnvFile(path.resolve(__dirname, '/home/jgm/dev/projects/web-projects/panelit
 loadEnvFile(path.resolve(__dirname, '../../apps/api/.env'))
 
 const PORT = process.env.E2E_PORT ? parseInt(process.env.E2E_PORT) : 4000
+process.env.NEXT_PUBLIC_API_URL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -56,14 +57,14 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `pnpm dev -p ${PORT}`,
+    command: `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     env: {
+      NEXT_PUBLIC_API_URL: `http://localhost:${PORT}`,
       // Auto-freeze timing overrides for E2E tests (SESS-07 fast-forward).
-      // WARNING: These MUST NOT be set in production (T-07-03).
-      // Grace: 200ms (default: 30s), Freeze delay: 500ms (default: 15min).
+      // grace: 200ms (default: 30s), freeze delay: 500ms (default: 15min).
       AUTO_FREEZE_GRACE_MS: '200',
       AUTO_FREEZE_AFTER_MS: '500',
       // Lifecycle tests API port (worktree API with new lifecycle middleware)

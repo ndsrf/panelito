@@ -10,7 +10,8 @@
 import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePanelStore } from '@/store/panel-store'
-import type { Message, Reaction } from '@panelito/types'
+import { useSessionStore } from '@/store/session-store'
+import type { Message, Reaction, Branch } from '@panelito/types'
 
 export function useSessionChannel(
   sessionId: string,
@@ -47,6 +48,18 @@ export function useSessionChannel(
         console.log('[useSessionChannel] Received new_reaction broadcast:', payload)
         if (payload && onReactionRef.current) {
           onReactionRef.current(payload as Reaction)
+        }
+      })
+      .on('broadcast', { event: 'new_branch' }, ({ payload }) => {
+        console.log('[useSessionChannel] Received new_branch broadcast:', payload)
+        if (payload) {
+          useSessionStore.getState().addBranch(payload as Branch)
+        }
+      })
+      .on('broadcast', { event: 'branch_update' }, ({ payload }) => {
+        console.log('[useSessionChannel] Received branch_update broadcast:', payload)
+        if (payload) {
+          useSessionStore.getState().updateBranch(payload as Branch)
         }
       })
       .subscribe()

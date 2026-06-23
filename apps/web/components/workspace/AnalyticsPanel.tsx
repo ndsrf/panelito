@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * AnalyticsPanel — top 40% of the workspace split-screen.
@@ -156,7 +157,7 @@ function WidgetZone({ hasApiKey, isStreaming, isCreator }: { hasApiKey: boolean;
           {/* Back to sessions — creator only */}
           {isCreator && (
             <Link
-              href="/sessions"
+              href={"/sessions" as any}
               className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
               style={{ fontSize: 13 }}
               aria-label="Volver a sesiones"

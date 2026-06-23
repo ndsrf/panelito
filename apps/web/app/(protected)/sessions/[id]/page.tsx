@@ -65,6 +65,13 @@ export default async function WorkspacePage({
     user?.email?.split('@')[0] ||
     'User'
 
+  let branches: any[] = []
+  try {
+    branches = await apiFetch<any[]>(`/api/sessions/${id}/branches`, {}, accessToken)
+  } catch (err) {
+    console.error('Failed to fetch branches:', err)
+  }
+
   return (
     <Workspace
       session={session}
@@ -72,6 +79,7 @@ export default async function WorkspacePage({
       currentUserId={user?.id ?? ''}
       currentUserDisplayName={displayName}
       shortCode={session.short_code}
+      initialBranches={branches}
     />
   )
 }

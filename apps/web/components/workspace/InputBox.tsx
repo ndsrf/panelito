@@ -183,16 +183,6 @@ export function InputBox({
         </div>
       )}
 
-      {/* Active branch input indicator (D-16) */}
-      {activeBranch && activeBranchId !== 'main' && (
-        <div
-          className="flex items-center px-4 pt-1.5 pb-0.5 text-xs select-none gap-1 bg-zinc-950/20"
-          style={{ color: activeBranch.color }}
-        >
-          <span>📍 Respondiendo en:</span>
-          <span className="font-semibold">{activeBranch.label}</span>
-        </div>
-      )}
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-3 flex-1">

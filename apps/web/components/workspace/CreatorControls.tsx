@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical } from 'lucide-react'
+import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical, GitFork } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { apiFetch, ApiError } from '@/lib/api'
 import { ShareButton } from '@/app/(protected)/sessions/[id]/share-button'
+import { useSessionStore } from '@/store/session-store'
 import type { Session } from '@panelito/types'
 import { cn } from '@/lib/utils'
 
@@ -184,21 +186,16 @@ function CloseButton({ sessionId, status, onAction }: ActionButtonsProps): React
 }
 
 /**
- * CreatorControls — renders Freeze / Unfreeze / Close buttons.
- *
- * On desktop: floating button row (rendered by workspace.tsx in analytics panel overlay).
- * On mobile: inside a Sheet triggered by the ⋯ icon.
- *
- * Button visibility rules:
- * - Freeze: only when status === 'active'
- * - Unfreeze / Reactivar: only when status === 'frozen'
- * - Close: always except when already closed
+ * CreatorControls — renders Freeze / Unfreeze / Close buttons + active branch management.
  */
 export function CreatorControls({ session, shortCode, sessionTitle }: CreatorControlsProps): ReactNode {
   const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [analystasOpen, setAnalystasOpen] = useState(false)
+  const [branchesOpen, setBranchesOpen] = useState(false)
   const [toggling, setToggling] = useState(false)
+
+  const branches = useSessionStore((s) => s.branches)
   
   const activePersonas = session.active_personas || []
   const isAnalistaActive = activePersonas.includes('analista_cientifico')
@@ -233,6 +230,43 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
     }
   }
 
+  const handleRename = async (branchId: string, currentLabel: string) => {
+    const newLabel = prompt('Cambiar nombre de la rama (máx. 25 caracteres):', currentLabel)
+    if (newLabel === null) return
+    const trimmed = newLabel.trim()
+    if (!trimmed) return
+    if (trimmed.length > 25) {
+      alert('El nombre no puede superar los 25 caracteres (D-07).')
+      return
+    }
+
+    try {
+      const updated = await apiFetch<any>(`/api/sessions/${session.id}/branches/${branchId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ label: trimmed }),
+      })
+      useSessionStore.getState().updateBranch(updated)
+      toast.success('Rama renombrada con éxito.')
+    } catch (err) {
+      console.error('[CreatorControls] Rename failed:', err)
+      toast.error('No se pudo renombrar la rama.')
+    }
+  }
+
+  const handleArchiveToggle = async (branchId: string, isArchived: boolean) => {
+    try {
+      const updated = await apiFetch<any>(`/api/sessions/${session.id}/branches/${branchId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_archived: isArchived }),
+      })
+      useSessionStore.getState().updateBranch(updated)
+      toast.success(isArchived ? 'Rama archivada.' : 'Rama restaurada.')
+    } catch (err) {
+      console.error('[CreatorControls] Archive toggle failed:', err)
+      toast.error('No se pudo cambiar el estado de la rama.')
+    }
+  }
+
   const personaCard = (
     <div className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3 text-left">
       <div className="flex items-center gap-3">
@@ -264,6 +298,52 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
     </div>
   )
 
+  // Ensure Principal is present for list rendering
+  const displayBranches = [...branches]
+  if (!displayBranches.some((b) => b.path_id === 'main')) {
+    displayBranches.unshift({
+      id: 'main',
+      label: 'Principal',
+      color: '#6366f1',
+      path_id: 'main',
+      is_archived: false,
+    })
+  }
+
+  const branchesList = (
+    <div className="space-y-2 mt-2">
+      {displayBranches.map((b) => (
+        <div key={b.id} className="flex items-center justify-between p-2 rounded-md border bg-zinc-950/20 text-sm gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: b.color }} />
+            <span className="truncate font-medium text-foreground">{b.label}</span>
+            {b.is_archived && <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Archivada</span>}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleRename(b.id, b.label)}
+              className="h-8 px-2 text-xs"
+            >
+              Renombrar
+            </Button>
+            {b.id !== 'main' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleArchiveToggle(b.id, !b.is_archived)}
+                className="h-8 px-2 text-xs"
+              >
+                {b.is_archived ? 'Restaurar' : 'Archivar'}
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <>
       {/* Desktop: float in analytics panel (shown via parent CSS media query) */}
@@ -277,6 +357,15 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
         >
           <Users className="h-4 w-4" />
           Analistas
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-9 gap-2" 
+          onClick={() => setBranchesOpen(true)}
+        >
+          <GitFork className="h-4 w-4" />
+          Ramas
         </Button>
         <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
         <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
@@ -298,6 +387,21 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
         </SheetContent>
       </Sheet>
 
+      {/* Desktop Branches drawer Sheet */}
+      <Sheet open={branchesOpen} onOpenChange={setBranchesOpen}>
+        <SheetContent side="right" className="w-80 overflow-y-auto" aria-describedby={undefined}>
+          <SheetHeader>
+            <SheetTitle>Gestión de Ramas</SheetTitle>
+          </SheetHeader>
+          <div className="pt-6 space-y-4">
+            {branchesList}
+            <p className="text-[13px] text-muted-foreground">
+              Archivar una rama la oculta del navegador. El creador puede restaurarla en cualquier momento.
+            </p>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Mobile: Sheet triggered by ⋯ icon */}
       <div className="md:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -310,7 +414,7 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
             <SheetHeader>
               <SheetTitle>Opciones de sesion</SheetTitle>
             </SheetHeader>
-            <div className="flex flex-col gap-3 pt-4 pb-6">
+            <div className="flex flex-col gap-3 pt-4 pb-6 overflow-y-auto max-h-[80vh]">
               <ShareButton shortCode={shortCode} sessionTitle={sessionTitle} />
               <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
               <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
@@ -319,8 +423,13 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
               <div className="border-t border-border pt-4 mt-2 space-y-3">
                 <div className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider text-left">Analistas activos</div>
                 {personaCard}
+              </div>
+
+              <div className="border-t border-border pt-4 mt-2 space-y-3">
+                <div className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider text-left">Gestión de Ramas</div>
+                {branchesList}
                 <p className="text-[13px] text-muted-foreground text-left">
-                  Los cambios se aplican de inmediato a los mensajes siguientes.
+                  Archivar una rama la oculta del navegador. El creador puede restaurarla en cualquier momento.
                 </p>
               </div>
             </div>

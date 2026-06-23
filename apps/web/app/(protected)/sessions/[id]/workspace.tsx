@@ -50,7 +50,7 @@ import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
 import { useSessionStore } from '@/store/session-store'
 import { apiFetch } from '@/lib/api'
-import type { Session, Message } from '@panelito/types'
+import type { Session, Message, Branch } from '@panelito/types'
 
 /** Regex to detect @analista mention (case-insensitive, AI-07) */
 const ANALISTA_PATTERN = /@analista/i
@@ -61,6 +61,7 @@ interface WorkspaceProps {
   currentUserId: string
   currentUserDisplayName: string
   shortCode?: string
+  initialBranches?: Branch[]
 }
 
 /**
@@ -72,6 +73,7 @@ interface WorkspaceProps {
  * @param currentUserId - The authenticated user's ID (for creator gate + isOwn bubbles).
  * @param currentUserDisplayName - The user's display name for typing presence (CHAT-06).
  * @param shortCode - Session short code for guest session localStorage lookup.
+ * @param initialBranches - Initial branches array to populate store.
  */
 export function Workspace({
   session,
@@ -79,9 +81,15 @@ export function Workspace({
   currentUserId,
   currentUserDisplayName,
   shortCode,
+  initialBranches = [],
 }: WorkspaceProps): ReactNode {
   const router = useRouter()
   const isCreator = currentUserId === session.creator_id
+
+  // Hydrate branches into Zustand store
+  useEffect(() => {
+    useSessionStore.getState().setBranches(initialBranches)
+  }, [initialBranches])
 
   // SESS-07/09/11/12: Subscribe to live session_status_change broadcasts
   useSessionStatus(session.id, session)
@@ -91,6 +99,11 @@ export function Workspace({
 
   // Read live session from store; fall back to server-fetched session if not yet set
   const liveSession = useSessionStore((s) => s.session) ?? session
+
+  const activeBranchId = useSessionStore((s) => s.activeBranchId)
+  const branches = useSessionStore((s) => s.branches)
+  const activeBranch = branches.find((b) => b.id === activeBranchId)
+  const activePath = activeBranch?.path_id || 'main'
 
   // Auto-unfreeze: when the server says the session is frozen and the creator opens it,
   // reactivate immediately. Uses `session` (server prop) not `liveSession` (store) so it
@@ -123,7 +136,7 @@ export function Workspace({
    */
   const handleAfterSend = (content: string) => {
     if (ANALISTA_PATTERN.test(content)) {
-      openAIStream(content, false).catch((err) => {
+      openAIStream(content, false, activeBranchId).catch((err) => {
         console.error('[Workspace] openAIStream failed:', err)
       })
     }
@@ -149,7 +162,7 @@ export function Workspace({
     author_id: liveSession.creator_id,
     display_name: 'Analista Científico',
     content: streamingText,
-    path_id: 'main',
+    path_id: activePath,
     parent_id: null,
     role: 'assistant',
     canvas_snapshot_state: null,

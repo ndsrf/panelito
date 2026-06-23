@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Plus, Users, MessageSquare, Clock, LogOut } from 'lucide-react'
@@ -181,7 +182,7 @@ export default async function SessionsPage({
           <div className="flex items-center justify-between pt-2">
             {page > 1 ? (
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/sessions?page=${page - 1}`}>Anterior</Link>
+                <Link href={`/sessions?page=${page - 1}` as any}>Anterior</Link>
               </Button>
             ) : (
               <Button variant="outline" size="sm" disabled>Anterior</Button>
@@ -191,7 +192,7 @@ export default async function SessionsPage({
             </span>
             {page < total_pages ? (
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/sessions?page=${page + 1}`}>Siguiente</Link>
+                <Link href={`/sessions?page=${page + 1}` as any}>Siguiente</Link>
               </Button>
             ) : (
               <Button variant="outline" size="sm" disabled>Siguiente</Button>

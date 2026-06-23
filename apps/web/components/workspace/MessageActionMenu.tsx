@@ -1,20 +1,16 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * MessageActionMenu — contextual action menu opened by long-press (LAYOUT-06)
+ * MessageActionMenu — custom contextual action menu opened by long-press.
  *
- * Phase 3: "Fork" is wired to branch creation.
- * Phase 2: "Pin to Panel" is wired to canvas panel attachment (disabled/placeholder).
+ * Rewritten as a custom React component to avoid Radix UI pointer-events trapping
+ * and focus delegation conflicts in React 19 environments.
  */
 
 import { type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { GitFork, Pin } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { apiFetch } from '@/lib/api'
 import { useSessionStore } from '@/store/session-store'
 import type { Branch } from '@panelito/types'
@@ -26,6 +22,7 @@ interface MessageActionMenuProps {
   messageRole: 'user' | 'assistant'
   sessionId: string
   setIsForking: (forking: boolean) => void
+  bubbleRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function MessageActionMenu({
@@ -35,13 +32,14 @@ export function MessageActionMenu({
   messageRole,
   sessionId,
   setIsForking,
+  bubbleRef,
 }: MessageActionMenuProps): ReactNode {
   const handleFork = async () => {
     try {
       setIsForking(true)
       onOpenChange(false)
       
-      const newBranch = await apiFetch<Branch>(`/sessions/${sessionId}/branches/fork`, {
+      const newBranch = await apiFetch<Branch>(`/api/sessions/${sessionId}/branches/fork`, {
         method: 'POST',
         body: JSON.stringify({ forkMessageId: messageId }),
       })
@@ -59,37 +57,57 @@ export function MessageActionMenu({
     }
   }
 
+  if (!open || !bubbleRef.current || typeof window === 'undefined') return null
+
   const isAI = messageRole === 'assistant'
+  const rect = bubbleRef.current.getBoundingClientRect()
 
-  return (
-    <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <span className="sr-only" aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" align="start">
-        {/* Fork — human messages only (D-15) */}
-        <DropdownMenuItem
+  return createPortal(
+    <>
+      {/* Invisible backdrop to capture clicks outside the menu and close it */}
+      <div
+        className="fixed inset-0 z-40 bg-transparent cursor-default"
+        onClick={(e) => {
+          e.stopPropagation()
+          onOpenChange(false)
+        }}
+      />
+
+      {/* Custom absolute dropdown positioned below the bubble area */}
+      <div
+        className="fixed z-50 min-w-[9rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md flex flex-col notranslate"
+        translate="no"
+        style={{
+          top: `${rect.bottom + 4}px`,
+          left: `${rect.left + 16}px`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fork option */}
+        <button
+          type="button"
           disabled={isAI}
-          onClick={handleFork}
-          className="flex items-center gap-2 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleFork()
+          }}
+          className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-xs text-left hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none cursor-pointer transition-colors"
         >
-          <GitFork className="h-4 w-4" />
+          <GitFork className="h-3.5 w-3.5" />
           <span>Bifurcar</span>
-          {isAI && (
-            <span className="ml-auto text-[11px] text-muted-foreground/60">Solo humanos</span>
-          )}
-        </DropdownMenuItem>
+        </button>
 
-        {/* Pin to Panel — disabled/placeholder */}
-        <DropdownMenuItem
+        {/* Pin to Panel option */}
+        <button
+          type="button"
           disabled
-          className="flex items-center gap-2 text-muted-foreground"
+          className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-xs text-left text-muted-foreground opacity-50 pointer-events-none transition-colors"
         >
-          <Pin className="h-4 w-4" />
+          <Pin className="h-3.5 w-3.5" />
           <span>Fijar al Panel</span>
-          <span className="ml-auto text-[11px] text-muted-foreground/60">Phase 2</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </button>
+      </div>
+    </>,
+    document.body
   )
 }

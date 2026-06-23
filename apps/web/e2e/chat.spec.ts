@@ -353,14 +353,17 @@ test('Test 4: no Edit/Delete/Eliminar/Editar UI elements; long-press shows Fork+
     await pageA.waitForTimeout(600)
     await pageA.mouse.up()
 
-    // Action menu should show Fork + Pin to Panel (both disabled in Phase 1)
-    await expect(pageA.getByText('Fork')).toBeVisible({ timeout: 1000 })
-    await expect(pageA.getByText('Pin to Panel')).toBeVisible({ timeout: 1000 })
+    // Action menu should show Bifurcar + Fijar al Panel (Bifurcar is enabled in Phase 3, Fijar al Panel is placeholder)
+    await expect(pageA.getByText('Bifurcar')).toBeVisible({ timeout: 1000 })
+    await expect(pageA.getByText('Fijar al Panel')).toBeVisible({ timeout: 1000 })
 
-    // Neither should be interactive (disabled).
-    // Radix DropdownMenuItem sets data-disabled="" (empty string boolean attribute).
-    const forkItem = pageA.locator('[role="menuitem"]:has-text("Fork")')
-    await expect(forkItem).toHaveAttribute('data-disabled', '', { timeout: 1000 })
+    // Bifurcar should be enabled, Fijar al Panel should be disabled.
+    // Radix DropdownMenuItem sets data-disabled="" (empty string boolean attribute) when disabled.
+    const forkItem = pageA.locator('[role="menuitem"]:has-text("Bifurcar")')
+    await expect(forkItem).not.toHaveAttribute('data-disabled', '', { timeout: 1000 })
+
+    const pinItem = pageA.locator('[role="menuitem"]:has-text("Fijar al Panel")')
+    await expect(pinItem).toHaveAttribute('data-disabled', '', { timeout: 1000 })
   } finally {
     await ctxA.close()
     await deleteTestUser(creator.userId)
