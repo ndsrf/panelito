@@ -186,25 +186,6 @@ export function MessageList({
     }
   }, [messages])
 
-  // Polling fallback
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const msgs = await apiFetch<Message[]>(`/api/sessions/${sessionId}/messages?branchId=${activeBranchId}`)
-        const knownIds = new Set(useSessionStore.getState().messages.map((m) => m.id))
-        const newMsgs = msgs.filter((m) => !knownIds.has(m.id))
-        if (newMsgs.length > 0) {
-          newMsgs.forEach(useSessionStore.getState().addMessage)
-        }
-      } catch {
-        // ignore
-      }
-    }
-    const id = setInterval(poll, 2000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, activeBranchId])
-
   // CHAT-03: Auto-scroll to bottom if the flag is set.
   useEffect(() => {
     scrollToBottom()
