@@ -98,7 +98,22 @@ CREATE POLICY "canvas_nodes_insert"
 CREATE POLICY "canvas_nodes_update"
   ON public.canvas_nodes
   FOR UPDATE
-  USING (auth.uid() IS NOT NULL);
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  )
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  );
 
 
 -- ---------------------------------------------------------------------------
@@ -151,7 +166,22 @@ CREATE POLICY "canvas_edges_insert"
 CREATE POLICY "canvas_edges_update"
   ON public.canvas_edges
   FOR UPDATE
-  USING (auth.uid() IS NOT NULL);
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  )
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  );
 
 
 -- ---------------------------------------------------------------------------
