@@ -1,8 +1,26 @@
 # Project Multiverse
 
+## Current Milestone: v2.0 NSAI — Neuro-Symbolic Collaborative Engine
+
+**Goal:** Evolve the passive analytics panel into an active symbolic graph orchestrated by LangGraph — disciplined by runtime-loaded Domain Blueprints — with humans retaining strict control of the conversational floor and phase progression.
+
+**Target features:**
+- LangGraph JS orchestration (OrchestratorNode + Agent nodes) replacing direct LLM calls; provider-agnostic via existing AIProvider abstraction
+- Domain Blueprints: JSON schemas in Supabase defining Human-Centric Ontologies (node types, edge types, active personas, canvas view mode), validated with Ajv at runtime
+- Universal Graph Canvas (View A): interactive node/edge graph coexisting with existing chart widgets; Blueprint determines active view mode
+- Single universal data model (CanvasNode + CanvasEdge) — domains change vocabulary and colors, not schema
+- Debate/Strategy Blueprint as first production domain (Hypothesis, Evidence, Counter-Argument, Action; edges SUPPORTS, CONTRADICTS, BUILDS_ON)
+- Confidence-based autonomy: >0.85 direct mutation, 0.5–0.85 ghost/tentative, <0.5 sidebar text only
+- Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT) before any agent receives input
+- Mic Check Pattern: human turn token — LLM cannot generate until a human releases the conversational floor
+- Human Consensus Pattern: LLM can signal phase-readiness but cannot advance `current_phase`; phase transitions require explicit human UI action
+- LangGraph thread_id = existing branch_id; checkpointer persists graph state per branch
+- Langfuse observability: auto-tracing of graph execution, costs, latency, prompts (via LangChain callbacks)
+- Prompt caching + LangGraph state compression for multi-user sessions
+
 ## What This Is
 
-Project Multiverse is a synchronous, multi-user collaborative workspace where groups debate and explore ideas alongside specialized AI personas. A persistent split-screen interface keeps a live analytics panel (top 40%) synchronized with a real-time group chat (bottom 60%). Participants can fork any message into a parallel conversation branch, creating an explorable "multiverse" of alternative scenarios that the group can later compare and merge into a consensus pathway.
+Project Multiverse is a synchronous, multi-user collaborative workspace where groups debate and explore ideas alongside specialized AI personas. A persistent split-screen interface keeps a live analytics panel (top 40%) synchronized with a real-time group chat (bottom 60%). Participants can fork any message into a parallel conversation branch, creating an explorable "multiverse" of alternative scenarios the group can compare. In v2.0, the analytics panel becomes a Neuro-Symbolic engine: the LLM acts as cartographer (mapping human speech into a structured ontology graph) rather than author — every node and edge on the canvas must be anchored to a human-defined Blueprint.
 
 ## Core Value
 
@@ -15,6 +33,20 @@ The live analytics panel stays perfectly synchronized with the active conversati
 (None yet — ship to validate)
 
 ### Active
+
+**NSAI Engine (v2.0)**
+- [ ] LangGraph JS orchestration with OrchestratorNode + domain-scoped Agent nodes
+- [ ] Domain Blueprints (JSON, Supabase-stored) defining Human-Centric Ontologies with Ajv runtime validation
+- [ ] Universal CanvasNode + CanvasEdge data model (single schema; domains change vocabulary + colors only)
+- [ ] Universal Graph Canvas (View A) — interactive node/edge frontend component
+- [ ] Debate/Strategy Blueprint as first production domain (Hypothesis, Evidence, Counter-Argument, Action)
+- [ ] Confidence-based autonomy matrix (direct / ghost / silent thresholds)
+- [ ] Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT router)
+- [ ] Mic Check Pattern (human turn token)
+- [ ] Human Consensus Pattern (LLM signals phase readiness; human advances phase)
+- [ ] LangGraph thread_id = branch_id; checkpointer persists graph state per branch
+- [ ] Langfuse integration (graph tracing, costs, latency, prompts)
+- [ ] Prompt caching + LangGraph state compression
 
 **Workspace & Layout**
 - [ ] 40/60 split-screen layout (top: analytics panel, bottom: chat stream) that survives mobile virtual keyboard (IME) without collapsing the panel
@@ -129,4 +161,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-08 after initialization*
+*Last updated: 2026-07-01 after milestone v2.0 initialization*
