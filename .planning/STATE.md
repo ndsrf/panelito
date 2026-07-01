@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: NSAI Neuro-Symbolic Collaborative Engine
-status: in_progress
-stopped_at: Phase 5 complete — ready to execute Phase 6
-last_updated: "2026-07-01T00:00:00.000Z"
-last_activity: 2026-07-01 — Phase 5 Foundation complete (4 plans executed, UAT passed)
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-07-01T20:38:37.094Z"
+last_activity: 2026-07-01 — Phase 5 Foundation complete; session blueprint_id gap diagnosed and fixed
 progress:
   total_phases: 5
   completed_phases: 1
@@ -74,9 +74,9 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 ## Session
 
-**Last session:** 2026-07-01
-**Stopped at:** Phase 5 complete — UAT passed, gap fixed
-**Resume file:** .planning/phases/06-graph-construction/06-01-PLAN.md (when created)
+**Last session:** 2026-07-01T20:38:37.087Z
+**Stopped at:** Phase 6 context gathered
+**Resume file:** .planning/phases/06-graph-construction-checkpointer/06-CONTEXT.md
 
 ## Current Position
 
