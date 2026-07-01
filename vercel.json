@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "turbo run build",
+  "functions": {
+    "apps/web/app/api/[[...route]]/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

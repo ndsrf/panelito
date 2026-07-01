@@ -15,6 +15,17 @@ const EnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  // T-05-01: Direct Postgres connection string for PostgresSaver (LangGraph checkpointer).
+  // Must be a postgresql:// connection string, NOT the REST API URL (SUPABASE_URL).
+  // Never logged and never returned in any response body — same security pattern as
+  // SUPABASE_SERVICE_ROLE_KEY (T-01-08).
+  SUPABASE_DIRECT_URL: z
+    .string()
+    .url("SUPABASE_DIRECT_URL must be a valid URL")
+    .refine(
+      (v) => v.startsWith("postgres://") || v.startsWith("postgresql://"),
+      "SUPABASE_DIRECT_URL must be a postgresql:// connection string, not a REST API URL"
+    ),
   KEY_ENCRYPTION_SECRET: z
     .string()
     .length(64, "KEY_ENCRYPTION_SECRET must be 64 hex chars (32 bytes)"),
@@ -39,6 +50,7 @@ export const env = (() => {
       return {
         SUPABASE_URL: process.env.SUPABASE_URL || '',
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        SUPABASE_DIRECT_URL: process.env.SUPABASE_DIRECT_URL || '',
         KEY_ENCRYPTION_SECRET: process.env.KEY_ENCRYPTION_SECRET || '0'.repeat(64),
         API_PORT: 8787,
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
