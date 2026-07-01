@@ -116,7 +116,16 @@ export async function loadBlueprint(blueprintId: string): Promise<Blueprint> {
     .eq("id", blueprintId)
     .single();
 
-  if (error || !data) {
+  if (error) {
+    // PGRST116: "The result contains 0 rows" — genuine not-found case
+    if (error.code === 'PGRST116') {
+      throw new Error(`Blueprint not found: ${blueprintId}`);
+    }
+    throw new Error(
+      `Blueprint ${blueprintId} database error: ${error.message} (code: ${error.code})`
+    );
+  }
+  if (!data) {
     throw new Error(`Blueprint not found: ${blueprintId}`);
   }
 
