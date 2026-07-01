@@ -64,14 +64,14 @@ export const CanvasOpSchema = z.discriminatedUnion("op", [
     op: z.literal("ADD_NODE"),
     node_type_id: z.string(), // must match a Blueprint.node_types[].id
     label: z.string(),
-    confidence: z.number(), // 0.0–1.0; Phase 6 MutationGateNode routes to status
+    confidence: z.number().min(0).max(1), // 0.0–1.0; Phase 6 MutationGateNode routes to status
   }),
   z.object({
     op: z.literal("ADD_EDGE"),
     source_node_id: z.string().uuid(),
     target_node_id: z.string().uuid(),
     edge_type_id: z.string(), // must match a Blueprint.edge_types[].id
-    confidence: z.number(), // 0.0–1.0
+    confidence: z.number().min(0).max(1), // 0.0–1.0
   }),
   z.object({
     op: z.literal("NO_ACTION"),
