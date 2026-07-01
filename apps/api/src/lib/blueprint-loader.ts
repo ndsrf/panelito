@@ -36,6 +36,7 @@ const BLUEPRINT_JSON_SCHEMA = {
     canvas_view_mode: { type: "string", enum: ["graph", "chart"] },
     node_types: {
       type: "array",
+      minItems: 1, // matches BlueprintSchema .min(1)
       items: {
         type: "object",
         required: ["id", "label", "color", "description"], // D-02: description required
@@ -49,6 +50,7 @@ const BLUEPRINT_JSON_SCHEMA = {
     },
     edge_types: {
       type: "array",
+      minItems: 1, // matches BlueprintSchema .min(1)
       items: {
         type: "object",
         required: ["id", "label", "color"], // D-03: NO description in required
@@ -61,6 +63,7 @@ const BLUEPRINT_JSON_SCHEMA = {
     },
     phase_sequence: {
       type: "array",
+      minItems: 1, // matches BlueprintSchema .min(1)
       items: {
         type: "object",
         required: ["id", "label", "llm_instructions", "allowed_node_types"], // D-04
