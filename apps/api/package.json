@@ -13,8 +13,12 @@
     "@anthropic-ai/sdk": "0.102.0",
     "@google/genai": "^2.8.0",
     "@hono/node-server": "2.0.4",
+    "@langchain/langgraph": "1.4.7",
+    "@langchain/langgraph-checkpoint-postgres": "1.0.4",
+    "@langfuse/langchain": "5.9.1",
     "@panelito/types": "workspace:*",
     "@supabase/supabase-js": "2.108.0",
+    "ajv": "8.20.0",
     "hono": "4.12.24",
     "openai": "^6.44.0",
     "zod": "4.4.3"
