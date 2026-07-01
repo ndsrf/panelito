@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 05-foundation
 source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md, 05-04-SUMMARY.md]
 started: 2026-07-01T00:00:00Z
@@ -46,11 +46,19 @@ blocked: 0
 ## Gaps
 
 - truth: "Existing session creation continues to work after blueprint_id NOT NULL FK is added"
-  status: failed
+  status: resolved
   reason: "User reported: the server starts, but if I try to create a session I get an error because the blueprint_id is null"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "INSERT in apps/api/src/routes/sessions.ts (lines 78-84) omits blueprint_id entirely; SessionCreateInputSchema in packages/types/src/session.ts also lacks the field so it would be stripped by Zod even if sent"
+  artifacts:
+    - path: "apps/api/src/routes/sessions.ts"
+      issue: "INSERT object omits blueprint_id — direct cause of NOT NULL constraint violation"
+    - path: "packages/types/src/session.ts"
+      issue: "SessionCreateInputSchema and SessionSchema both missing blueprint_id field"
+    - path: "apps/web/app/(protected)/sessions/new/new-session-form.tsx"
+      issue: "No blueprint_id in form or its type — downstream of type package gap"
+  missing:
+    - "Hard-code blueprint_id: 'debate-strategy-v1' in the sessions.ts INSERT (v1 minimal fix — only one seeded blueprint)"
+    - "Add blueprint_id: z.string() to SessionSchema in packages/types/src/session.ts for type accuracy"
+  debug_session: ".planning/debug/session-blueprint-id-null.md"
