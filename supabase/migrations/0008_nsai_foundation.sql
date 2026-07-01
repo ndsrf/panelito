@@ -75,12 +75,25 @@ ALTER TABLE public.canvas_nodes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "canvas_nodes_select"
   ON public.canvas_nodes
   FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+    )
+  );
 
 CREATE POLICY "canvas_nodes_insert"
   ON public.canvas_nodes
   FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  );
 
 CREATE POLICY "canvas_nodes_update"
   ON public.canvas_nodes
@@ -115,12 +128,25 @@ ALTER TABLE public.canvas_edges ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "canvas_edges_select"
   ON public.canvas_edges
   FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+    )
+  );
 
 CREATE POLICY "canvas_edges_insert"
   ON public.canvas_edges
   FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.sessions s
+      WHERE s.id = session_id
+        AND s.status = 'active'
+    )
+  );
 
 CREATE POLICY "canvas_edges_update"
   ON public.canvas_edges
