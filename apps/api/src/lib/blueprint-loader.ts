@@ -45,6 +45,7 @@ const BLUEPRINT_JSON_SCHEMA = {
           color: { type: "string" },
           description: { type: "string" },
         },
+        additionalProperties: false,
       },
     },
     edge_types: {
@@ -58,6 +59,7 @@ const BLUEPRINT_JSON_SCHEMA = {
           label: { type: "string" },
           color: { type: "string" },
         },
+        additionalProperties: false,
       },
     },
     phase_sequence: {
@@ -72,6 +74,7 @@ const BLUEPRINT_JSON_SCHEMA = {
           llm_instructions: { type: "string" },
           allowed_node_types: { type: "array", items: { type: "string" } },
         },
+        additionalProperties: false,
       },
     },
     active_persona_ids: { type: "array", items: { type: "string" } }, // D-05
