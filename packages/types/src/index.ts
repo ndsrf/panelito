@@ -56,3 +56,11 @@ export { ReactionSchema, ReactionCountSchema } from "./reaction";
 // Persona types + library (PERSONA-01)
 export type { PersonaConfig, PersonaId } from "./persona";
 export { PersonaConfigSchema, PERSONA_LIBRARY, PERSONA_IDS } from "./persona";
+
+// Canvas types + schemas (CanvasNode, CanvasEdge, CanvasOp — CANVAS-01, INFRA-03)
+export type { CanvasNode, CanvasEdge, CanvasOp, CanvasNodeStatus } from "./canvas";
+export { CanvasNodeSchema, CanvasEdgeSchema, CanvasOpSchema, CanvasNodeStatusSchema } from "./canvas";
+
+// Blueprint types + schemas (Blueprint, sub-schemas — BLUE-01, INFRA-03)
+export type { Blueprint, NodeTypeConfig, EdgeTypeConfig, PhaseSequence } from "./blueprint";
+export { BlueprintSchema, NodeTypeConfigSchema, EdgeTypeConfigSchema, PhaseSequenceSchema } from "./blueprint";
