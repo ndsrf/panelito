@@ -81,6 +81,7 @@ sessionsRouter.post('/', requireAuth, sessionCreateRateLimit, async (c) => {
         mode: parsed.data.mode ?? null,
         active_personas: parsed.data.active_personas ?? ['analista_cientifico'],
         short_code: await generateShortCodeViaRpc(supabase),
+        blueprint_id: 'debate-strategy-v1',
       })
       .select()
       .single()

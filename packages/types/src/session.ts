@@ -24,6 +24,7 @@ export const SessionSchema = z.object({
   ai_response_count: z.number().int().nonnegative(),
   ai_response_cap: z.number().int().positive(),
   active_personas: z.array(z.string()),
+  blueprint_id: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
 });
