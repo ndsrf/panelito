@@ -115,6 +115,10 @@ CREATE POLICY "canvas_nodes_update"
     )
   );
 
+CREATE TRIGGER canvas_nodes_updated_at
+  BEFORE UPDATE ON public.canvas_nodes
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 
 -- ---------------------------------------------------------------------------
 -- SECTION 3: canvas_edges
@@ -182,6 +186,10 @@ CREATE POLICY "canvas_edges_update"
         AND s.status = 'active'
     )
   );
+
+CREATE TRIGGER canvas_edges_updated_at
+  BEFORE UPDATE ON public.canvas_edges
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 -- ---------------------------------------------------------------------------
