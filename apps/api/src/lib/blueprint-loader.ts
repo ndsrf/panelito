@@ -1,11 +1,10 @@
 /**
- * blueprint-loader.ts — Module-level Ajv singleton with cached validators.
+ * blueprint-loader.ts — Module-level Ajv singleton with compiled validator.
  *
  * BLUE-02 enforcement: the Ajv ValidateFunction is compiled ONCE at module load,
- * not per call to loadBlueprint() and not per call to getValidator(). The
- * validatorCache caches the already-compiled function keyed by blueprintId so
- * that getValidator() returns immediately from cache without ever calling
- * ajv.compile() again after the initial module-load compile.
+ * not per call to loadBlueprint(). loadBlueprint() calls the already-compiled
+ * blueprintValidator directly — no per-blueprint cache needed since all blueprints
+ * share the same JSON Schema.
  *
  * Public API: only loadBlueprint() is exported. Ajv internals are not re-exported.
  */
@@ -88,31 +87,10 @@ const ajv = new Ajv({ allErrors: true });
 
 // ---------------------------------------------------------------------------
 // Module-level compiled validator — compiled ONCE at module load (BLUE-02)
-// This is the critical constraint: NOT compiled inside loadBlueprint(),
-// NOT compiled inside getValidator(). Compiled here, at module scope.
+// This is the critical constraint: NOT compiled inside loadBlueprint().
+// Compiled here, at module scope; called directly in loadBlueprint().
 // ---------------------------------------------------------------------------
 const blueprintValidator: ValidateFunction = ajv.compile(BLUEPRINT_JSON_SCHEMA);
-
-// ---------------------------------------------------------------------------
-// Module-level validator cache — Map<blueprintId, ValidateFunction>
-// Caches the already-compiled blueprintValidator under each blueprintId key.
-// getValidator() never calls ajv.compile() — compile happened above.
-// ---------------------------------------------------------------------------
-const validatorCache = new Map<string, ValidateFunction>();
-
-// ---------------------------------------------------------------------------
-// getValidator — internal helper
-// Stores the module-level blueprintValidator in the cache under blueprintId
-// on first access. Subsequent calls return immediately from cache.
-// No re-compilation ever occurs — BLUE-02 compliant.
-// ---------------------------------------------------------------------------
-function getValidator(blueprintId: string): ValidateFunction {
-  if (!validatorCache.has(blueprintId)) {
-    // Store the already-compiled validator — NOT a new compile call
-    validatorCache.set(blueprintId, blueprintValidator);
-  }
-  return validatorCache.get(blueprintId)!;
-}
 
 // ---------------------------------------------------------------------------
 // loadBlueprint — the only public export
@@ -139,12 +117,11 @@ export async function loadBlueprint(blueprintId: string): Promise<Blueprint> {
     throw new Error(`Blueprint not found: ${blueprintId}`);
   }
 
-  const validate = getValidator(blueprintId);
-  const valid = validate(data.definition);
+  const valid = blueprintValidator(data.definition);
 
   if (!valid) {
     throw new Error(
-      `Blueprint ${blueprintId} failed Ajv validation: ${JSON.stringify(validate.errors)}`
+      `Blueprint ${blueprintId} failed Ajv validation: ${JSON.stringify(blueprintValidator.errors)}`
     );
   }
 
