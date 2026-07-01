@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: NSAI Neuro-Symbolic Collaborative Engine
 status: planning
-last_updated: "2026-07-01T14:02:17.111Z"
+last_updated: "2026-07-01T00:00:00.000Z"
 last_activity: 2026-07-01
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,65 +17,71 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-08)
+See: .planning/PROJECT.md (updated 2026-07-01)
 
-**Core value:** The live analytics panel stays synchronized with the active conversation branch — transforming group chat into structured, visual collective thinking.
-**Current focus:** Phase 03 — the-multiverse
+**Core value:** The live analytics panel stays synchronized with the active conversation branch — transforming group chat into structured, visual collective thinking. In v2.0, the panel becomes a Neuro-Symbolic engine: the LLM acts as cartographer, mapping human speech into a structured ontology graph anchored to a human-defined Blueprint.
+**Current focus:** Phase 5 — Foundation
 
 ---
 
 ## Current Status
 
-**Phase:** 4 of 4
-**Phase goal:** Multi-AI provider support — OpenAI + Gemini adapters, adapter factory, multi-provider BYOK key storage, per-provider key management UI and settings route updates.
-**Phase status:** Complete (4/4 plans done; human end-to-end verification passed — OpenAI confirmed working)
+**Phase:** 5 of 9 (v2.0 start)
+**Phase goal:** All NSAI infrastructure exists and is verified before any LangGraph or agent code is written — packages, migrations, shared types, Blueprint loading, Debate Blueprint seeded and Ajv-validated.
+**Phase status:** Not started (roadmap complete; ready to plan)
 
 ---
 
 ## Phase Progress
 
-| Phase | Name | Status | Plans |
-|-------|------|--------|-------|
-| 1 | Live Session Shell | ✓ Completed | 7/7 |
-| 2 | AI + Analytics | ✓ Completed | 7/7 |
-| 3 | The Multiverse | ✓ Completed | 4/4 |
-| 4 | Multi-AI Providers | ✓ Completed | 4/4 |
+| Phase | Name | Milestone | Status | Plans |
+|-------|------|-----------|--------|-------|
+| 1 | Live Session Shell | v1.0 | ✓ Complete | 7/7 |
+| 2 | AI + Analytics | v1.0 | ✓ Complete | 6/6 |
+| 3 | The Multiverse | v1.0 | ✓ Complete | 4/4 |
+| 4 | Multi-AI Providers | v1.0 | ✓ Complete | 4/4 |
+| 5 | Foundation | v2.0 | Not started | 0/? |
+| 6 | Graph Construction + Checkpointer | v2.0 | Not started | 0/? |
+| 7 | /invoke Route Modification | v2.0 | Not started | 0/? |
+| 8 | Human Control + Canvas Sync | v2.0 | Not started | 0/? |
+| 9 | Graph Canvas Frontend | v2.0 | Not started | 0/? |
 
 ---
 
 ## Decisions Log
 
-- **2026-06-13** — Phase 1 approved. Post-checkpoint fixes: unfreeze 409 bug (hydration deps), unfreezeSession system message, Dev Sign In bypass for WSL2.
-- **2026-06-18** — Phase 4 Plan 03: ApiKeyVerifyRequestSchema.key.min(10) not min(50) — prefix guard handles meaningful validation per provider; per-provider prefix validation in route not schema; DELETE defaults to anthropic for backward compat; migration 0006 pushed without auth gate (non-interactive success).
-- **2026-06-18** — Phase 4 Plan 04: adapter instantiated once before compression + streaming (D-03 efficiency); compressHistory uses adapter.stream() AsyncIterable (not Anthropic SDK directly); PanelWidgetSchema.safeParse gate drops invalid render_panel payloads silently (AI-05); three-provider settings UI uses grid grid-cols-1 md:grid-cols-3 for mobile-first layout.
+- **2026-06-13** — Phase 1 approved. Post-checkpoint fixes: unfreeze 409 bug, unfreezeSession system message, Dev Sign In bypass for WSL2.
+- **2026-06-18** — Phase 4 Plan 03: ApiKeyVerifyRequestSchema.key.min(10); per-provider prefix validation in route; DELETE defaults to anthropic; migration 0006 pushed without auth gate.
+- **2026-06-18** — Phase 4 Plan 04: adapter instantiated once before compression + streaming; compressHistory uses adapter.stream() AsyncIterable; PanelWidgetSchema.safeParse gate drops invalid payloads silently; three-provider settings UI uses grid-cols-1 md:grid-cols-3.
+- **2026-07-01** — v2.0 roadmap created. Phase 7 (/invoke modification) isolated as its own phase — highest-risk seam. Phase 6 graph construction must prove PostgresSaver checkpointer before Phase 7 begins. LangGraph interrupt() explicitly out of scope (P16 pitfall); Mic Check uses two-request pattern instead.
 
 ---
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260618-guest-join-auth-fix | Fixed guest join flow (redirect to sign-in) and guest display names | 2026-06-18 | - | [260618-guest-join-auth-fix](./quick/20260618-guest-join-auth-fix/) |
-| 260618-scroll-fix | Fixed chat panel scrolling and added auto-scroll functionality | 2026-06-18 | - | [260618-scroll-fix-fixed-chat-panel-scrolling](./quick/20260618-scroll-fix/) |
-| 260613-cnb | I cannot see the QR share functionality that in theory was added at phase 1 - wave 2 | 2026-06-13 | 6a19fb1 | [260613-cnb-i-cannot-see-the-qr-share-functionality-](./quick/260613-cnb-i-cannot-see-the-qr-share-functionality-/) |
-| 260624-09x | long press to show the fork menu does not work on mobile - when I long press I select the text, which is not right. I think we need to use another mechanism. | 2026-06-23 | 33c07bd | [260624-09x-long-press-to-show-the-fork-menu-does-no](./quick/260624-09x-long-press-to-show-the-fork-menu-does-no/) |
-| 260624-1av | The panel needs to be responsive to use as much space as possible, for example, for the Cards. I would also like to be able to show more than 1 graph if possible and there is space, for example a bar chart and 2 cards. | 2026-06-23 | fba944e | [260624-1av-the-panel-needs-to-be-responsive-to-use-](./quick/260624-1av-the-panel-needs-to-be-responsive-to-use-/) |
-| 260624-1pn | please also add a map chart and a timeline chart so we can show historical things in a map and also with a timeline. Add a line chart so we can show things in a line (like time). | 2026-06-23 | 91975ad | [260624-1pn-please-also-add-a-map-chart-and-a-timeli](./quick/260624-1pn-please-also-add-a-map-chart-and-a-timeli/) |
-| 260624-2c7 | Remove unconditional 2s polling fallback from MessageList — Supabase Realtime via useSessionChannel already delivers messages | 2026-06-24 | 7771193 | [260624-2c7-i-see-a-lot-of-get-api-sessions-fb107fda](./quick/260624-2c7-i-see-a-lot-of-get-api-sessions-fb107fda/) |
+| # | Description | Date |
+|---|-------------|------|
+| 260618-guest-join-auth-fix | Fixed guest join flow and guest display names | 2026-06-18 |
+| 260618-scroll-fix | Fixed chat panel scrolling and auto-scroll | 2026-06-18 |
+| 260613-cnb | QR share functionality visibility fix | 2026-06-13 |
+| 260624-09x | Long press fork menu — replaced with non-select mechanism | 2026-06-23 |
+| 260624-1av | Panel responsive bento grid improvements | 2026-06-23 |
+| 260624-1pn | Added map, timeline, and line chart widgets | 2026-06-23 |
+| 260624-2c7 | Removed unconditional 2s polling fallback from MessageList | 2026-06-24 |
 
 ---
-*State initialized: 2026-06-08 · Phase 1 completed: 2026-06-13*
-Last activity: 2026-06-24 - Completed quick task 260624-2c7: removed unconditional polling fallback from MessageList
 
 ## Session
 
-**Last session:** 2026-06-18T10:00:00Z
-**Stopped at:** Phase 4 Plan 04 complete — all tasks done; SUMMARY.md written; human verification approved ("approved - it works with OpenAI")
+**Last session:** 2026-07-01
+**Stopped at:** v2.0 roadmap created — Phase 5 ready to plan
 **Resume file:** None
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 5 of 9
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-01 — Milestone v2.0 started
+Status: Ready to plan Phase 5
+Last activity: 2026-07-01 — v2.0 NSAI roadmap created (Phases 5–9)
+
+Progress: [░░░░░░░░░░] 0% (v2.0)

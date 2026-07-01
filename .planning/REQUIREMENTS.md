@@ -95,33 +95,33 @@
 | INFRA-03 | Phase 5 | Pending |
 | BLUE-01 | Phase 5 | Pending |
 | BLUE-02 | Phase 5 | Pending |
+| BLUE-05 | Phase 5 | Pending |
+| CANVAS-01 | Phase 5 | Pending |
 | BLUE-03 | Phase 6 | Pending |
 | BLUE-04 | Phase 6 | Pending |
-| BLUE-05 | Phase 5 | Pending |
-| ORCH-01 | Phase 6 | Pending |
 | ORCH-02 | Phase 6 | Pending |
 | ORCH-03 | Phase 6 | Pending |
 | ORCH-04 | Phase 6 | Pending |
 | ORCH-05 | Phase 6 | Pending |
-| HUMAN-01 | Phase 7 | Pending |
-| HUMAN-02 | Phase 7 | Pending |
 | HUMAN-03 | Phase 6 | Pending |
-| CANVAS-01 | Phase 5 | Pending |
-| CANVAS-02 | Phase 7 | Pending |
-| CANVAS-03 | Phase 8 | Pending |
-| CANVAS-04 | Phase 8 | Pending |
-| UI-01 | Phase 8 | Pending |
-| UI-02 | Phase 8 | Pending |
-| UI-03 | Phase 8 | Pending |
 | OBS-01 | Phase 6 | Pending |
 | OBS-02 | Phase 6 | Pending |
+| ORCH-01 | Phase 7 | Pending |
+| HUMAN-01 | Phase 8 | Pending |
+| HUMAN-02 | Phase 8 | Pending |
+| CANVAS-02 | Phase 8 | Pending |
+| CANVAS-03 | Phase 9 | Pending |
+| CANVAS-04 | Phase 9 | Pending |
+| UI-01 | Phase 9 | Pending |
+| UI-02 | Phase 9 | Pending |
+| UI-03 | Phase 9 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 22 total
-- Mapped to phases: 22
+- v2.0 requirements: 25 total (3 INFRA + 5 BLUE + 5 ORCH + 3 HUMAN + 4 CANVAS + 3 UI + 2 OBS)
+- Mapped to phases: 25
 - Unmapped: 0 ✓
 
 ---
 
 *Requirements defined: 2026-07-01*
-*Last updated: 2026-07-01 after milestone v2.0 initialization*
+*Last updated: 2026-07-01 — traceability finalized after v2.0 roadmap creation*
