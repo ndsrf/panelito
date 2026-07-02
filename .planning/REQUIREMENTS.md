@@ -17,23 +17,23 @@
 
 - [ ] **BLUE-01**: Creator can select a Domain Blueprint for their session; Blueprint defines node vocabulary, edge vocabulary, active personas, phase sequence, and canvas_view_mode
 - [ ] **BLUE-02**: Each Blueprint is validated against an Ajv meta-schema at API load time; compiled validators are cached per blueprintId — never recompiled per request; invalid Blueprints are rejected with a descriptive error before the session starts
-- [ ] **BLUE-03**: Blueprint ontology (allowed node types, edge types, LLM instructions) is injected into LangGraph State before any agent node executes; the LLM cannot output a node or edge type outside the active Blueprint vocabulary
-- [ ] **BLUE-04**: The LLM system prompt mutates dynamically based on the Blueprint's current_phase field in Supabase; each phase carries distinct instructions and constraints
+- [x] **BLUE-03**: Blueprint ontology (allowed node types, edge types, LLM instructions) is injected into LangGraph State before any agent node executes; the LLM cannot output a node or edge type outside the active Blueprint vocabulary
+- [x] **BLUE-04**: The LLM system prompt mutates dynamically based on the Blueprint's current_phase field in Supabase; each phase carries distinct instructions and constraints
 - [ ] **BLUE-05**: Debate/Strategy Blueprint ships as the first production domain (node types: Hypothesis, Evidence, Counter-Argument, Action; edge types: SUPPORTS, CONTRADICTS, BUILDS_ON, REFUTES; canvas_view_mode: graph)
 
 ### Orchestration & Agent Graph (ORCH)
 
 - [ ] **ORCH-01**: Each user message runs a LangGraph StateGraph with three nodes — OrchestratorNode (guardrail classifier) → AgentNode (domain LLM call) → MutationGateNode (confidence evaluator) — replacing the direct LLM adapter call in the /invoke route
-- [ ] **ORCH-02**: OrchestratorNode classifies input as DOMAIN_MATCH, DOMAIN_BRIDGE, or DOMAIN_DRIFT; DOMAIN_DRIFT bypasses AgentNode and generates a conversational reply with no canvas mutation
-- [ ] **ORCH-03**: AgentNode outputs structured JSON (ADD_NODE / ADD_EDGE / NO_ACTION) with a confidence score (0.0–1.0), constrained strictly to the active Blueprint's ontology vocabulary
-- [ ] **ORCH-04**: MutationGateNode applies confidence thresholds: >0.85 → direct canvas commit; 0.5–0.85 → ghost node (dashed border, ~40% opacity); <0.5 → sidebar text only, canvas untouched
-- [ ] **ORCH-05**: LangGraph thread_id equals the existing branch_id; graph state persists across serverless invocations via a PostgresSaver checkpointer (prepare:false, SUPABASE_DIRECT_URL)
+- [x] **ORCH-02**: OrchestratorNode classifies input as DOMAIN_MATCH, DOMAIN_BRIDGE, or DOMAIN_DRIFT; DOMAIN_DRIFT bypasses AgentNode and generates a conversational reply with no canvas mutation
+- [x] **ORCH-03**: AgentNode outputs structured JSON (ADD_NODE / ADD_EDGE / NO_ACTION) with a confidence score (0.0–1.0), constrained strictly to the active Blueprint's ontology vocabulary
+- [x] **ORCH-04**: MutationGateNode applies confidence thresholds: >0.85 → direct canvas commit; 0.5–0.85 → ghost node (dashed border, ~40% opacity); <0.5 → sidebar text only, canvas untouched
+- [x] **ORCH-05**: LangGraph thread_id equals the existing branch_id; graph state persists across serverless invocations via a PostgresSaver checkpointer (prepare:false, SUPABASE_DIRECT_URL)
 
 ### Human Control Patterns (HUMAN)
 
 - [ ] **HUMAN-01**: Mic Check Pattern — the message sender holds the mic token, broadcast via Supabase Realtime; concurrent LangGraph executions on the same branch are impossible by construction; mic is released automatically after the graph run completes or after a 30-second typing timeout
 - [ ] **HUMAN-02**: Human Consensus Pattern — the LLM may emit a phase_signal in its output to indicate readiness to advance to the next session phase; the UI surfaces an "Advance Phase" affordance; only an explicit human click writes the updated current_phase to Supabase; the LLM has no tool or action capable of advancing current_phase autonomously
-- [ ] **HUMAN-03**: DOMAIN_DRIFT responses generate a natural conversational reply in the chat stream; the canvas is completely untouched; no rejection, error, or refusal message is shown to participants
+- [x] **HUMAN-03**: DOMAIN_DRIFT responses generate a natural conversational reply in the chat stream; the canvas is completely untouched; no rejection, error, or refusal message is shown to participants
 
 ### Canvas Data Model & Sync (CANVAS)
 
@@ -50,8 +50,8 @@
 
 ### Observability (OBS)
 
-- [ ] **OBS-01**: Langfuse receives a per-request CallbackHandler that traces every LangGraph execution: node spans, guardrail classification result, agent confidence score, token costs, and per-node latency
-- [ ] **OBS-02**: Traces flush reliably in Vercel serverless via waitUntil(langfuse.flushAsync()) called after the SSE response completes; no traces are silently lost on function exit
+- [x] **OBS-01**: Langfuse receives a per-request CallbackHandler that traces every LangGraph execution: node spans, guardrail classification result, agent confidence score, token costs, and per-node latency
+- [x] **OBS-02**: Traces flush reliably in Vercel serverless via waitUntil(langfuse.flushAsync()) called after the SSE response completes; no traces are silently lost on function exit
 
 ---
 
@@ -97,15 +97,15 @@
 | BLUE-02 | Phase 5 | Pending |
 | BLUE-05 | Phase 5 | Pending |
 | CANVAS-01 | Phase 5 | Pending |
-| BLUE-03 | Phase 6 | Pending |
-| BLUE-04 | Phase 6 | Pending |
-| ORCH-02 | Phase 6 | Pending |
-| ORCH-03 | Phase 6 | Pending |
-| ORCH-04 | Phase 6 | Pending |
-| ORCH-05 | Phase 6 | Pending |
-| HUMAN-03 | Phase 6 | Pending |
-| OBS-01 | Phase 6 | Pending |
-| OBS-02 | Phase 6 | Pending |
+| BLUE-03 | Phase 6 | Complete |
+| BLUE-04 | Phase 6 | Complete |
+| ORCH-02 | Phase 6 | Complete |
+| ORCH-03 | Phase 6 | Complete |
+| ORCH-04 | Phase 6 | Complete |
+| ORCH-05 | Phase 6 | Complete |
+| HUMAN-03 | Phase 6 | Complete |
+| OBS-01 | Phase 6 | Complete |
+| OBS-02 | Phase 6 | Complete |
 | ORCH-01 | Phase 7 | Pending |
 | HUMAN-01 | Phase 8 | Pending |
 | HUMAN-02 | Phase 8 | Pending |

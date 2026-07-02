@@ -119,7 +119,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-04-PLAN.md — Integration: PostgresSaver resume test + Langfuse OTel server wiring + trace verification (ORCH-05, OBS-01, OBS-02)
+- [x] 06-04-PLAN.md — Integration: PostgresSaver resume test + Langfuse OTel server wiring + trace verification (ORCH-05, OBS-01, OBS-02)
 
 ### Phase 7: /invoke Route Modification
 
@@ -177,7 +177,7 @@ Plans:
 | 3. The Multiverse | v1.0 | 4/4 | Complete | 2026-06-23 |
 | 4. Multi-AI Providers | v1.0 | 4/4 | Complete | 2026-06-18 |
 | 5. Foundation | v2.0 | 4/4 | Complete   | 2026-07-01 |
-| 6. Graph Construction + Checkpointer | v2.0 | 3/4 | In Progress|  |
+| 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
 | 7. /invoke Route Modification | v2.0 | 0/? | Not started | - |
 | 8. Human Control + Canvas Sync | v2.0 | 0/? | Not started | - |
 | 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
