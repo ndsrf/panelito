@@ -34,7 +34,31 @@ function loadDotEnv(): Record<string, string> {
 
 const dotEnv = loadDotEnv()
 
+// Detect if running in a worktree (git worktrees have .git as a file, not a directory)
+// and point @panelito/types to the worktree's local packages/types to pick up
+// in-progress changes that haven't been merged to main yet.
+function getWorktreeTypesPath(): string | undefined {
+  const worktreeTypesPath = path.resolve(__dirname, '../../packages/types/src/index.ts')
+  try {
+    readFileSync(worktreeTypesPath)
+    return path.resolve(__dirname, '../../packages/types/src')
+  } catch {
+    return undefined
+  }
+}
+
+const worktreeTypesPath = getWorktreeTypesPath()
+
 export default defineConfig({
+  resolve: worktreeTypesPath
+    ? {
+        alias: {
+          // In worktree mode, resolve @panelito/types to the local packages/types/src
+          // so tests pick up in-progress type changes (e.g. drift_reply_probability).
+          '@panelito/types': worktreeTypesPath,
+        },
+      }
+    : undefined,
   test: {
     env: dotEnv,
     environment: 'node',

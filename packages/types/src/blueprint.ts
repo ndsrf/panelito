@@ -61,6 +61,10 @@ export const BlueprintSchema = z.object({
   edge_types: z.array(EdgeTypeConfigSchema).min(1),
   phase_sequence: z.array(PhaseSequenceSchema).min(1),
   active_persona_ids: z.array(z.string()), // references PERSONA_LIBRARY ids at runtime
+  // D-02 (Phase 6): probability [0,1] that OrchestratorNode sends a DriftReplyNode response
+  // on DOMAIN_DRIFT classification. Default 0.8 per research A5 / D-05 discretion.
+  // Optional in DB (seeded debate-strategy-v1 Blueprint lacks this field); Zod supplies default.
+  drift_reply_probability: z.number().min(0).max(1).default(0.8),
 });
 
 export type Blueprint = z.infer<typeof BlueprintSchema>;
