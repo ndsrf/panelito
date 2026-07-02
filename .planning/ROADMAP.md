@@ -115,7 +115,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-03-PLAN.md — Graph core: state + Orchestrator/Agent/MutationGate/DriftReply nodes + createGraph factory + unit tests (MemorySaver) (BLUE-03, BLUE-04, ORCH-02, ORCH-03, ORCH-04, HUMAN-03)
+- [x] 06-03-PLAN.md — Graph core: state + Orchestrator/Agent/MutationGate/DriftReply nodes + createGraph factory + unit tests (MemorySaver) (BLUE-03, BLUE-04, ORCH-02, ORCH-03, ORCH-04, HUMAN-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -177,7 +177,7 @@ Plans:
 | 3. The Multiverse | v1.0 | 4/4 | Complete | 2026-06-23 |
 | 4. Multi-AI Providers | v1.0 | 4/4 | Complete | 2026-06-18 |
 | 5. Foundation | v2.0 | 4/4 | Complete   | 2026-07-01 |
-| 6. Graph Construction + Checkpointer | v2.0 | 2/4 | In Progress|  |
+| 6. Graph Construction + Checkpointer | v2.0 | 3/4 | In Progress|  |
 | 7. /invoke Route Modification | v2.0 | 0/? | Not started | - |
 | 8. Human Control + Canvas Sync | v2.0 | 0/? | Not started | - |
 | 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
