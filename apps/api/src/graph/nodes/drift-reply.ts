@@ -14,17 +14,8 @@ import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import type { GraphState } from '../state'
 
-/** Minimal RunnableConfig shape. */
-interface RunnableConfig {
-  configurable?: Record<string, unknown>
-  callbacks?: unknown
-  [key: string]: unknown
-}
-
-export async function driftReplyNode(
-  state: GraphState,
-  config?: RunnableConfig
-): Promise<Partial<GraphState>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function driftReplyNode(state: GraphState, config?: any): Promise<Partial<GraphState>> {
   const providerName = config?.configurable?.providerName as ProviderName | undefined
   const plaintextKey = config?.configurable?.plaintextKey as string | undefined
 

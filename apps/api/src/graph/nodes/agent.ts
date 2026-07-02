@@ -17,13 +17,6 @@ import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import type { GraphState } from '../state'
 
-/** Minimal RunnableConfig shape used by LangGraph node signatures. */
-interface RunnableConfig {
-  configurable?: Record<string, unknown>
-  callbacks?: unknown
-  [key: string]: unknown
-}
-
 /**
  * Build the agent system prompt.
  * BLUE-03: injects blueprint.node_types and edge_types ids + descriptions.
@@ -67,10 +60,8 @@ export function buildAgentSystemPrompt(blueprint: Blueprint, currentPhaseId: str
   ].join('\n')
 }
 
-export async function agentNode(
-  state: GraphState,
-  config?: RunnableConfig
-): Promise<Partial<GraphState>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function agentNode(state: GraphState, config?: any): Promise<Partial<GraphState>> {
   const blueprint = config?.configurable?.blueprint as Blueprint | undefined
   const providerName = config?.configurable?.providerName as ProviderName | undefined
   const plaintextKey = config?.configurable?.plaintextKey as string | undefined

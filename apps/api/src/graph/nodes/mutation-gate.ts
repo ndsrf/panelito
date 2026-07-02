@@ -16,17 +16,8 @@
 import type { Blueprint, CanvasOp, CanvasNodeStatus } from '@panelito/types'
 import type { GraphState } from '../state'
 
-/** Minimal RunnableConfig shape. */
-interface RunnableConfig {
-  configurable?: Record<string, unknown>
-  callbacks?: unknown
-  [key: string]: unknown
-}
-
-export async function mutationGateNode(
-  state: GraphState,
-  config?: RunnableConfig
-): Promise<Partial<GraphState>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function mutationGateNode(state: GraphState, config?: any): Promise<Partial<GraphState>> {
   const blueprint = config?.configurable?.blueprint as Blueprint | undefined
 
   const op = state.agentOutput
