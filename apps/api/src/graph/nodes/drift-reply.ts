@@ -30,7 +30,7 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
 
   if (!adapter) {
     console.error('[drift-reply] no adapter available — cannot generate reply')
-    return { driftAction: 'replied' }
+    return { driftAction: 'ignored' }
   }
 
   // D-01, HUMAN-03: minimal system prompt — respond naturally, do not refuse
@@ -43,7 +43,7 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
   const lastMessage = state.messages[state.messages.length - 1]
   if (!lastMessage) {
     console.warn('[drift-reply] no messages in state — skipping reply')
-    return { driftAction: 'replied' }
+    return { driftAction: 'ignored' }
   }
 
   try {

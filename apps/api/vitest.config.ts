@@ -11,7 +11,6 @@ function loadDotEnv(): Record<string, string> {
   const candidates = [
     path.resolve(__dirname, '.env'),
     path.resolve(__dirname, '../../../apps/api/.env'),
-    path.resolve(__dirname, '/home/jgm/dev/projects/web-projects/panelito/apps/api/.env'),
   ]
   for (const candidate of candidates) {
     try {
@@ -71,7 +70,6 @@ function detectWorktree(): { typesPath: string | undefined; mainRepoNodeModules:
   let mainRepoNodeModules: string | undefined
   const candidates = [
     path.resolve(__dirname, '../../../apps/api/node_modules'),
-    '/home/jgm/dev/projects/web-projects/panelito/apps/api/node_modules',
   ]
   for (const candidate of candidates) {
     try {

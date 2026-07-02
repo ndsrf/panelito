@@ -148,8 +148,6 @@ function makeConfig(
     classifierAdapter: AIProvider
     agentAdapter?: AIProvider
     driftReplyAdapter?: AIProvider
-    /** Pre-seed driftAction to bypass probability roll for DRIFT+ignored path */
-    forceDriftAction?: 'replied' | 'ignored'
   }
 ) {
   return {

@@ -215,6 +215,10 @@ describe.skipIf(!HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OB
     // Import getLangfuseTracerProvider from @langfuse/tracing (available post-pnpm install)
     const { getLangfuseTracerProvider } = await import('@langfuse/tracing')
 
+    // Assert that setupLangfuseOtel() (called in beforeAll) wired a real provider
+    const provider = getLangfuseTracerProvider()
+    expect(provider).not.toBeNull()
+
     // Per-request CallbackHandler — NEVER module-level (T-06-13, REQUIREMENTS.md)
     const handler = new CallbackHandler({ tags: ['phase6-test'] })
 
@@ -225,7 +229,7 @@ describe.skipIf(!HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OB
 
     const graph = createGraph(checkpointer)
 
-    await graph.invoke(
+    const result = await graph.invoke(
       {
         blueprintId: 'debate-strategy-v1',
         currentPhaseId: 'opening',
@@ -254,6 +258,10 @@ describe.skipIf(!HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OB
         callbacks: [handler],
       }
     )
+
+    // Assert the graph produced the expected output (OBS-01: trace reflects real graph state)
+    expect(result.guardrailResult).toBe('DOMAIN_MATCH')
+    expect(result.canvasOps.length).toBeGreaterThan(0)
 
     // Flush Langfuse spans to the OTel exporter (OBS-02).
     // D-04: flush must be called even for DRIFT silent exits — always flush after invoke().
