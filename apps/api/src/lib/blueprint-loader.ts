@@ -78,6 +78,12 @@ const BLUEPRINT_JSON_SCHEMA = {
       },
     },
     active_persona_ids: { type: "array", items: { type: "string" } }, // D-05
+    // D-02 (Phase 6): drift reply probability [0,1] — optional field.
+    // NOT in the `required` array: the seeded debate-strategy-v1 Blueprint lacks this field
+    // and must still validate. Zod default(0.8) supplies the value at parse time.
+    // MUST be declared in `properties` (even though optional) because `additionalProperties: false`
+    // would reject any blueprint that does include the field without this declaration (T-06-01).
+    drift_reply_probability: { type: "number", minimum: 0, maximum: 1 },
   },
   additionalProperties: false,
 } as const;

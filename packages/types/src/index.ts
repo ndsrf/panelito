@@ -48,6 +48,7 @@ export type {
   ProviderName,
 } from "./ai";
 export { ProviderSchema, renderPanelTool } from "./ai";
+export { canvasMutationTool } from "./canvas-tool";
 
 // Reaction types + schemas (REACT-01 through REACT-04)
 export type { Reaction, ReactionCount } from "./reaction";
