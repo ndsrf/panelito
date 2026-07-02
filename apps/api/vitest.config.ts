@@ -20,7 +20,9 @@ function loadDotEnv(): Record<string, string> {
       for (const line of content.split('\n')) {
         const match = line.match(/^([^#=]+)=(.*)$/)
         if (match && match[1] && match[2] !== undefined) {
-          env[match[1].trim()] = match[2].trim()
+          // Strip surrounding quotes (dotenv behaviour): "value" or 'value' → value
+          const raw = match[2].trim()
+          env[match[1].trim()] = raw.replace(/^(['"])(.*)\1$/, '$2')
         }
       }
       return env
