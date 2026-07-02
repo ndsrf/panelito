@@ -13,7 +13,7 @@
  * Never imports @anthropic-ai/sdk directly.
  */
 
-import type { Blueprint, CanvasOp, CanvasNodeStatus } from '@panelito/types'
+import type { Blueprint, CanvasOp } from '@panelito/types'
 import type { GraphState } from '../state'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,7 +61,7 @@ export async function mutationGateNode(state: GraphState, config?: any): Promise
   // ---------------------------------------------------------------------------
   const confidence = state.agentConfidence ?? 0
 
-  let status: CanvasNodeStatus
+  let status: 'committed' | 'ghost'
 
   if (confidence > 0.85) {
     status = 'committed'
@@ -72,10 +72,12 @@ export async function mutationGateNode(state: GraphState, config?: any): Promise
     return {}
   }
 
-  // Append the op with its resolved status to canvasOps (reducer accumulates)
-  const committedOp = { ...(op as CanvasOp), status } as CanvasOp & { status: CanvasNodeStatus }
+  // Append the op with its resolved status to canvasOps (reducer accumulates).
+  // CanvasOp ADD_NODE/ADD_EDGE branches include optional status (canvas.ts) so
+  // the spread satisfies the type without casting.
+  const gatedOp: CanvasOp = { ...op, status }
 
   return {
-    canvasOps: [committedOp as CanvasOp],
+    canvasOps: [gatedOp],
   }
 }

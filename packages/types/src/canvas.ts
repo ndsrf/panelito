@@ -65,6 +65,8 @@ export const CanvasOpSchema = z.discriminatedUnion("op", [
     node_type_id: z.string(), // must match a Blueprint.node_types[].id
     label: z.string(),
     confidence: z.number().min(0).max(1), // 0.0–1.0; Phase 6 MutationGateNode routes to status
+    // status is set by MutationGateNode after confidence threshold routing (Phase 6+)
+    status: CanvasNodeStatusSchema.optional(),
   }),
   z.object({
     op: z.literal("ADD_EDGE"),
@@ -72,10 +74,13 @@ export const CanvasOpSchema = z.discriminatedUnion("op", [
     target_node_id: z.string().uuid(),
     edge_type_id: z.string(), // must match a Blueprint.edge_types[].id
     confidence: z.number().min(0).max(1), // 0.0–1.0
+    // status is set by MutationGateNode after confidence threshold routing (Phase 6+)
+    status: CanvasNodeStatusSchema.optional(),
   }),
   z.object({
     op: z.literal("NO_ACTION"),
     reason: z.string().optional(), // optional explanation when LLM decides not to mutate
+    // NO_ACTION never reaches MutationGateNode gating — no status field
   }),
 ]);
 

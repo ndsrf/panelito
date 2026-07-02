@@ -3,8 +3,11 @@
  *
  * Behavior assertions:
  *   - canvasMutationTool.name === 'canvas_mutation'
- *   - canvasMutationTool.parameters describes a discriminated union over `op`
- *   - Branches: ADD_NODE (node_type_id, label, confidence), ADD_EDGE (source_node_id, target_node_id, edge_type_id, confidence), NO_ACTION (reason)
+ *   - canvasMutationTool.parameters uses a flat top-level properties block (Anthropic API requirement)
+ *   - No oneOf at root — all fields are in a single properties dict; op enum discriminates at runtime
+ *   - Fields: op (enum), node_type_id, label, source_node_id, target_node_id, edge_type_id,
+ *             confidence (number 0–1), reason
+ *   - only op is required at schema level; CanvasOpSchema.safeParse() enforces op-conditional fields
  *   - canvasMutationTool uses `parameters` key (NOT `input_schema`)
  *   - canvasMutationTool is importable from '@panelito/types' (barrel re-export works)
  */
@@ -27,81 +30,72 @@ describe('canvasMutationTool', () => {
     expect(canvasMutationTool.description.length).toBeGreaterThan(0)
   })
 
-  it('parameters has oneOf with three branches', () => {
+  it('parameters has flat top-level properties block (no oneOf at root)', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
     expect(params.type).toBe('object')
-    const oneOf = params.oneOf as unknown[]
-    expect(Array.isArray(oneOf)).toBe(true)
-    expect(oneOf).toHaveLength(3)
+    // Anthropic API requires properties at root level — no oneOf-only schema
+    expect(params).toHaveProperty('properties')
+    expect(params).not.toHaveProperty('oneOf')
+    const properties = params.properties as Record<string, unknown>
+    expect(typeof properties).toBe('object')
   })
 
-  it('ADD_NODE branch has required fields including op, node_type_id, label, confidence', () => {
+  it('op property is a string enum with ADD_NODE, ADD_EDGE, NO_ACTION', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
-    const oneOf = params.oneOf as Array<{ properties: Record<string, unknown>; required: string[] }>
-    const addNodeBranch = oneOf.find((branch) => {
-      const opProp = branch.properties?.['op'] as Record<string, unknown> | undefined
-      return Array.isArray(opProp?.['enum']) && (opProp['enum'] as string[]).includes('ADD_NODE')
-    })
-    expect(addNodeBranch).toBeDefined()
-    expect(addNodeBranch!.required).toContain('op')
-    expect(addNodeBranch!.required).toContain('node_type_id')
-    expect(addNodeBranch!.required).toContain('label')
-    expect(addNodeBranch!.required).toContain('confidence')
+    const properties = params.properties as Record<string, Record<string, unknown>>
+    const opProp = properties['op']
+    expect(opProp).toBeDefined()
+    expect(opProp.type).toBe('string')
+    const opEnum = opProp.enum as string[]
+    expect(Array.isArray(opEnum)).toBe(true)
+    expect(opEnum).toContain('ADD_NODE')
+    expect(opEnum).toContain('ADD_EDGE')
+    expect(opEnum).toContain('NO_ACTION')
+    expect(opEnum).toHaveLength(3)
   })
 
-  it('ADD_EDGE branch has required fields including source_node_id, target_node_id, edge_type_id, confidence', () => {
+  it('only op is in required (field-level constraints enforced by CanvasOpSchema at runtime)', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
-    const oneOf = params.oneOf as Array<{ properties: Record<string, unknown>; required: string[] }>
-    const addEdgeBranch = oneOf.find((branch) => {
-      const opProp = branch.properties?.['op'] as Record<string, unknown> | undefined
-      return Array.isArray(opProp?.['enum']) && (opProp['enum'] as string[]).includes('ADD_EDGE')
-    })
-    expect(addEdgeBranch).toBeDefined()
-    expect(addEdgeBranch!.required).toContain('op')
-    expect(addEdgeBranch!.required).toContain('source_node_id')
-    expect(addEdgeBranch!.required).toContain('target_node_id')
-    expect(addEdgeBranch!.required).toContain('edge_type_id')
-    expect(addEdgeBranch!.required).toContain('confidence')
+    const required = params.required as string[]
+    expect(Array.isArray(required)).toBe(true)
+    expect(required).toContain('op')
+    expect(required).toHaveLength(1)
   })
 
-  it('NO_ACTION branch has only op in required (reason optional)', () => {
+  it('ADD_NODE fields (node_type_id, label) are present in properties', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
-    const oneOf = params.oneOf as Array<{ properties: Record<string, unknown>; required: string[] }>
-    const noActionBranch = oneOf.find((branch) => {
-      const opProp = branch.properties?.['op'] as Record<string, unknown> | undefined
-      return Array.isArray(opProp?.['enum']) && (opProp['enum'] as string[]).includes('NO_ACTION')
-    })
-    expect(noActionBranch).toBeDefined()
-    expect(noActionBranch!.required).toContain('op')
-    // reason must NOT be in required (it's optional)
-    expect(noActionBranch!.required).not.toContain('reason')
+    const properties = params.properties as Record<string, Record<string, unknown>>
+    expect(properties['node_type_id']).toBeDefined()
+    expect(properties['node_type_id'].type).toBe('string')
+    expect(properties['label']).toBeDefined()
+    expect(properties['label'].type).toBe('string')
   })
 
-  it('confidence fields on ADD_NODE and ADD_EDGE are type number with min 0 max 1', () => {
+  it('ADD_EDGE fields (source_node_id, target_node_id, edge_type_id) are present in properties', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
-    const oneOf = params.oneOf as Array<{ properties: Record<string, unknown>; required: string[] }>
-    for (const opName of ['ADD_NODE', 'ADD_EDGE']) {
-      const branch = oneOf.find((b) => {
-        const opProp = b.properties?.['op'] as Record<string, unknown> | undefined
-        return Array.isArray(opProp?.['enum']) && (opProp['enum'] as string[]).includes(opName)
-      })
-      expect(branch).toBeDefined()
-      const confidenceProp = branch!.properties['confidence'] as Record<string, unknown>
-      expect(confidenceProp.type).toBe('number')
-      expect(confidenceProp.minimum).toBe(0)
-      expect(confidenceProp.maximum).toBe(1)
-    }
+    const properties = params.properties as Record<string, Record<string, unknown>>
+    expect(properties['source_node_id']).toBeDefined()
+    expect(properties['source_node_id'].type).toBe('string')
+    expect(properties['target_node_id']).toBeDefined()
+    expect(properties['target_node_id'].type).toBe('string')
+    expect(properties['edge_type_id']).toBeDefined()
+    expect(properties['edge_type_id'].type).toBe('string')
   })
 
-  it('op enum values are ADD_NODE, ADD_EDGE, NO_ACTION', () => {
+  it('confidence field is type number with min 0 max 1', () => {
     const params = canvasMutationTool.parameters as Record<string, unknown>
-    const oneOf = params.oneOf as Array<{ properties: Record<string, unknown> }>
-    const ops = oneOf.map((branch) => {
-      const opProp = branch.properties?.['op'] as Record<string, unknown> | undefined
-      return (opProp?.['enum'] as string[] | undefined)?.[0]
-    })
-    expect(ops).toContain('ADD_NODE')
-    expect(ops).toContain('ADD_EDGE')
-    expect(ops).toContain('NO_ACTION')
+    const properties = params.properties as Record<string, Record<string, unknown>>
+    const confidenceProp = properties['confidence']
+    expect(confidenceProp).toBeDefined()
+    expect(confidenceProp.type).toBe('number')
+    expect(confidenceProp.minimum).toBe(0)
+    expect(confidenceProp.maximum).toBe(1)
+  })
+
+  it('reason field is present in properties (optional, for NO_ACTION)', () => {
+    const params = canvasMutationTool.parameters as Record<string, unknown>
+    const properties = params.properties as Record<string, Record<string, unknown>>
+    expect(properties['reason']).toBeDefined()
+    expect(properties['reason'].type).toBe('string')
   })
 })

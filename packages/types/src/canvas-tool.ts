@@ -14,6 +14,11 @@
  * edge_type_id must match a Blueprint edge_types[].id (BLUE-03).
  * Dynamic Blueprint vocabulary validation is enforced at runtime by MutationGateNode (D-07);
  * this static schema accepts any string.
+ *
+ * Flat properties block (no oneOf at root) — Anthropic API requires a top-level
+ * `properties` dictionary in input_schema; oneOf-only schemas at root are non-standard
+ * and may be silently rejected. CanvasOpSchema.safeParse() in agentNode handles
+ * runtime discriminated-union validation; this schema only guides the model.
  */
 
 import type { ProviderTool } from './ai'
@@ -28,71 +33,43 @@ export const canvasMutationTool: ProviderTool = {
     'Always include a confidence score (0.0–1.0) representing certainty of the mutation.',
   parameters: {
     type: 'object',
-    oneOf: [
-      {
-        properties: {
-          op: { type: 'string', enum: ['ADD_NODE'] },
-          node_type_id: {
-            type: 'string',
-            description:
-              'Must match a Blueprint node_types[].id (e.g. "hypothesis", "evidence"). ' +
-              'MutationGateNode post-validates this value against the active Blueprint vocabulary.',
-          },
-          label: {
-            type: 'string',
-            description: 'Short descriptive label for the node (max 120 chars)',
-          },
-          confidence: {
-            type: 'number',
-            minimum: 0,
-            maximum: 1,
-            description:
-              'Certainty of the mutation (0.0–1.0). ' +
-              '>0.85 = direct commit; 0.5–0.85 = ghost/tentative; <0.5 = silent.',
-          },
-        },
-        required: ['op', 'node_type_id', 'label', 'confidence'],
+    properties: {
+      op: {
+        type: 'string',
+        enum: ['ADD_NODE', 'ADD_EDGE', 'NO_ACTION'],
+        description: 'The canvas operation type.',
       },
-      {
-        properties: {
-          op: { type: 'string', enum: ['ADD_EDGE'] },
-          source_node_id: {
-            type: 'string',
-            description: 'UUID of the source canvas node',
-          },
-          target_node_id: {
-            type: 'string',
-            description: 'UUID of the target canvas node',
-          },
-          edge_type_id: {
-            type: 'string',
-            description:
-              'Must match a Blueprint edge_types[].id (e.g. "SUPPORTS", "CONTRADICTS"). ' +
-              'MutationGateNode post-validates this value against the active Blueprint vocabulary.',
-          },
-          confidence: {
-            type: 'number',
-            minimum: 0,
-            maximum: 1,
-            description:
-              'Certainty of the mutation (0.0–1.0). ' +
-              '>0.85 = direct commit; 0.5–0.85 = ghost/tentative; <0.5 = silent.',
-          },
-        },
-        required: ['op', 'source_node_id', 'target_node_id', 'edge_type_id', 'confidence'],
+      node_type_id: {
+        type: 'string',
+        description: 'Required for ADD_NODE. Must match a Blueprint node_types[].id.',
       },
-      {
-        properties: {
-          op: { type: 'string', enum: ['NO_ACTION'] },
-          reason: {
-            type: 'string',
-            description:
-              'Optional explanation of why no canvas change was made (max 240 chars)',
-          },
-        },
-        required: ['op'],
+      label: {
+        type: 'string',
+        description: 'Required for ADD_NODE. Short descriptive label (max 120 chars).',
       },
-    ],
+      source_node_id: {
+        type: 'string',
+        description: 'Required for ADD_EDGE. UUID of the source canvas node.',
+      },
+      target_node_id: {
+        type: 'string',
+        description: 'Required for ADD_EDGE. UUID of the target canvas node.',
+      },
+      edge_type_id: {
+        type: 'string',
+        description: 'Required for ADD_EDGE. Must match a Blueprint edge_types[].id.',
+      },
+      confidence: {
+        type: 'number',
+        minimum: 0,
+        maximum: 1,
+        description: 'Required for ADD_NODE/ADD_EDGE. Certainty 0.0–1.0.',
+      },
+      reason: {
+        type: 'string',
+        description: 'Optional. For NO_ACTION: why no canvas change was made.',
+      },
+    },
     required: ['op'],
   },
 }
