@@ -97,7 +97,13 @@ Plans:
   3. A DOMAIN_DRIFT input is routed directly to a plain conversational reply with no canvas mutation, no error, and no refusal visible to the caller
   4. The PostgresSaver checkpointer (prepare:false, SUPABASE_DIRECT_URL) stores graph state and correctly resumes a thread across two separate graph invocations — verified by inspecting checkpoint tables in Supabase
   5. A Langfuse dashboard shows at least one complete trace from a test graph run, with node spans, guardrail classification result, agent confidence score, and token costs; waitUntil flush pattern is confirmed working in Vercel preview
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Shared types: canvasMutationTool + drift_reply_probability (Zod + Ajv) (BLUE-03, ORCH-03)
+- [ ] 06-02-PLAN.md — Infra: migration 0009 (sessions.current_phase) + @langfuse/otel install + getCheckpointer + setupLangfuseOtel (BLUE-04, ORCH-05, OBS-01, OBS-02)
+- [ ] 06-03-PLAN.md — Graph core: state + Orchestrator/Agent/MutationGate/DriftReply nodes + createGraph factory + unit tests (MemorySaver) (BLUE-03, BLUE-04, ORCH-02, ORCH-03, ORCH-04, HUMAN-03)
+- [ ] 06-04-PLAN.md — Integration: PostgresSaver resume test + Langfuse OTel server wiring + trace verification (ORCH-05, OBS-01, OBS-02)
 
 ### Phase 7: /invoke Route Modification
 
