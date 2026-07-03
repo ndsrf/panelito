@@ -49,7 +49,8 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
   try {
     // Phase 6: collect text_delta events (Phase 7 will route them to SSE via callbacks/streaming)
     // Pass [] as tools array — DriftReplyNode NEVER uses tools and NEVER mutates canvas (HUMAN-03)
-    for await (const event of adapter.stream([lastMessage], [], {
+    // WR-02: pass full state.messages for conversation context, not just the last message
+    for await (const event of adapter.stream(state.messages, [], {
       model: 'claude-sonnet-4-6',
       maxTokens: 512,
       system: systemPrompt,
@@ -62,6 +63,8 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
     }
   } catch (err) {
     console.error('[drift-reply] adapter.stream error', err)
+    // WR-01: stream failed — no reply was actually sent; do not falsely report 'replied'
+    return { driftAction: 'ignored' }
   }
 
   // HUMAN-03: return driftAction only — NEVER emit a canvasOp
