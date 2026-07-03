@@ -161,7 +161,7 @@ Plans:
   2. The LLM can emit a phase_signal in its output; the frontend surfaces an "Advance Phase" affordance that is only clickable by a human; clicking it writes the updated current_phase to Supabase; the LLM has no path to modify current_phase autonomously
   3. After each committed graph run, canvas_nodes and canvas_edges rows are upserted in Supabase and a Realtime broadcast is emitted via httpSend; a second browser tab receives the broadcast and its local state reflects the new node/edge within one second
 
-**Plans**: 4/5 backend planned; Plan 05 (frontend) pending
+**Plans**: 5 plans
 
 **Wave 1** *(parallel — no dependencies between 08-01 and 08-02)*
 - [ ] 08-01-PLAN.md — Extend canvasMutationTool + GraphStateAnnotation with phase_signal (HUMAN-01, HUMAN-02, CANVAS-02)
@@ -170,6 +170,9 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 08-03-PLAN.md — AgentNode: extract phase_signal before safeParse; MutationGateNode: verify no reset (HUMAN-02)
 - [ ] 08-04-PLAN.md — /invoke route: mic lock + phase_signal SSE + canvas upserts; PATCH /sessions/:id/phase (HUMAN-01, HUMAN-02, CANVAS-02)
+
+**Wave 3** *(blocked on Wave 1 completion — depends on 08-01 types)*
+- [ ] 08-05-PLAN.md — Frontend: session-store Phase 8 state, useAIStream phase_signal + mic_locked, useSessionChannel 4 broadcasts, CreatorControls Advance Phase button, InputBox micLocked read (HUMAN-01, HUMAN-02, CANVAS-02)
 
 **Cross-cutting constraints:**
 - phase_signal must be read from raw event.input BEFORE CanvasOpSchema.safeParse() (all graph node plans)
