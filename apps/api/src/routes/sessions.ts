@@ -451,6 +451,13 @@ sessionsRouter.patch('/:id/phase', requireAuth, async (c) => {
       return c.json({ error: 'forbidden' }, 403)
     }
 
+    // CR-02: Null guard — V1 sessions without blueprint_id must be rejected here
+    // before loadBlueprint() is called. loadBlueprint(null) queries for id=null, finds
+    // nothing, and throws an unhandled 500. Return a descriptive 400 instead.
+    if (!session.blueprint_id) {
+      return c.json({ error: 'no_blueprint', message: 'Phase advancement requires a Blueprint session' }, 400)
+    }
+
     // D-11: Validate next_phase_id against Blueprint phase_sequence
     // next_phase_id must exist in the Blueprint — prevents arbitrary phase IDs (T-08-04-C)
     const blueprint = await loadBlueprint(session.blueprint_id)
