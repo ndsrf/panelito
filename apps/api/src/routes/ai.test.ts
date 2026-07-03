@@ -89,9 +89,24 @@ vi.mock('../graph/graph', () => ({
           cfg.configurable.streamWriter('Hello from graph.')
         }
 
-        // Return an async iterable that yields one empty state chunk
+        // WR-04: emit a "values"-mode chunk (full state object, not node-keyed updates).
+        // LangGraph defaults to "values" stream mode, which yields the full state after
+        // each node completes. The previous { agent: { canvasOps: [] } } shape was
+        // "updates" mode and caused Object.assign(finalState, chunk) to produce
+        // finalState.agent.canvasOps rather than finalState.canvasOps, hiding the
+        // [canvas updated] fallback path from all tests.
         async function* generateChunks() {
-          yield { agent: { canvasOps: [] } }
+          yield {
+            blueprintId: 'debate-strategy-v1',
+            currentPhaseId: 'opening',
+            messages: [],
+            canvasOps: [],
+            guardrailResult: 'DOMAIN_MATCH',
+            agentConfidence: 0.9,
+            driftAction: null,
+            agentOutput: null,
+            steeringTextEnabled: null,
+          }
         }
         return generateChunks()
       }),
