@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: NSAI Neuro-Symbolic Collaborative Engine
 status: planning
-stopped_at: Phase 8 context gathered
-last_updated: "2026-07-03T10:43:04.217Z"
+stopped_at: Phase 8 planned — 4 backend plans, frontend gap pending
+last_updated: "2026-07-03T12:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 11
+  total_plans: 15
   completed_plans: 11
   percent: 60
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Phase:** 8 of 9 (human control + canvas sync)
 **Phase goal:** Full LangGraph StateGraph built and tested with PostgresSaver checkpointer — before touching the /invoke route.
-**Phase status:** Not started
+**Phase status:** Planned (4 backend plans; frontend plan pending)
 
 ---
 
@@ -44,7 +44,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 | 5 | Foundation | v2.0 | ✓ Complete | 4/4 |
 | 6 | Graph Construction + Checkpointer | v2.0 | Not started | 0/? |
 | 7 | /invoke Route Modification | v2.0 | Not started | 0/? |
-| 8 | Human Control + Canvas Sync | v2.0 | Not started | 0/? |
+| 8 | Human Control + Canvas Sync | v2.0 | Planned | 4/5 |
 | 9 | Graph Canvas Frontend | v2.0 | Not started | 0/? |
 
 ---
@@ -74,9 +74,9 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 ## Session
 
-**Last session:** 2026-07-03T10:43:04.210Z
-**Stopped at:** Phase 8 context gathered
-**Resume file:** .planning/phases/08-human-control-canvas-sync/08-CONTEXT.md
+**Last session:** 2026-07-03T11:16:03.499Z
+**Stopped at:** Phase 8 UI-SPEC approved
+**Resume file:** .planning/phases/08-human-control-canvas-sync/08-UI-SPEC.md
 
 ## Current Position
 
