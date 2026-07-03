@@ -32,26 +32,28 @@
 
 import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
-import { setLangfuseTracerProvider, getLangfuseTracerProvider } from '@langfuse/tracing'
+import { setLangfuseTracerProvider } from '@langfuse/tracing'
 import * as otelApi from '@opentelemetry/api'
 
-/** Module-level span processor — null until setupLangfuseOtel() is called. */
-let _langfuseSpanProcessor: LangfuseSpanProcessor | null = null
+// Use globalThis so the guard survives hot-reloads (tsx watch / Next.js HMR re-evaluate
+// module-level variables, but globalThis persists for the lifetime of the process).
+const _GLOBAL_KEY = Symbol.for('panelito:langfuse-otel')
+interface _LangfuseOtelState { processor: LangfuseSpanProcessor }
+
+function _getState(): _LangfuseOtelState | undefined {
+  return (globalThis as Record<symbol, unknown>)[_GLOBAL_KEY] as _LangfuseOtelState | undefined
+}
 
 /**
  * setupLangfuseOtel — initializes the Langfuse OTel span processor.
  *
- * Must be called once at server startup before any graph invocation.
- * Safe to call multiple times — returns early if already initialized or if
- * credentials are absent.
+ * Safe to call multiple times (guard prevents re-init). Called from index.ts at module
+ * load so it runs in both the standalone server and the Next.js bridge.
  *
  * T-06-05: Never logs key values. Warns only about their absence.
  */
 export function setupLangfuseOtel(): void {
-  // Guard: skip if already initialized
-  if (_langfuseSpanProcessor !== null) {
-    return
-  }
+  if (_getState()) return
 
   // Require both keys — LangfuseSpanProcessor reads them from process.env automatically.
   // T-06-05: Never log the actual key values.
@@ -62,67 +64,27 @@ export function setupLangfuseOtel(): void {
     return
   }
 
-  // LangfuseSpanProcessor reads credentials from process.env automatically.
-  // It can also accept { publicKey, secretKey } constructor params if needed.
-  _langfuseSpanProcessor = new LangfuseSpanProcessor()
-
-  // Wrap in a BasicTracerProvider with the span processor.
-  // BasicTracerProvider is the base class from @opentelemetry/sdk-trace-base;
-  // it accepts spanProcessors[] in its constructor config.
-  const provider = new BasicTracerProvider({
-    spanProcessors: [_langfuseSpanProcessor],
-  })
-
-  // Register as the global OTel provider (OTel SDK v2: api.trace.setGlobalTracerProvider
-  // replaces the v1 provider.register() method). This ensures getLangfuseTracerProvider()'s
-  // fallback path (trace.getTracerProvider()) returns this provider if the isolated slot
-  // isn't picked up — e.g. due to Symbol.for("langfuse") globalThis state not persisting
-  // across worker thread boundaries.
+  const processor = new LangfuseSpanProcessor()
+  const provider = new BasicTracerProvider({ spanProcessors: [processor] })
   otelApi.trace.setGlobalTracerProvider(provider)
-
-  // Also set as Langfuse's isolated TracerProvider (preferred path).
   setLangfuseTracerProvider(provider)
-
-  // Verify the round-trip: if isolated slot didn't take, the registered global
-  // provider is the fallback — either way spans will route to LangfuseSpanProcessor.
-  const check = getLangfuseTracerProvider()
-  const mode = check === provider ? 'isolated' : 'global-fallback'
-  console.log(`[langfuse-otel] Langfuse OTel span processor initialized (mode: ${mode})`)
+  ;(globalThis as Record<symbol, unknown>)[_GLOBAL_KEY] = { processor }
 }
 
-/**
- * getLangfuseSpanProcessor — returns the active span processor, or null if not initialized.
- *
- * Returns null if setupLangfuseOtel() has not been called or if credentials were absent.
- * Callers should check for null before using.
- */
 export function getLangfuseSpanProcessor(): LangfuseSpanProcessor | null {
-  return _langfuseSpanProcessor
+  return _getState()?.processor ?? null
 }
 
 /**
  * flushLangfuse — null-safe flush of the Langfuse span processor (OBS-02).
- *
- * Replaces the `(getLangfuseTracerProvider() as any).forceFlush()` anti-pattern.
- * Why the processor-direct approach is safe:
- *   - `getLangfuseTracerProvider()` returns the OTel global no-op TracerProvider when
- *     `setupLangfuseOtel()` never ran (e.g. LANGFUSE_*_KEY absent). The global provider
- *     does NOT have `forceFlush()`, so casting it as `any` and calling forceFlush() throws
- *     at runtime ("forceFlush is not a function").
- *   - `_langfuseSpanProcessor` is the module-held LangfuseSpanProcessor instance. Its
- *     `forceFlush()` method IS defined by `@langfuse/otel`. We call it directly and skip
- *     entirely when the processor is null (keys absent → tracing disabled → nothing to flush).
- *   - Errors during flush are warned but never re-thrown — callers never need a try/catch.
- *
- * @returns Promise<void> — always resolves, never rejects.
+ * Reads the processor from globalThis so it works after hot-reloads.
+ * Never throws — callers never need a try/catch.
  */
 export async function flushLangfuse(): Promise<void> {
-  if (_langfuseSpanProcessor === null) {
-    // Tracing disabled (keys absent or setupLangfuseOtel() not called) — nothing to flush.
-    return
-  }
+  const processor = _getState()?.processor
+  if (!processor) return
   try {
-    await _langfuseSpanProcessor.forceFlush()
+    await processor.forceFlush()
   } catch (err) {
     console.warn('[langfuse-otel] forceFlush error (non-fatal):', (err as Error).message)
   }

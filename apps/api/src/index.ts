@@ -10,6 +10,12 @@ import aiRouter from "./routes/ai";
 import reactionsRouter from "./routes/reactions";
 import personasRouter from "./routes/personas";
 import { createServiceClient } from "./lib/supabase";
+import { setupLangfuseOtel } from "./lib/langfuse-otel";
+
+// Initialize Langfuse OTel at module load time so traces work in both
+// standalone (server.ts) and Next.js bridge (app/api/[[...route]]/route.ts) contexts.
+// Safe to call from server.ts again — the guard prevents double-initialization.
+setupLangfuseOtel();
 
 // -----------------------------------------------------------------------
 // Unified Hono App
