@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: NSAI Neuro-Symbolic Collaborative Engine
 status: executing
-stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-07-03T12:16:40.280Z"
-last_activity: 2026-07-03 -- Phase 08 planning complete
+stopped_at: Phase 8 Wave 1 complete (08-01, 08-02)
+last_updated: "2026-07-03T13:00:00.000Z"
+last_activity: 2026-07-03 -- Phase 08 Wave 1 complete (phase_signal types + mic lock migration)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 11
-  percent: 60
+  total_plans: 21
+  completed_plans: 13
+  percent: 62
 ---
 
 # Project State: Project Multiverse
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 ## Current Status
 
 **Phase:** 8 of 9 (human control + canvas sync)
-**Phase goal:** Full LangGraph StateGraph built and tested with PostgresSaver checkpointer — before touching the /invoke route.
-**Phase status:** Planned (4 backend plans; frontend plan pending)
+**Phase goal:** Human authority over the conversational floor and phase progression is enforced in real time; canvas mutations flow from MutationGateNode to every participant via Supabase Realtime.
+**Phase status:** Executing — Wave 1 complete (08-01, 08-02); Wave 2 starting (08-03, 08-04)
 
 ---
 
@@ -44,7 +44,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 | 5 | Foundation | v2.0 | ✓ Complete | 4/4 |
 | 6 | Graph Construction + Checkpointer | v2.0 | Not started | 0/? |
 | 7 | /invoke Route Modification | v2.0 | Not started | 0/? |
-| 8 | Human Control + Canvas Sync | v2.0 | Planned | 4/5 |
+| 8 | Human Control + Canvas Sync | v2.0 | Executing | 2/5 |
 | 9 | Graph Canvas Frontend | v2.0 | Not started | 0/? |
 
 ---
@@ -80,9 +80,9 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 ## Current Position
 
-Phase: 7 (invoke-route-modification) — EXECUTING
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-03 -- Phase 08 planning complete
+Phase: 8 (human-control-canvas-sync) — EXECUTING
+Plan: Wave 1 complete (08-01, 08-02); Wave 2 in progress (08-03, 08-04)
+Status: Executing Wave 2
+Last activity: 2026-07-03 -- Phase 08 Wave 1 complete
 
-Progress: [██░░░░░░░░] 20% (v2.0)
+Progress: [███░░░░░░░] 40% (v2.0)
