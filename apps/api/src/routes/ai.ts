@@ -447,6 +447,15 @@ aiRouter.post('/:id/invoke', async (c) => {
       // (null-safe). Never throws — safe to await without try/catch. See langfuse-otel.ts.
       await flushLangfuse()
 
+      // OBS-03 (temporary diagnostic): log trace ID to confirm whether Langfuse callbacks fired.
+      // If trace_id appears in console but NOT in Langfuse dashboard, the export is failing.
+      // If trace_id is null/undefined, the CallbackHandler callbacks never fired.
+      if (callbackHandler.last_trace_id) {
+        console.log('[ai] Langfuse trace flushed:', callbackHandler.last_trace_id)
+      } else {
+        console.warn('[ai] Langfuse trace ID is null after flush — callbacks may not have fired')
+      }
+
       // D-10 (HUMAN-02): emit phase_signal SSE event BEFORE 'done' if LLM signalled readiness
       // phase_signal is advisory only — the human must confirm phase advancement via PATCH /phase
       // CR-01: emit next_phase_id (the phase to advance TO), not the current phase.
