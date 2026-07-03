@@ -138,15 +138,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Graph node streaming contract: steeringTextEnabled state field + streamWriter seam (agent + drift-reply) + AgentNode persona/silence/steering prompt rules + LANGFUSE_TRACE_LEVEL env var (ORCH-01)
+- [x] 07-01-PLAN.md — Graph node streaming contract: steeringTextEnabled state field + streamWriter seam (agent + drift-reply) + AgentNode persona/silence/steering prompt rules + LANGFUSE_TRACE_LEVEL env var (ORCH-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-02-PLAN.md — Route modification: replace adapter.stream() with graph.astream() + no_blueprint gate + loadBlueprint + async-queue streamWriter piping + abort signal + Langfuse tracing + new route tests (ORCH-01)
+- [x] 07-02-PLAN.md — Route modification: replace adapter.stream() with graph.astream() + no_blueprint gate + loadBlueprint + async-queue streamWriter piping + abort signal + Langfuse tracing + new route tests (ORCH-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 07-03-PLAN.md — Human-verify checkpoint: live Langfuse trace (SC-4) + blueprint gate + abort behavior against the running app (ORCH-01)
+- [x] 07-03-PLAN.md — Human-verify checkpoint: live Langfuse trace (SC-4) + blueprint gate + abort behavior against the running app (ORCH-01)
 
 **UI hint**: no
 
@@ -192,7 +192,7 @@ Plans:
 | 4. Multi-AI Providers | v1.0 | 4/4 | Complete | 2026-06-18 |
 | 5. Foundation | v2.0 | 4/4 | Complete   | 2026-07-01 |
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
-| 7. /invoke Route Modification | v2.0 | 0/3 | Planned | - |
+| 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 0/? | Not started | - |
 | 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
 

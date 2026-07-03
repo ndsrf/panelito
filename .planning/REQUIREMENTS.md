@@ -23,7 +23,7 @@
 
 ### Orchestration & Agent Graph (ORCH)
 
-- [ ] **ORCH-01**: Each user message runs a LangGraph StateGraph with three nodes — OrchestratorNode (guardrail classifier) → AgentNode (domain LLM call) → MutationGateNode (confidence evaluator) — replacing the direct LLM adapter call in the /invoke route
+- [x] **ORCH-01**: Each user message runs a LangGraph StateGraph with three nodes — OrchestratorNode (guardrail classifier) → AgentNode (domain LLM call) → MutationGateNode (confidence evaluator) — replacing the direct LLM adapter call in the /invoke route
 - [x] **ORCH-02**: OrchestratorNode classifies input as DOMAIN_MATCH, DOMAIN_BRIDGE, or DOMAIN_DRIFT; DOMAIN_DRIFT bypasses AgentNode and generates a conversational reply with no canvas mutation
 - [x] **ORCH-03**: AgentNode outputs structured JSON (ADD_NODE / ADD_EDGE / NO_ACTION) with a confidence score (0.0–1.0), constrained strictly to the active Blueprint's ontology vocabulary
 - [x] **ORCH-04**: MutationGateNode applies confidence thresholds: >0.85 → direct canvas commit; 0.5–0.85 → ghost node (dashed border, ~40% opacity); <0.5 → sidebar text only, canvas untouched
@@ -106,7 +106,7 @@
 | HUMAN-03 | Phase 6 | Complete |
 | OBS-01 | Phase 6 | Complete |
 | OBS-02 | Phase 6 | Complete |
-| ORCH-01 | Phase 7 | Pending |
+| ORCH-01 | Phase 7 | Complete |
 | HUMAN-01 | Phase 8 | Pending |
 | HUMAN-02 | Phase 8 | Pending |
 | CANVAS-02 | Phase 8 | Pending |
