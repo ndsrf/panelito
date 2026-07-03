@@ -18,6 +18,9 @@ import type { GraphState } from '../state'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mutationGateNode(state: GraphState, config?: any): Promise<Partial<GraphState>> {
+  // D-08 (Phase 8): phase_signal is NOT in the return value by design.
+  // AgentNode sets it in state before MutationGateNode runs.
+  // The overwrite reducer preserves it — returning {} here does not reset it.
   const blueprint = config?.configurable?.blueprint as Blueprint | undefined
 
   const op = state.agentOutput
