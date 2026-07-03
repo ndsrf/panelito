@@ -11,7 +11,8 @@ import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePanelStore } from '@/store/panel-store'
 import { useSessionStore } from '@/store/session-store'
-import type { Message, Reaction, Branch } from '@panelito/types'
+import { toast } from 'sonner'
+import type { Message, Reaction, Branch, CanvasNode, CanvasEdge } from '@panelito/types'
 
 export function useSessionChannel(
   sessionId: string,
@@ -61,6 +62,31 @@ export function useSessionChannel(
         if (payload) {
           useSessionStore.getState().updateBranch(payload as Branch)
         }
+      })
+      .on('broadcast', { event: 'mic_acquired' }, ({ payload }) => {
+        // D-04, HUMAN-01: Only apply if this broadcast is for the active branch
+        console.log('[useSessionChannel] mic_acquired', payload.branch_id)
+        if (payload.branch_id === useSessionStore.getState().activeBranchId) {
+          useSessionStore.getState().setMicLocked(true)
+        }
+      })
+      .on('broadcast', { event: 'mic_released' }, ({ payload }) => {
+        // D-04, HUMAN-01: Only apply if this broadcast is for the active branch
+        console.log('[useSessionChannel] mic_released', payload.branch_id, payload.reason)
+        if (payload.branch_id === useSessionStore.getState().activeBranchId) {
+          useSessionStore.getState().setMicLocked(false)
+        }
+      })
+      .on('broadcast', { event: 'canvas_update' }, ({ payload }) => {
+        // D-16, CANVAS-02: Canvas is session-wide — no branch filter
+        console.log('[canvas] update received', (payload.nodes as CanvasNode[]).length, 'nodes', (payload.edges as CanvasEdge[]).length, 'edges')
+        useSessionStore.getState().setCanvasData(payload.nodes as CanvasNode[], payload.edges as CanvasEdge[])
+      })
+      .on('broadcast', { event: 'phase_advanced' }, ({ payload }) => {
+        // D-12, HUMAN-02: Update currentPhase and notify all participants
+        console.log('[useSessionChannel] phase_advanced', payload.new_phase_id)
+        useSessionStore.getState().setCurrentPhase(payload.new_phase_id as string)
+        toast.success('La sesion ha avanzado a la siguiente fase.')
       })
       .subscribe()
 
