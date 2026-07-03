@@ -42,10 +42,13 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Branch Navigator height (existing constraint, not new) |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions:
-- Panel header strip: 36px height (existing lock from AnalyticsPanel — do not change)
-- Ghost node confirm/dismiss touch targets: minimum 44px × 44px for mobile compliance
-- @xyflow/react canvas fills `calc(100% - 36px)` — same flex-1 pattern as existing WidgetZone
+## Platform Constraints (not spacing tokens)
+
+| Constraint | Value | Reason |
+|------------|-------|--------|
+| Panel header height | 36px | Existing lock from AnalyticsPanel — do not change |
+| Ghost confirm/dismiss touch target | min 44×44px | iOS/WCAG accessibility minimum |
+| @xyflow/react canvas height | calc(100% - 36px) | Derived from panel header height |
 
 ---
 
@@ -82,6 +85,8 @@ Source: `apps/web/app/globals.css` @theme block + Blueprint fixture colors from 
 
 Accent reserved for: branch badge (existing), committed edge strokes when edge_type is BUILDS_ON, focus ring on ghost confirm/dismiss buttons.
 
+Note on Indigo 500 dual role: Indigo 500 (`#6366f1`) serves both as the accent color (branch badge, BUILDS_ON edge stroke, focus ring) and as the Hypothesis node Blueprint color. This is intentional — the Hypothesis node type was assigned Indigo in the Blueprint fixture specifically because it matches the accent palette. Executors must not "fix" this by replacing one of the two uses.
+
 ### Blueprint Node Colors (Debate/Strategy Blueprint)
 
 Source: `apps/api/src/graph/graph.test.ts` — these are the established colors used in every fixture
@@ -108,6 +113,7 @@ Note: Node/edge colors are read at runtime from `Blueprint.node_types[].color` a
 
 Source: REQUIREMENTS.md UI-02 + CONTEXT.md D-01 through D-04
 
+- **Primary visual anchor**: committed nodes at 100% Blueprint color; ghost nodes recede via 0.6 opacity wrapper.
 - **Ghost node border**: dashed, 1.5px, node's Blueprint color at 60% opacity
 - **Ghost node fill**: node's Blueprint color at 10% opacity (creates ~40% visual dimness per UI-02)
 - **Ghost node label**: 12px, weight 400, `--color-muted-foreground` (`#a1a1aa`)
@@ -155,7 +161,7 @@ All available in `apps/web/components/ui/`:
 - **API call**: `PATCH /api/canvas_nodes/:id` with `{ status: 'committed' }`
 - **On success**: `canvas_update` broadcast updates all participants
 - **On error**: Revert optimistic update; show `sonner` toast error (existing pattern)
-- **Touch target**: 44px × 44px minimum (mobile constraint)
+- **Touch target**: 44px × 44px minimum (mobile constraint — see Platform Constraints)
 
 ### Ghost Node: Dismiss Action
 - **Trigger**: Click dismiss button (X icon) on ghost node
@@ -163,7 +169,7 @@ All available in `apps/web/components/ui/`:
 - **API call**: `PATCH /api/canvas_nodes/:id` with `{ status: 'silent' }`
 - **On success**: `canvas_update` broadcast; node disappears for all participants
 - **On error**: Revert optimistic removal; show `sonner` toast error
-- **Touch target**: 44px × 44px minimum
+- **Touch target**: 44px × 44px minimum (see Platform Constraints)
 
 ### Ghost Node: 60-Second Expiry
 - **Mechanism**: Server-side `pg_cron` job (new migration) — no client coordination
@@ -211,7 +217,7 @@ Source: Existing AnalyticsPanel patterns establish the Spanish-language baseline
 | Error state (confirm/dismiss fail) | "No se pudo actualizar el nodo. Inténtalo de nuevo." |
 | Ghost node expiry (no UI copy — silent expiry) | n/a |
 | Streaming indicator (existing pattern) | "Analizando..." (existing, no change) |
-| Fullscreen label | "graph Vista Completa" (consistent with existing fullscreen overlay pattern) |
+| Fullscreen label | "Vista Completa del Grafo" |
 | Destructive actions in this phase | None — dismiss sets status='silent', not a destructive delete |
 | Accessibility: ghost confirm aria-label | "Confirmar nodo {label}" |
 | Accessibility: ghost dismiss aria-label | "Descartar nodo {label}" |
@@ -245,7 +251,7 @@ Note: All copy follows the existing Spanish-language convention established in A
 
 6. **Error boundary coverage**: `GraphCanvas` renders inside the existing `AnalyticsPanelErrorBoundary` — any @xyflow/react crash shows the existing "Error de visualización" fallback without touching the chat.
 
-7. **Mobile touch target compliance**: Ghost confirm/dismiss buttons must achieve 44px × 44px touch targets. Use `min-h-[44px] min-w-[44px]` with centered icon. This is a hard constraint per CLAUDE.md mobile-first requirement.
+7. **Mobile touch target compliance**: Ghost confirm/dismiss buttons must achieve 44px × 44px touch targets. Use `min-h-[44px] min-w-[44px]` with centered icon. This is a hard constraint per CLAUDE.md mobile-first requirement and the Platform Constraints table above.
 
 ---
 
