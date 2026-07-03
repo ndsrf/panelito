@@ -37,7 +37,7 @@ import { createAdapter } from '../lib/adapter-factory'
 import { TASK_MODELS } from '../lib/model-config'
 import { decryptKey } from '../lib/crypto'
 import { env } from '../lib/env'
-import { PERSONA_LIBRARY } from '@panelito/types'
+import { PERSONA_LIBRARY, ProviderSchema } from '@panelito/types'
 import type { ProviderName } from '@panelito/types'
 import { createGraph } from '../graph/graph'
 import { getCheckpointer } from '../lib/langgraph-checkpointer'
@@ -170,8 +170,14 @@ aiRouter.post('/:id/invoke', async (c) => {
     return c.json({ error: 'server_error' }, 500)
   }
 
-  // Resolve active provider (default 'anthropic' if not set)
-  const providerName = ((creatorSettings?.active_provider) ?? 'anthropic') as ProviderName
+  // Resolve active provider with runtime Zod validation (WR-03)
+  const rawProvider = creatorSettings?.active_provider ?? 'anthropic'
+  const providerParseResult = ProviderSchema.safeParse(rawProvider)
+  if (!providerParseResult.success) {
+    console.error('[ai] invalid active_provider in DB:', rawProvider)
+    return c.json({ error: 'invalid_provider' }, 500)
+  }
+  const providerName: ProviderName = providerParseResult.data
 
   // Resolve the encrypted key column for the active provider
   const encryptedKey = creatorSettings?.[`${providerName}_api_key` as keyof typeof creatorSettings] as string | null | undefined
