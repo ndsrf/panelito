@@ -42,8 +42,8 @@ import type { ProviderName } from '@panelito/types'
 import { createGraph } from '../graph/graph'
 import { getCheckpointer } from '../lib/langgraph-checkpointer'
 import { loadBlueprint } from '../lib/blueprint-loader'
-import { getLangfuseTracerProvider } from '@langfuse/tracing'
 import { CallbackHandler } from '@langfuse/langchain'
+import { flushLangfuse } from '../lib/langfuse-otel'
 import type { Blueprint } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
@@ -443,12 +443,9 @@ aiRouter.post('/:id/invoke', async (c) => {
       }
 
       // OBS-02: flush Langfuse traces before function exit
-      // Cast to any: getLangfuseTracerProvider() returns TracerProvider but the actual
-      // NodeTracerProvider instance has forceFlush(). Same pattern as graph.integration.test.ts.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (getLangfuseTracerProvider() as any).forceFlush().catch((flushErr: unknown) => {
-        console.warn('[ai] Langfuse forceFlush error (non-fatal):', (flushErr as Error).message)
-      })
+      // flushLangfuse() calls forceFlush() on the module-held LangfuseSpanProcessor directly
+      // (null-safe). Never throws — safe to await without try/catch. See langfuse-otel.ts.
+      await flushLangfuse()
 
       // D-10 (HUMAN-02): emit phase_signal SSE event BEFORE 'done' if LLM signalled readiness
       // phase_signal is advisory only — the human must confirm phase advancement via PATCH /phase
