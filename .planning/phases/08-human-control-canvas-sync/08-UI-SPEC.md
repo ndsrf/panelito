@@ -68,8 +68,9 @@ All values carried from the existing live codebase. Do not introduce new sizes o
 |------|------|--------|-------------|-------|
 | Body | 15px | 400 | 1.5 | Message input, drawer body text |
 | Label | 13px | 400 | 1.4 | Muted captions, phase badge label, section headers in sheets |
-| UI element | 14px | 500 | 1.4 | Button text, sheet titles, badge text |
-| Heading | — | 600 | 1.2 | Sheet `<SheetTitle>` (inherits from shadcn default) |
+| UI element | 14px | 500 | 1.4 | Button text, badge text |
+
+> **Note:** SheetTitle inherits shadcn/Radix default (not a Phase 8 declaration).
 
 Source: `InputBox.tsx` uses `text-[15px]`; `CreatorControls.tsx` uses `text-[13px]` for captions and section headers; shadcn Button default is `text-sm` (14px).
 
