@@ -422,6 +422,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
             {b.is_archived && <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Archivada</span>}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {b.path_id !== 'main' && (
             <Button
               variant="ghost"
               size="sm"
@@ -430,6 +431,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
             >
               Renombrar
             </Button>
+            )}
             {b.id !== 'main' && (
               <Button
                 variant="outline"
