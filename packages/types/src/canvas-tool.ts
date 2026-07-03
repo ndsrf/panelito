@@ -49,11 +49,11 @@ export const canvasMutationTool: ProviderTool = {
       },
       source_node_id: {
         type: 'string',
-        description: 'Required for ADD_EDGE. UUID of the source canvas node.',
+        description: 'Required for ADD_EDGE. Label of the source node if it was added via ADD_NODE in this same response; DB UUID for existing nodes already in the canvas.',
       },
       target_node_id: {
         type: 'string',
-        description: 'Required for ADD_EDGE. UUID of the target canvas node.',
+        description: 'Required for ADD_EDGE. Label of the target node if it was added via ADD_NODE in this same response; DB UUID for existing nodes already in the canvas.',
       },
       edge_type_id: {
         type: 'string',
