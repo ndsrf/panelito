@@ -15,6 +15,7 @@
 
 import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
+import { TASK_MODELS } from '../../lib/model-config'
 import type { GraphState } from '../state'
 
 type GuardrailResult = 'DOMAIN_MATCH' | 'DOMAIN_BRIDGE' | 'DOMAIN_DRIFT'
@@ -103,7 +104,7 @@ export async function orchestratorNode(state: GraphState, config?: any): Promise
       [{ role: 'user', content: lastMessage.content }],
       [],
       {
-        model: 'claude-sonnet-4-6',
+        model: TASK_MODELS[providerName ?? 'anthropic'].classification,
         maxTokens: 32,
         system: classificationSystemPrompt,
       }
