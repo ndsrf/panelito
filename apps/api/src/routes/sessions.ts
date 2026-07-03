@@ -6,6 +6,7 @@ import { requireAuth, type AuthVariables } from '../middleware/auth'
 import { rateLimit } from '../lib/rate-limit'
 import { registerSession } from '../lib/auto-freeze'
 import { unfreezeSession, freezeSession, closeSession } from '../lib/sessions-helpers'
+import { loadBlueprint } from '../lib/blueprint-loader'
 
 // -----------------------------------------------------------------------
 // Rate limiting (T-03-05, T-03-06)
@@ -398,6 +399,89 @@ sessionsRouter.post('/:id/unfreeze', requireAuth, async (c) => {
     }
 
     return c.json(updated, 200)
+  } catch (err) {
+    return c.json({ error: toClientError(err) }, 500)
+  }
+})
+
+/**
+ * PATCH /api/sessions/:id/phase
+ * Advances the active phase of the session. Only the session creator can call this.
+ *
+ * HUMAN-02 (D-11, D-12, D-13): The LLM has no code path to this endpoint.
+ * The phase_signal SSE event is advisory only — the human click triggers this PATCH.
+ *
+ * Validates:
+ * - next_phase_id is present (400 if missing)
+ * - caller is session creator (403 if not)
+ * - next_phase_id exists in Blueprint.phase_sequence (400 invalid_phase if not)
+ *
+ * After writing current_phase, broadcasts phase_advanced to all session participants.
+ */
+sessionsRouter.patch('/:id/phase', requireAuth, async (c) => {
+  const { id } = c.req.param()
+  const user = c.get('user')
+  const supabase = createServiceClient()
+
+  // Validate request body — next_phase_id is required (D-11)
+  const PatchPhaseBodySchema = z.object({
+    next_phase_id: z.string().min(1),
+  })
+  const rawBody = await c.req.json().catch(() => ({}))
+  const parsed = PatchPhaseBodySchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return c.json({ error: 'invalid_request', message: 'next_phase_id is required' }, 400)
+  }
+
+  try {
+    // Fetch session to verify creator_id and get blueprint_id (D-11)
+    const { data: session, error: fetchError } = await supabase
+      .from('sessions')
+      .select('id, creator_id, blueprint_id, current_phase')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !session) {
+      return c.json({ error: 'not_found' }, 404)
+    }
+
+    // D-13: Ownership gate — only the session creator can advance phases
+    // Same pattern as POST /:id/freeze (line 262)
+    if (session.creator_id !== user.id) {
+      return c.json({ error: 'forbidden' }, 403)
+    }
+
+    // D-11: Validate next_phase_id against Blueprint phase_sequence
+    // next_phase_id must exist in the Blueprint — prevents arbitrary phase IDs (T-08-04-C)
+    const blueprint = await loadBlueprint(session.blueprint_id)
+    const phaseExists = blueprint.phase_sequence.some(
+      (p: { id: string }) => p.id === parsed.data.next_phase_id
+    )
+    if (!phaseExists) {
+      return c.json({ error: 'invalid_phase', message: 'next_phase_id not in Blueprint phase_sequence' }, 400)
+    }
+
+    // Write current_phase — this is the ONLY code path that writes sessions.current_phase (D-13)
+    const { error: updateErr } = await supabase
+      .from('sessions')
+      .update({ current_phase: parsed.data.next_phase_id })
+      .eq('id', id)
+
+    if (updateErr) {
+      console.error('[sessions] phase update error:', updateErr.message)
+      return c.json({ error: 'update_failed' }, 500)
+    }
+
+    // D-12: broadcast phase_advanced — fire-and-forget (messages.ts httpSend pattern)
+    supabase
+      .channel(`session:${id}`)
+      .httpSend('phase_advanced', {
+        new_phase_id: parsed.data.next_phase_id,
+        blueprint_id: session.blueprint_id,
+      })
+      .catch((err) => console.error('[sessions] phase_advanced broadcast failed', err))
+
+    return c.json({ current_phase: parsed.data.next_phase_id }, 200)
   } catch (err) {
     return c.json({ error: toClientError(err) }, 500)
   }
