@@ -270,7 +270,8 @@ describe.skipIf(!HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OB
     // confirmation is the human-verify checkpoint below.
     let flushError: unknown = null
     try {
-      await getLangfuseTracerProvider().forceFlush()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (getLangfuseTracerProvider() as any).forceFlush()
     } catch (e) {
       flushError = e
       console.warn('[graph.integration.test] forceFlush error (expected without Langfuse connectivity):', e)
