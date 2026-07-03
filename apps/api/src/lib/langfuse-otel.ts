@@ -32,7 +32,8 @@
 
 import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
-import { setLangfuseTracerProvider } from '@langfuse/tracing'
+import { setLangfuseTracerProvider, getLangfuseTracerProvider } from '@langfuse/tracing'
+import * as otelApi from '@opentelemetry/api'
 
 /** Module-level span processor — null until setupLangfuseOtel() is called. */
 let _langfuseSpanProcessor: LangfuseSpanProcessor | null = null
@@ -72,13 +73,21 @@ export function setupLangfuseOtel(): void {
     spanProcessors: [_langfuseSpanProcessor],
   })
 
-  // Set as Langfuse's isolated TracerProvider. This routes all @langfuse/tracing
-  // startActiveObservation() calls through this provider instead of the global
-  // OTel provider. Langfuse v5 uses this isolated pattern to avoid interfering
-  // with any other OTel instrumentation in the app.
+  // Register as the global OTel provider (OTel SDK v2: api.trace.setGlobalTracerProvider
+  // replaces the v1 provider.register() method). This ensures getLangfuseTracerProvider()'s
+  // fallback path (trace.getTracerProvider()) returns this provider if the isolated slot
+  // isn't picked up — e.g. due to Symbol.for("langfuse") globalThis state not persisting
+  // across worker thread boundaries.
+  otelApi.trace.setGlobalTracerProvider(provider)
+
+  // Also set as Langfuse's isolated TracerProvider (preferred path).
   setLangfuseTracerProvider(provider)
 
-  console.log('[langfuse-otel] Langfuse OTel span processor initialized')
+  // Verify the round-trip: if isolated slot didn't take, the registered global
+  // provider is the fallback — either way spans will route to LangfuseSpanProcessor.
+  const check = getLangfuseTracerProvider()
+  const mode = check === provider ? 'isolated' : 'global-fallback'
+  console.log(`[langfuse-otel] Langfuse OTel span processor initialized (mode: ${mode})`)
 }
 
 /**

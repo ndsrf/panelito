@@ -18,6 +18,7 @@
     "@langfuse/langchain": "5.9.1",
     "@langfuse/otel": "5.9.1",
     "@langfuse/tracing": "5.9.1",
+    "@opentelemetry/api": "1.9.1",
     "@opentelemetry/core": "2.8.0",
     "@opentelemetry/exporter-trace-otlp-http": "0.219.0",
     "@opentelemetry/sdk-trace-base": "2.8.0",
