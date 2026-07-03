@@ -69,6 +69,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 | 260624-1av | Panel responsive bento grid improvements | 2026-06-23 |
 | 260624-1pn | Added map, timeline, and line chart widgets | 2026-06-23 |
 | 260624-2c7 | Removed unconditional 2s polling fallback from MessageList | 2026-06-24 |
+| 260703-la6 | Provider-aware default LLM models — replace hardcoded claude-sonnet-4-6 with TASK_MODELS registry | 2026-07-03 |
 
 ---
 
@@ -83,6 +84,6 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 Phase: 8 (human-control-canvas-sync) — COMPLETE
 Plan: All 5 plans complete across 3 waves
 Status: Complete — code review and next phase pending
-Last activity: 2026-07-03 -- Phase 08 all plans executed
+Last activity: 2026-07-03 - Completed quick task 260703-la6: Provider-aware default LLM models
 
 Progress: [█████░░░░░] 80% (v2.0 — 4/5 phases)
