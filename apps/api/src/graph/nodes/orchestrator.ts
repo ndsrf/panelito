@@ -32,7 +32,7 @@ export async function orchestratorNode(state: GraphState, config?: any): Promise
 
   if (!blueprint) {
     console.error('[orchestrator] blueprint missing from config.configurable — falling back to DOMAIN_BRIDGE')
-    return { guardrailResult: 'DOMAIN_BRIDGE', driftAction: null }
+    return { guardrailResult: 'DOMAIN_BRIDGE', driftAction: null, steeringTextEnabled: null }
   }
 
   // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ export async function orchestratorNode(state: GraphState, config?: any): Promise
   const lastMessage = state.messages[state.messages.length - 1]
   if (!lastMessage) {
     console.warn('[orchestrator] no messages in state — defaulting to DOMAIN_BRIDGE')
-    return { guardrailResult: 'DOMAIN_BRIDGE', driftAction: null, currentPhaseId: resolvedPhaseId }
+    return { guardrailResult: 'DOMAIN_BRIDGE', driftAction: null, currentPhaseId: resolvedPhaseId, steeringTextEnabled: null }
   }
 
   // ---------------------------------------------------------------------------
@@ -94,6 +94,7 @@ export async function orchestratorNode(state: GraphState, config?: any): Promise
         guardrailResult: 'DOMAIN_BRIDGE',
         driftAction: null,
         currentPhaseId: resolvedPhaseId,
+        steeringTextEnabled: null,
       }
     }
 
@@ -156,9 +157,29 @@ export async function orchestratorNode(state: GraphState, config?: any): Promise
     })
   }
 
+  // ---------------------------------------------------------------------------
+  // D-11: DOMAIN_BRIDGE steering text probability roll
+  // Same drift_reply_probability controls whether AgentNode emits a brief steering text
+  // in addition to the canvas mutation (DOMAIN_BRIDGE path always goes to AgentNode).
+  // ---------------------------------------------------------------------------
+  let steeringTextEnabled: boolean | null = null
+
+  if (guardrailResult === 'DOMAIN_BRIDGE') {
+    const steeringProbability = blueprint.drift_reply_probability ?? 0.8
+    const steeringRoll = Math.random()
+    steeringTextEnabled = steeringRoll < steeringProbability
+
+    console.info('[orchestrator] bridge steering event', {
+      steering_probability: steeringProbability,
+      steering_roll: steeringRoll,
+      steering_enabled: steeringTextEnabled,
+    })
+  }
+
   return {
     guardrailResult,
     driftAction,
     currentPhaseId: resolvedPhaseId,
+    steeringTextEnabled,
   }
 }

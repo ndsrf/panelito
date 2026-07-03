@@ -37,6 +37,12 @@ const EnvSchema = z.object({
   ALLOWED_ORIGINS: z
     .string()
     .default("http://localhost:3000"),
+  // D-15: Langfuse trace detail level.
+  // 'graph' (default): per-request CallbackHandler on graph.astream() only.
+  // 'full': wrap entire route handler in a Langfuse parent span (debugging tool).
+  LANGFUSE_TRACE_LEVEL: z
+    .enum(['graph', 'full'])
+    .default('graph'),
 });
 
 export const env = (() => {
