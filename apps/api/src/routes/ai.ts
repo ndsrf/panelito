@@ -275,6 +275,48 @@ aiRouter.post('/:id/invoke', async (c) => {
   const graph = createGraph(checkpointer)
 
   // -------------------------------------------------------------------------
+  // Step 8.5: Resolve activeBranchId to a real UUID (RESEARCH.md Pitfall 1)
+  // The branch UUID is required for try_acquire_mic — null is not valid.
+  // If the client did not send a branchId, fall back to the session's main branch.
+  // -------------------------------------------------------------------------
+  if (!activeBranchId) {
+    const { data: mainBranch } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('is_main', true)
+      .single()
+    if (!mainBranch) {
+      return c.json({ error: 'branch_not_found' }, 404)
+    }
+    activeBranchId = mainBranch.id
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 8.6: Mic lock acquire — BEFORE streamSSE() so locked branches return
+  // JSON 409 (not an SSE error). Must be after branch UUID resolution. (HUMAN-01, D-01)
+  // -------------------------------------------------------------------------
+  const { data: micResult, error: micError } = await supabase.rpc('try_acquire_mic', {
+    p_branch_id: activeBranchId,
+    p_holder_id: sessionId,
+    p_expiry_seconds: 30,
+  })
+
+  if (micError || !micResult?.[0]) {
+    console.error('[ai] mic lock RPC error:', micError?.message)
+    return c.json({ error: 'mic_lock_error' }, 500)
+  }
+  if (!micResult[0].acquired) {
+    return c.json({ error: 'mic_locked', branch_id: activeBranchId }, 409)
+  }
+
+  // D-04: broadcast mic_acquired fire-and-forget
+  supabase
+    .channel(`session:${sessionId}`)
+    .httpSend('mic_acquired', { branch_id: activeBranchId })
+    .catch((err) => console.error('[ai] mic_acquired broadcast failed', err))
+
+  // -------------------------------------------------------------------------
   // Step 9: Open SSE stream with graph.astream() + async-queue streamWriter
   // -------------------------------------------------------------------------
   return streamSSE(c, async (stream) => {
@@ -408,7 +450,109 @@ aiRouter.post('/:id/invoke', async (c) => {
         console.warn('[ai] Langfuse forceFlush error (non-fatal):', (flushErr as Error).message)
       })
 
+      // D-10 (HUMAN-02): emit phase_signal SSE event BEFORE 'done' if LLM signalled readiness
+      // phase_signal is advisory only — the human must confirm phase advancement via PATCH /phase
+      if ((finalState as any)?.phase_signal === true) {
+        await stream.writeSSE({
+          event: 'phase_signal',
+          data: JSON.stringify({
+            current_phase_id: session.current_phase ?? blueprint.phase_sequence[0]?.id ?? '',
+            blueprint_id: session.blueprint_id,
+          }),
+        })
+      }
+
       await stream.writeSSE({ event: 'done', data: '{}' })
+
+      // -------------------------------------------------------------------
+      // D-18 (CANVAS-02): canvas upserts AFTER 'done' event — fail-silent
+      // Only committed ops (status='committed') are persisted to DB (D-14)
+      // ADD_NODE ops first to generate UUIDs (D-15), then ADD_EDGE (D-17)
+      // -------------------------------------------------------------------
+      const committedOps = ((finalState as any)?.canvasOps ?? []).filter(
+        (op: import('@panelito/types').CanvasOp) => op.status === 'committed'
+      )
+
+      if (committedOps.length > 0) {
+        const nodeIdMap = new Map<string, string>()  // label → uuid (same-invocation edge refs)
+        const nodeRows: import('@panelito/types').CanvasNode[] = []
+        const edgeRows: import('@panelito/types').CanvasEdge[] = []
+
+        // Step 1: ADD_NODE ops — server-generated UUIDs (D-15)
+        for (const op of committedOps.filter((o: any) => o.op === 'ADD_NODE')) {
+          const nodeId = crypto.randomUUID()
+          const { data: nrow, error: nerr } = await supabase
+            .from('canvas_nodes')
+            .upsert({
+              id: nodeId,
+              session_id: sessionId,
+              branch_id: activeBranchId,
+              blueprint_id: session.blueprint_id,
+              node_type_id: op.node_type_id,
+              label: op.label,
+              status: 'committed',
+              position_x: null,
+              position_y: null,
+            }, { onConflict: 'id' })
+            .select()
+            .single()
+
+          if (nerr || !nrow) {
+            console.warn('[ai] canvas_nodes upsert failed — skipping (fail-silent)', nerr?.message)
+          } else {
+            nodeIdMap.set(op.label, nodeId)
+            nodeRows.push(nrow)
+          }
+        }
+
+        // Step 2: ADD_EDGE ops — drop silently if source/target nodes not in DB (D-17)
+        for (const op of committedOps.filter((o: any) => o.op === 'ADD_EDGE')) {
+          const sourceId = nodeIdMap.get(op.source_node_id) ?? op.source_node_id
+          const targetId = nodeIdMap.get(op.target_node_id) ?? op.target_node_id
+
+          const [{ count: srcCount }, { count: tgtCount }] = await Promise.all([
+            supabase.from('canvas_nodes').select('id', { count: 'exact', head: true })
+              .eq('id', sourceId).eq('session_id', sessionId),
+            supabase.from('canvas_nodes').select('id', { count: 'exact', head: true })
+              .eq('id', targetId).eq('session_id', sessionId),
+          ])
+
+          if (!srcCount || !tgtCount) {
+            console.warn('[ai] ADD_EDGE references unknown node — dropping silently (D-17)')
+            continue
+          }
+
+          const edgeId = crypto.randomUUID()
+          const { data: erow, error: eerr } = await supabase
+            .from('canvas_edges')
+            .upsert({
+              id: edgeId,
+              session_id: sessionId,
+              branch_id: activeBranchId,
+              blueprint_id: session.blueprint_id,
+              source_node_id: sourceId,
+              target_node_id: targetId,
+              edge_type_id: op.edge_type_id,
+              status: 'committed',
+            }, { onConflict: 'id' })
+            .select()
+            .single()
+
+          if (eerr || !erow) {
+            console.warn('[ai] canvas_edges upsert failed — skipping (fail-silent)', eerr?.message)
+          } else {
+            edgeRows.push(erow)
+          }
+        }
+
+        // Step 3: broadcast canvas_update — fire-and-forget (D-16)
+        if (nodeRows.length > 0 || edgeRows.length > 0) {
+          supabase
+            .channel(`session:${sessionId}`)
+            .httpSend('canvas_update', { nodes: nodeRows, edges: edgeRows })
+            .catch((err) => console.error('[ai] canvas_update broadcast failed', err))
+        }
+      }
     } catch (err) {
       console.error('[ai] stream error:', (err as Error).message)
       // T-04-15 / T-07-06: no provider-specific detail leaked
@@ -416,6 +560,15 @@ aiRouter.post('/:id/invoke', async (c) => {
         event: 'error',
         data: JSON.stringify({ message: 'stream_failed' }),
       })
+    } finally {
+      // D-06: always release mic, even on AbortError or stream crash (T-08-04-F)
+      await supabase.rpc('release_mic', { p_branch_id: activeBranchId }).catch(
+        (err: unknown) => console.warn('[ai] release_mic error (non-fatal):', (err as Error).message)
+      )
+      supabase
+        .channel(`session:${sessionId}`)
+        .httpSend('mic_released', { branch_id: activeBranchId, reason: 'completed' })
+        .catch((err) => console.error('[ai] mic_released broadcast failed', err))
     }
   })
 })
