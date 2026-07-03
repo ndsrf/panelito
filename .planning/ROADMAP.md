@@ -172,7 +172,7 @@ Plans:
 - [x] 08-04-PLAN.md — /invoke route: mic lock + phase_signal SSE + canvas upserts; PATCH /sessions/:id/phase (HUMAN-01, HUMAN-02, CANVAS-02)
 
 **Wave 3** *(blocked on Wave 1 completion — depends on 08-01 types)*
-- [ ] 08-05-PLAN.md — Frontend: session-store Phase 8 state, useAIStream phase_signal + mic_locked, useSessionChannel 4 broadcasts, CreatorControls Advance Phase button, InputBox micLocked read (HUMAN-01, HUMAN-02, CANVAS-02)
+- [x] 08-05-PLAN.md — Frontend: session-store Phase 8 state, useAIStream phase_signal + mic_locked, useSessionChannel 4 broadcasts, CreatorControls Advance Phase button, InputBox micLocked read (HUMAN-01, HUMAN-02, CANVAS-02)
 
 **Cross-cutting constraints:**
 - phase_signal must be read from raw event.input BEFORE CanvasOpSchema.safeParse() (all graph node plans)
@@ -209,7 +209,7 @@ Plans:
 | 5. Foundation | v2.0 | 4/4 | Complete   | 2026-07-01 |
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
-| 8. Human Control + Canvas Sync | v2.0 | 4/5 | In Progress | - |
+| 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
 
 ---
