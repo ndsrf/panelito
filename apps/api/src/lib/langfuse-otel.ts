@@ -27,7 +27,7 @@
  *   setupLangfuseOtel()
  *
  * Flush pattern (after every graph.invoke() call):
- *   await getLangfuseTracerProvider().forceFlush()
+ *   await flushLangfuse()
  */
 
 import { LangfuseSpanProcessor } from '@langfuse/otel'
@@ -89,4 +89,32 @@ export function setupLangfuseOtel(): void {
  */
 export function getLangfuseSpanProcessor(): LangfuseSpanProcessor | null {
   return _langfuseSpanProcessor
+}
+
+/**
+ * flushLangfuse — null-safe flush of the Langfuse span processor (OBS-02).
+ *
+ * Replaces the `(getLangfuseTracerProvider() as any).forceFlush()` anti-pattern.
+ * Why the processor-direct approach is safe:
+ *   - `getLangfuseTracerProvider()` returns the OTel global no-op TracerProvider when
+ *     `setupLangfuseOtel()` never ran (e.g. LANGFUSE_*_KEY absent). The global provider
+ *     does NOT have `forceFlush()`, so casting it as `any` and calling forceFlush() throws
+ *     at runtime ("forceFlush is not a function").
+ *   - `_langfuseSpanProcessor` is the module-held LangfuseSpanProcessor instance. Its
+ *     `forceFlush()` method IS defined by `@langfuse/otel`. We call it directly and skip
+ *     entirely when the processor is null (keys absent → tracing disabled → nothing to flush).
+ *   - Errors during flush are warned but never re-thrown — callers never need a try/catch.
+ *
+ * @returns Promise<void> — always resolves, never rejects.
+ */
+export async function flushLangfuse(): Promise<void> {
+  if (_langfuseSpanProcessor === null) {
+    // Tracing disabled (keys absent or setupLangfuseOtel() not called) — nothing to flush.
+    return
+  }
+  try {
+    await _langfuseSpanProcessor.forceFlush()
+  } catch (err) {
+    console.warn('[langfuse-otel] forceFlush error (non-fatal):', (err as Error).message)
+  }
 }

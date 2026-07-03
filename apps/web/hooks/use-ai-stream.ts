@@ -19,6 +19,12 @@
  *
  * T-02-10: Panel_update Zod gate — invalid payloads silently discarded.
  * T-02-11: JSON.parse wrapped per event — a bad event is skipped, not fatal.
+ *
+ * WSL-01: On SSE 'done', call onMessagesRefresh if provided to re-fetch messages from the
+ *         API. Targets a timing gap in local Supabase dev where the LongPoll cycle may not
+ *         have completed before the user sees the chat. One fetch per AI call (non-timer,
+ *         non-fatal). In production, Realtime delivers before 'done', so the fetch is
+ *         idempotent (same data that setMessages already holds).
  */
 
 import { useState, useRef, useCallback } from 'react'
@@ -90,7 +96,16 @@ function handlePanelUpdate(raw: unknown): void {
   usePanelStore.getState().setWidget(result.data)
 }
 
-export function useAIStream(sessionId: string): UseAIStreamReturn {
+interface UseAIStreamOptions {
+  /**
+   * WSL-01: Called once after SSE 'done' fires to re-fetch messages from the API.
+   * Targets a timing gap in local Supabase dev (LongPoll cycle not yet completed).
+   * Non-fatal; NOT called on stream error (message may not be persisted yet).
+   */
+  onMessagesRefresh?: () => void
+}
+
+export function useAIStream(sessionId: string, options?: UseAIStreamOptions): UseAIStreamReturn {
   const [isAIStreaming, setIsAIStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
   const [status, setStatus] = useState<AIStreamStatus>('idle')
@@ -98,6 +113,10 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
   const [phaseSignal, setPhaseSignal] = useState(false)
   const [pendingPhaseId, setPendingPhaseId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // WSL-01: stable ref so openAIStream closure always sees the latest callback without
+  // needing options in its deps array (avoids unnecessary callback recreation on each render)
+  const onMessagesRefreshRef = useRef<(() => void) | undefined>(options?.onMessagesRefresh)
+  onMessagesRefreshRef.current = options?.onMessagesRefresh
 
   const resetStream = useCallback(() => {
     setIsAIStreaming(false)
@@ -227,6 +246,9 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
               // Stream complete — finalize state
               setIsAIStreaming(false)
               setStatus('done')
+              // WSL-01: re-fetch messages once to close the Supabase LongPoll timing gap.
+              // Idempotent in production — Realtime already delivered the same messages.
+              onMessagesRefreshRef.current?.()
               return
             } else if (event === 'error') {
               interrupted = true
