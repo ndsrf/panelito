@@ -79,8 +79,11 @@ export function useSessionChannel(
       })
       .on('broadcast', { event: 'canvas_update' }, ({ payload }) => {
         // D-16, CANVAS-02: Canvas is session-wide — no branch filter
-        console.log('[canvas] update received', (payload.nodes as CanvasNode[]).length, 'nodes', (payload.edges as CanvasEdge[]).length, 'edges')
-        useSessionStore.getState().setCanvasData(payload.nodes as CanvasNode[], payload.edges as CanvasEdge[])
+        // WR-01: guard against missing fields in broadcast payload (schema drift / partial failure)
+        const nodes = Array.isArray(payload?.nodes) ? payload.nodes as CanvasNode[] : []
+        const edges = Array.isArray(payload?.edges) ? payload.edges as CanvasEdge[] : []
+        console.log('[canvas] update received', nodes.length, 'nodes', edges.length, 'edges')
+        useSessionStore.getState().setCanvasData(nodes, edges)
       })
       .on('broadcast', { event: 'phase_advanced' }, ({ payload }) => {
         // D-12, HUMAN-02: Update currentPhase and notify all participants
