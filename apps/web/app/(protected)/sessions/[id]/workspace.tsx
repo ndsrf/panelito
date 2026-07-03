@@ -175,21 +175,25 @@ export function Workspace({
     }
   }, [isCreator, session.id, session.status, router])
 
+  // WSL-02: shared re-fetch helper — called from both onMessagesRefresh and handleAfterSend.
+  // Closes the Supabase LongPoll timing gap in WSL dev. In production it is idempotent
+  // (Realtime has already delivered the same messages). Non-fatal: errors are swallowed.
+  const refreshMessages = () => {
+    apiFetch<Message[]>(
+      `/api/sessions/${liveSession.id}/messages?branchId=${activeBranchId}`
+    )
+      .then((msgs) => useSessionStore.getState().setMessages(msgs))
+      .catch(() => {})  // non-fatal — Realtime may have already delivered
+  }
+
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
   // The session-wide isAIStreaming (all participants) is derived in InputBox from presence.
   //
-  // WSL-01: onMessagesRefresh re-fetches messages from the API when SSE 'done' fires.
-  // Closes the Supabase LongPoll timing gap in WSL dev. In production it is idempotent
-  // (Realtime has already delivered the same messages). Non-fatal: errors are swallowed.
+  // WSL-01: onMessagesRefresh calls refreshMessages when SSE 'done' fires.
+  // WSL-02: handleAfterSend also calls refreshMessages (with 300ms delay) for non-@analista messages.
   const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream, phaseSignal, pendingPhaseId, resetStream } = useAIStream(liveSession.id, {
-    onMessagesRefresh: () => {
-      apiFetch<Message[]>(
-        `/api/sessions/${liveSession.id}/messages?branchId=${activeBranchId}`
-      )
-        .then((msgs) => useSessionStore.getState().setMessages(msgs))
-        .catch(() => {})  // non-fatal — Realtime may have already delivered
-    },
+    onMessagesRefresh: refreshMessages,
   })
 
   /**
@@ -197,6 +201,9 @@ export function Workspace({
    * Detects @analista mention and opens the AI invoke SSE stream (AI-07).
    * anyoneTyping: false at this point since the user just sent (their typing state cleared).
    * The server independently checks the global typing gate.
+   *
+   * WSL-02: always schedules a refreshMessages() call with a 300ms delay so the user's
+   * own message appears in chat immediately, without waiting for Supabase Realtime.
    */
   const handleAfterSend = (content: string) => {
     if (ANALISTA_PATTERN.test(content)) {
@@ -204,6 +211,9 @@ export function Workspace({
         console.error('[Workspace] openAIStream failed:', err)
       })
     }
+    // WSL-02: always refresh after send — closes Supabase Realtime gap in WSL2.
+    // 300ms delay ensures the message POST has committed before re-fetch.
+    setTimeout(refreshMessages, 300)
   }
 
   // Map AI stream error states to user-visible messages (shown briefly below the input)
