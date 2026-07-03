@@ -5,7 +5,7 @@ milestone_name: NSAI Neuro-Symbolic Collaborative Engine
 status: executing
 stopped_at: Phase 8 all 5 plans complete
 last_updated: "2026-07-03T15:00:00.000Z"
-last_activity: 2026-07-03 -- Phase 08 execution complete (all 5 plans done)
+last_activity: 2026-07-03 -- Completed quick task 260703-lmx: Fix Langfuse forceFlush crash and WSL chat no-refresh
 progress:
   total_phases: 5
   completed_phases: 4
@@ -70,6 +70,7 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 | 260624-1pn | Added map, timeline, and line chart widgets | 2026-06-23 |
 | 260624-2c7 | Removed unconditional 2s polling fallback from MessageList | 2026-06-24 |
 | 260703-la6 | Provider-aware default LLM models — replace hardcoded claude-sonnet-4-6 with TASK_MODELS registry | 2026-07-03 |
+| 260703-lmx | Fix Langfuse forceFlush crash and WSL chat no-refresh after AI response | 2026-07-03 |
 
 ---
 
