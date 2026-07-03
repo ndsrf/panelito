@@ -45,7 +45,7 @@ interface UseAIStreamReturn {
   status: AIStreamStatus
   /** True when a phase_signal SSE event has been received — enables the Advance Phase button (D-10). */
   phaseSignal: boolean
-  /** The current_phase_id from the phase_signal payload — passed to PATCH /sessions/:id/phase on click. */
+  /** The next_phase_id from the phase_signal payload — passed to PATCH /sessions/:id/phase on click. */
   pendingPhaseId: string | null
   /** Open the SSE invoke stream for the current session */
   openAIStream: (
@@ -215,10 +215,11 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
               }
             } else if (event === 'phase_signal') {
               // D-10: phase_signal arrives before done event; enable Advance Phase button for creator
+              // CR-01: read next_phase_id (the phase to advance TO), not current_phase_id
               try {
-                const payload = JSON.parse(data) as { current_phase_id: string; blueprint_id: string }
+                const payload = JSON.parse(data) as { next_phase_id: string; blueprint_id: string }
                 setPhaseSignal(true)
-                setPendingPhaseId(payload.current_phase_id)
+                setPendingPhaseId(payload.next_phase_id)
               } catch {
                 console.warn('[ai-stream] malformed phase_signal:', data)
               }

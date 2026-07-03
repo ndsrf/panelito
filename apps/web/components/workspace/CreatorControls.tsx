@@ -30,7 +30,7 @@ interface CreatorControlsProps {
   sessionTitle: string | null
   /** True when a phase_signal SSE event has been received — enables the Advance Phase button (D-10). */
   phaseSignal?: boolean
-  /** The current_phase_id from the phase_signal SSE payload — passed to PATCH /sessions/:id/phase. */
+  /** The next_phase_id from the phase_signal SSE payload — passed to PATCH /sessions/:id/phase. */
   pendingPhaseId?: string | null
   /** Called after PATCH success or error to reset the signal in the parent. */
   onPhaseConsumed?: () => void

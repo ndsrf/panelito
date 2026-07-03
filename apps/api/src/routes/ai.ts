@@ -452,14 +452,24 @@ aiRouter.post('/:id/invoke', async (c) => {
 
       // D-10 (HUMAN-02): emit phase_signal SSE event BEFORE 'done' if LLM signalled readiness
       // phase_signal is advisory only — the human must confirm phase advancement via PATCH /phase
+      // CR-01: emit next_phase_id (the phase to advance TO), not the current phase.
+      // Suppress the signal if already at the last phase.
       if ((finalState as any)?.phase_signal === true) {
-        await stream.writeSSE({
-          event: 'phase_signal',
-          data: JSON.stringify({
-            current_phase_id: session.current_phase ?? blueprint.phase_sequence[0]?.id ?? '',
-            blueprint_id: session.blueprint_id,
-          }),
-        })
+        const currentPhaseIndex = blueprint.phase_sequence.findIndex(
+          (p) => p.id === (session.current_phase ?? blueprint.phase_sequence[0]?.id)
+        )
+        const nextPhase = blueprint.phase_sequence[currentPhaseIndex + 1] ?? null
+
+        if (nextPhase) {
+          await stream.writeSSE({
+            event: 'phase_signal',
+            data: JSON.stringify({
+              next_phase_id: nextPhase.id,
+              blueprint_id: session.blueprint_id,
+            }),
+          })
+        }
+        // If no next phase exists, suppress the signal (already at final phase)
       }
 
       await stream.writeSSE({ event: 'done', data: '{}' })
