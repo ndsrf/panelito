@@ -123,17 +123,31 @@ Plans:
 
 ### Phase 7: /invoke Route Modification
 
-**Goal**: The /invoke route's direct adapter.stream() call is replaced with a LangGraph graph.astream() call — making this the highest-risk seam in the entire v2.0 build. The graph and PostgresSaver checkpointer are proven in Phase 6 before this phase begins. Success means the existing v1 session experience is fully preserved while graph execution now drives every AI response.
+**Goal**: The /invoke route's direct adapter.stream() call is replaced with a LangGraph graph.astream() call — making this the highest-risk seam in the entire v2.0 build. The graph and PostgresSaver checkpointer are proven in Phase 6 before this phase begins. Success means graph execution now drives every AI response. Note: v1 backward compatibility is dropped per CONTEXT.md D-01 — sessions without a blueprint_id return 400 no_blueprint; all sessions that reach the graph must have an active Blueprint.
 **Depends on**: Phase 6
 **Requirements**: ORCH-01
 **Success Criteria** (what must be TRUE):
 
-  1. An existing v1 session (no Blueprint, no canvas) continues to work correctly after the route modification — messages stream, the panel receives render_panel payloads, and no regressions are visible to participants
+  1. A session without a blueprint_id returns 400 no_blueprint before any AI call (D-01 — v1 compat dropped); a Blueprint session streams AI text and persists the message with no regressions visible to participants
   2. A new session with the Debate Blueprint active drives the /invoke route through the full LangGraph StateGraph execution; the SSE stream delivers text events to the client without hanging or timeout
   3. The abort controller is correctly wired: when a client disconnects mid-stream, the graph execution terminates and no orphaned async work continues on the server
   4. A Langfuse trace is visible for every real /invoke call — not just unit test calls — confirming the CallbackHandler attaches correctly to graph.astream() streaming mode
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Graph node streaming contract: steeringTextEnabled state field + streamWriter seam (agent + drift-reply) + AgentNode persona/silence/steering prompt rules + LANGFUSE_TRACE_LEVEL env var (ORCH-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02-PLAN.md — Route modification: replace adapter.stream() with graph.astream() + no_blueprint gate + loadBlueprint + async-queue streamWriter piping + abort signal + Langfuse tracing + new route tests (ORCH-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-03-PLAN.md — Human-verify checkpoint: live Langfuse trace (SC-4) + blueprint gate + abort behavior against the running app (ORCH-01)
+
 **UI hint**: no
 
 ### Phase 8: Human Control + Canvas Sync
@@ -178,7 +192,7 @@ Plans:
 | 4. Multi-AI Providers | v1.0 | 4/4 | Complete | 2026-06-18 |
 | 5. Foundation | v2.0 | 4/4 | Complete   | 2026-07-01 |
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
-| 7. /invoke Route Modification | v2.0 | 0/? | Not started | - |
+| 7. /invoke Route Modification | v2.0 | 0/3 | Planned | - |
 | 8. Human Control + Canvas Sync | v2.0 | 0/? | Not started | - |
 | 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
 
