@@ -55,9 +55,8 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
       system: systemPrompt,
     })) {
       if (event.type === 'text_delta') {
-        // Phase 6: events are collected but not streamed (no SSE context available in graph node)
-        // Phase 7: Phase 7 route will consume these via adapter.stream() directly or callbacks
-        // The text_delta events flow naturally — this loop exhausts the iterator
+        // D-05: Phase 7 streamWriter seam — routes tokens to SSE via route's async queue
+        config?.configurable?.streamWriter?.(event.text)
       }
       // done event terminates the loop naturally
     }

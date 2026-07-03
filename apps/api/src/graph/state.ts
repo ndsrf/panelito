@@ -70,6 +70,13 @@ export const GraphStateAnnotation = Annotation.Root({
     reducer: (_: CanvasOp | null, v: CanvasOp | null) => v,
     default: () => null,
   }),
+
+  /** Whether OrchestratorNode approved steering text on DOMAIN_BRIDGE (D-11).
+   *  null = not a DOMAIN_BRIDGE steering path; true/false = probability roll result. */
+  steeringTextEnabled: Annotation<boolean | null>({
+    reducer: (_: boolean | null, v: boolean | null) => v,
+    default: () => null,
+  }),
 })
 
 /** Full state type derived from the annotation root. */
