@@ -69,6 +69,11 @@ export const canvasMutationTool: ProviderTool = {
         type: 'string',
         description: 'Optional. For NO_ACTION: why no canvas change was made.',
       },
+      phase_signal: {
+        type: 'boolean',
+        description:
+          'Optional. Set to true when the conversation has reached a natural conclusion for the current phase and the group is ready to advance to the next phase. This is advisory only — a human must confirm phase advancement.',
+      },
     },
     required: ['op'],
   },

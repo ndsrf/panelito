@@ -77,6 +77,12 @@ export const GraphStateAnnotation = Annotation.Root({
     reducer: (_: boolean | null, v: boolean | null) => v,
     default: () => null,
   }),
+
+  /** phase_signal from AgentNode tool output — advisory only; human must confirm phase advancement (HUMAN-02, D-09). */
+  phase_signal: Annotation<boolean | null>({
+    reducer: (_: boolean | null, v: boolean | null) => v,
+    default: () => null,
+  }),
 })
 
 /** Full state type derived from the annotation root. */
