@@ -25,6 +25,7 @@ import { useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PanelWidgetSchema } from '@panelito/types'
 import { usePanelStore } from '@/store/panel-store'
+import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787'
 
@@ -35,12 +36,17 @@ export type AIStreamStatus =
   | 'typing_hold'    // 429 — someone is typing
   | 'no_persona'     // 409 — no active persona
   | 'no_api_key'     // 400 — no API key configured
+  | 'mic_locked'     // 409 with { error: 'mic_locked' } — another graph run in progress on this branch
   | 'error'
 
 interface UseAIStreamReturn {
   isAIStreaming: boolean
   streamingText: string
   status: AIStreamStatus
+  /** True when a phase_signal SSE event has been received — enables the Advance Phase button (D-10). */
+  phaseSignal: boolean
+  /** The current_phase_id from the phase_signal payload — passed to PATCH /sessions/:id/phase on click. */
+  pendingPhaseId: string | null
   /** Open the SSE invoke stream for the current session */
   openAIStream: (
     userMessage: string,
@@ -88,12 +94,17 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
   const [isAIStreaming, setIsAIStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
   const [status, setStatus] = useState<AIStreamStatus>('idle')
+  // D-10: phase_signal state — enables the Advance Phase button when the LLM signals phase readiness
+  const [phaseSignal, setPhaseSignal] = useState(false)
+  const [pendingPhaseId, setPendingPhaseId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const resetStream = useCallback(() => {
     setIsAIStreaming(false)
     setStreamingText('')
     setStatus('idle')
+    setPhaseSignal(false)
+    setPendingPhaseId(null)
   }, [])
 
   const openAIStream = useCallback(
@@ -138,7 +149,14 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
           if (response.status === 429) {
             setStatus('typing_hold')
           } else if (response.status === 409) {
-            setStatus('no_persona')
+            // D-02/D-05: Parse body to distinguish mic_locked vs no_persona
+            const body = await response.json().catch(() => ({})) as { error?: string }
+            if (body.error === 'mic_locked') {
+              setStatus('mic_locked')
+              toast.error('El analista ya está respondiendo en esta rama.')
+            } else {
+              setStatus('no_persona')
+            }
           } else if (response.status === 400) {
             setStatus('no_api_key')
           } else {
@@ -195,6 +213,15 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
               } catch {
                 console.warn('[ai-stream] malformed panel_update JSON:', data)
               }
+            } else if (event === 'phase_signal') {
+              // D-10: phase_signal arrives before done event; enable Advance Phase button for creator
+              try {
+                const payload = JSON.parse(data) as { current_phase_id: string; blueprint_id: string }
+                setPhaseSignal(true)
+                setPendingPhaseId(payload.current_phase_id)
+              } catch {
+                console.warn('[ai-stream] malformed phase_signal:', data)
+              }
             } else if (event === 'done') {
               // Stream complete — finalize state
               setIsAIStreaming(false)
@@ -229,5 +256,5 @@ export function useAIStream(sessionId: string): UseAIStreamReturn {
     [sessionId]
   )
 
-  return { isAIStreaming, streamingText, status, openAIStream, resetStream }
+  return { isAIStreaming, streamingText, status, phaseSignal, pendingPhaseId, openAIStream, resetStream }
 }

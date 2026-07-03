@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand'
-import type { Message, Session, Branch } from '@panelito/types'
+import type { Message, Session, Branch, CanvasNode, CanvasEdge } from '@panelito/types'
 import { usePanelStore } from './panel-store'
 
 export interface TypingUser {
@@ -28,6 +28,18 @@ interface SessionStoreState {
 
   /** Phase 3: List of all branches in the session */
   branches: Branch[]
+
+  /** Mic lock state from Realtime broadcast — branch-scoped (HUMAN-01, D-04). */
+  micLocked: boolean
+
+  /** Current phase ID from session state or phase_advanced broadcast (HUMAN-02, D-09). */
+  currentPhase: string | null
+
+  /** Canvas nodes received from canvas_update broadcast (CANVAS-02, D-14). */
+  canvasNodes: CanvasNode[]
+
+  /** Canvas edges received from canvas_update broadcast (CANVAS-02, D-14). */
+  canvasEdges: CanvasEdge[]
 
   /** Add a single message. De-duplicates by id — idempotent on re-delivery. */
   addMessage: (msg: Message) => void
@@ -52,6 +64,15 @@ interface SessionStoreState {
 
   /** Phase 3: Update an existing branch dynamically */
   updateBranch: (branch: Branch) => void
+
+  /** Set mic lock state. Called by use-session-channel on mic_acquired (true) and mic_released (false). */
+  setMicLocked: (locked: boolean) => void
+
+  /** Set current phase ID. Called by use-session-channel on phase_advanced broadcast. */
+  setCurrentPhase: (phase: string) => void
+
+  /** Replace canvas nodes and edges in full (not merge). Called by use-session-channel on canvas_update broadcast. */
+  setCanvasData: (nodes: CanvasNode[], edges: CanvasEdge[]) => void
 }
 
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
@@ -60,6 +81,10 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   session: null,
   activeBranchId: 'main',
   branches: [],
+  micLocked: false,
+  currentPhase: null,
+  canvasNodes: [],
+  canvasEdges: [],
 
   addMessage: (msg) =>
     set((state) => {
@@ -131,4 +156,10 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     set((state) => ({
       branches: state.branches.map((b) => (b.id === branch.id ? branch : b)),
     })),
+
+  setMicLocked: (locked) => set({ micLocked: locked }),
+
+  setCurrentPhase: (phase) => set({ currentPhase: phase }),
+
+  setCanvasData: (nodes, edges) => set({ canvasNodes: nodes, canvasEdges: edges }),
 }))

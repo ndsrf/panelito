@@ -178,7 +178,7 @@ export function Workspace({
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
   // The session-wide isAIStreaming (all participants) is derived in InputBox from presence.
-  const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream } = useAIStream(liveSession.id)
+  const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream, phaseSignal, pendingPhaseId, resetStream } = useAIStream(liveSession.id)
 
   /**
    * handleAfterSend — called by InputBox after a successful message POST.
@@ -243,6 +243,9 @@ export function Workspace({
               session={liveSession}
               shortCode={shortCode ?? liveSession.short_code}
               sessionTitle={liveSession.title}
+              phaseSignal={phaseSignal}
+              pendingPhaseId={pendingPhaseId}
+              onPhaseConsumed={resetStream}
             />
           </div>
         )}

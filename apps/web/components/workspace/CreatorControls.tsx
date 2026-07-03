@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical, GitFork } from 'lucide-react'
+import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical, GitFork, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
@@ -27,6 +28,12 @@ interface CreatorControlsProps {
   session: Session
   shortCode: string
   sessionTitle: string | null
+  /** True when a phase_signal SSE event has been received — enables the Advance Phase button (D-10). */
+  phaseSignal?: boolean
+  /** The current_phase_id from the phase_signal SSE payload — passed to PATCH /sessions/:id/phase. */
+  pendingPhaseId?: string | null
+  /** Called after PATCH success or error to reset the signal in the parent. */
+  onPhaseConsumed?: () => void
 }
 
 interface ActionButtonsProps {
@@ -185,10 +192,104 @@ function CloseButton({ sessionId, status, onAction }: ActionButtonsProps): React
   )
 }
 
+interface AdvancePhaseButtonProps {
+  sessionId: string
+  phaseSignal: boolean
+  pendingPhaseId: string | null
+  onConsumed?: () => void
+  /** Use h-11 for mobile (44px touch target), h-9 for desktop */
+  mobile?: boolean
+}
+
+/**
+ * AdvancePhaseButton — shown to creator only. Enabled when LLM emits phase_signal SSE event.
+ * Calls PATCH /sessions/:id/phase with next_phase_id on click (D-11, HUMAN-02, T-08-05-A).
+ */
+function AdvancePhaseButton({ sessionId, phaseSignal, pendingPhaseId, onConsumed, mobile }: AdvancePhaseButtonProps): ReactNode {
+  const [pending, setPending] = useState(false)
+  const [pulsing, setPulsing] = useState(false)
+
+  // One-shot pulse: start when phaseSignal transitions to true, stop on click/consume
+  useEffect(() => {
+    if (phaseSignal) {
+      setPulsing(true)
+    } else {
+      setPulsing(false)
+    }
+  }, [phaseSignal])
+
+  const isEnabled = phaseSignal && pendingPhaseId != null
+
+  const handleAdvancePhase = async () => {
+    if (!isEnabled || pending) return
+    setPending(true)
+    try {
+      await apiFetch(`/api/sessions/${sessionId}/phase`, {
+        method: 'PATCH',
+        body: JSON.stringify({ next_phase_id: pendingPhaseId }),
+      })
+      toast.success('Fase avanzada.')
+      onConsumed?.()
+      setPulsing(false)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        toast.error('No hay una fase siguiente en este Blueprint.')
+        onConsumed?.()
+        setPulsing(false)
+      } else {
+        console.error('[CreatorControls] Advance phase failed:', err)
+        onConsumed?.()
+      }
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const heightClass = mobile ? 'h-11' : 'h-9'
+
+  if (!isEnabled) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        className={cn(heightClass, 'gap-2 opacity-60')}
+        aria-label="Esperando señal del analista"
+      >
+        <ChevronRight className="h-4 w-4" />
+        Siguiente fase
+      </Button>
+    )
+  }
+
+  return (
+    <Button
+      variant="default"
+      size="sm"
+      disabled={pending}
+      onClick={handleAdvancePhase}
+      className={cn(heightClass, 'gap-2', pulsing && !pending && 'animate-pulse')}
+      aria-label="Avanzar a la siguiente fase"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Avanzando...
+        </>
+      ) : (
+        <>
+          <ChevronRight className="h-4 w-4" />
+          Avanzar fase
+        </>
+      )}
+    </Button>
+  )
+}
+
 /**
  * CreatorControls — renders Freeze / Unfreeze / Close buttons + active branch management.
  */
-export function CreatorControls({ session, shortCode, sessionTitle }: CreatorControlsProps): ReactNode {
+export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal = false, pendingPhaseId = null, onPhaseConsumed }: CreatorControlsProps): ReactNode {
   const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [analystasOpen, setAnalystasOpen] = useState(false)
@@ -196,7 +297,8 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
   const [toggling, setToggling] = useState(false)
 
   const branches = useSessionStore((s) => s.branches)
-  
+  const currentPhase = useSessionStore((s) => s.currentPhase)
+
   const activePersonas = session.active_personas || []
   const isAnalistaActive = activePersonas.includes('analista_cientifico')
 
@@ -370,6 +472,15 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
         <FreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
         <UnfreezeButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
         <CloseButton sessionId={session.id} status={session.status} onAction={() => setSheetOpen(false)} />
+        {currentPhase && (
+          <Badge variant="secondary" className="text-[13px] font-normal">{currentPhase}</Badge>
+        )}
+        <AdvancePhaseButton
+          sessionId={session.id}
+          phaseSignal={phaseSignal}
+          pendingPhaseId={pendingPhaseId}
+          onConsumed={onPhaseConsumed}
+        />
       </div>
 
       {/* Desktop Analyst drawer Sheet */}
@@ -431,6 +542,20 @@ export function CreatorControls({ session, shortCode, sessionTitle }: CreatorCon
                 <p className="text-[13px] text-muted-foreground text-left">
                   Archivar una rama la oculta del navegador. El creador puede restaurarla en cualquier momento.
                 </p>
+              </div>
+
+              <div className="border-t border-border pt-4 mt-2 space-y-3">
+                <div className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider text-left">Fase actual</div>
+                {currentPhase && (
+                  <Badge variant="secondary" className="text-[13px] font-normal">{currentPhase}</Badge>
+                )}
+                <AdvancePhaseButton
+                  sessionId={session.id}
+                  phaseSignal={phaseSignal}
+                  pendingPhaseId={pendingPhaseId}
+                  onConsumed={onPhaseConsumed}
+                  mobile
+                />
               </div>
             </div>
           </SheetContent>

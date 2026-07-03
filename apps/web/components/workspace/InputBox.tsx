@@ -89,6 +89,10 @@ export function InputBox({
   const status = liveSession?.status ?? sessionStatus
 
   const activeBranchId = useSessionStore((s) => s.activeBranchId)
+  // Phase 8 (HUMAN-01, D-04): micLocked from mic_acquired/mic_released broadcasts. No visual change
+  // in Phase 8 — streaming dots already communicate AI activity. Used by Phase 9 for additional UX signals.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const micLocked = useSessionStore((s) => s.micLocked)
 
   const isReadOnly = status !== 'active'
   const isFrozen = status === 'frozen'
