@@ -15,6 +15,7 @@
 import { canvasMutationTool, CanvasOpSchema } from '@panelito/types'
 import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
+import { TASK_MODELS } from '../../lib/model-config'
 import type { GraphState } from '../state'
 
 /**
@@ -138,7 +139,7 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
 
   try {
     for await (const event of adapter.stream(state.messages, [canvasMutationTool], {
-      model: 'claude-sonnet-4-6',
+      model: TASK_MODELS[providerName ?? 'anthropic'].analysis,
       maxTokens: 1024,
       system,
     })) {

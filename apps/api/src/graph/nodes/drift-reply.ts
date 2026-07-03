@@ -12,6 +12,7 @@
 
 import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
+import { TASK_MODELS } from '../../lib/model-config'
 import type { GraphState } from '../state'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +52,7 @@ export async function driftReplyNode(state: GraphState, config?: any): Promise<P
     // Pass [] as tools array — DriftReplyNode NEVER uses tools and NEVER mutates canvas (HUMAN-03)
     // WR-02: pass full state.messages for conversation context, not just the last message
     for await (const event of adapter.stream(state.messages, [], {
-      model: 'claude-sonnet-4-6',
+      model: TASK_MODELS[providerName ?? 'anthropic'].analysis,
       maxTokens: 512,
       system: systemPrompt,
     })) {
