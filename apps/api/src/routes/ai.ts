@@ -470,7 +470,7 @@ aiRouter.post('/:id/invoke', async (c) => {
       // ADD_NODE ops first to generate UUIDs (D-15), then ADD_EDGE (D-17)
       // -------------------------------------------------------------------
       const committedOps = ((finalState as any)?.canvasOps ?? []).filter(
-        (op: import('@panelito/types').CanvasOp) => op.status === 'committed'
+        (op: import('@panelito/types').CanvasOp) => op.op !== 'NO_ACTION' && op.status === 'committed'
       )
 
       if (committedOps.length > 0) {
@@ -562,9 +562,11 @@ aiRouter.post('/:id/invoke', async (c) => {
       })
     } finally {
       // D-06: always release mic, even on AbortError or stream crash (T-08-04-F)
-      await supabase.rpc('release_mic', { p_branch_id: activeBranchId }).catch(
-        (err: unknown) => console.warn('[ai] release_mic error (non-fatal):', (err as Error).message)
-      )
+      try {
+        await supabase.rpc('release_mic', { p_branch_id: activeBranchId })
+      } catch (err: unknown) {
+        console.warn('[ai] release_mic error (non-fatal):', (err as Error).message)
+      }
       supabase
         .channel(`session:${sessionId}`)
         .httpSend('mic_released', { branch_id: activeBranchId, reason: 'completed' })
