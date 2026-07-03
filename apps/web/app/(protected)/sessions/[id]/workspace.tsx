@@ -178,7 +178,19 @@ export function Workspace({
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
   // The session-wide isAIStreaming (all participants) is derived in InputBox from presence.
-  const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream, phaseSignal, pendingPhaseId, resetStream } = useAIStream(liveSession.id)
+  //
+  // WSL-01: onMessagesRefresh re-fetches messages from the API when SSE 'done' fires.
+  // Closes the Supabase LongPoll timing gap in WSL dev. In production it is idempotent
+  // (Realtime has already delivered the same messages). Non-fatal: errors are swallowed.
+  const { isAIStreaming: localAIStreaming, streamingText, status: aiStatus, openAIStream, phaseSignal, pendingPhaseId, resetStream } = useAIStream(liveSession.id, {
+    onMessagesRefresh: () => {
+      apiFetch<Message[]>(
+        `/api/sessions/${liveSession.id}/messages?branchId=${activeBranchId}`
+      )
+        .then((msgs) => useSessionStore.getState().setMessages(msgs))
+        .catch(() => {})  // non-fatal — Realtime may have already delivered
+    },
+  })
 
   /**
    * handleAfterSend — called by InputBox after a successful message POST.
