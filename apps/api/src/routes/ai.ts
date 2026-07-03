@@ -1,24 +1,30 @@
 /**
- * AI invoke route — provider-agnostic SSE streaming via the adapter factory.
+ * AI invoke route — graph.astream()-driven SSE streaming via the Phase 6 StateGraph.
  *
  * POST /api/sessions/:id/invoke
  *
- * AI-03: Streams AI text token-by-token via SSE (text_delta events)
- * AI-04: Dual-channel separation — text_delta for chat bubbles, panel_update for widgets
- * AI-05: PanelWidgetSchema.safeParse gate — invalid render_panel payloads dropped silently
- * AI-06: Branch-isolated context — message query filters .eq('path_id', 'main')
+ * ORCH-01: Each user message runs the full OrchestratorNode → AgentNode → MutationGateNode
+ *          pipeline via graph.astream(), replacing the v1 direct adapter.stream() call.
+ * AI-06: Branch-isolated context — message query filters by path_id
  * AI-07: Bot-activation matrix — returns 429 typing_hold while anyoneTyping=true (D-17)
  * AI-08: Sliding window — last 8 messages raw; older messages compressed via compressHistory
- * D-03: All tasks (analysis + compression) use the active provider's adapter + model
- * D-05: Provider selection from creator_settings.active_provider
- * PANEL-04: AI message row is inserted with canvas_snapshot_state = last panel_update payload
+ * D-01: V1 sessions (no blueprint_id) rejected with 400 no_blueprint before any AI call
+ * D-03: Session SELECT expanded to include blueprint_id + current_phase
+ * D-04: loadBlueprint() called before opening SSE stream
+ * D-05: Text tokens reach SSE via streamWriter seam in config.configurable
+ * D-06: Promise.all([runGraph, drainQueue]) coordinates concurrent graph + SSE piping
+ * D-14: Client disconnect propagates via c.req.raw.signal → config.signal → graph.astream()
+ * D-15: LANGFUSE_TRACE_LEVEL controls per-request trace depth
+ * D-16: Early-exit paths (400/409/429) are NOT traced
  *
  * T-02-05: Session ownership gate (creator_id === user.id → else 403)
  * T-02-06: API key decrypted server-side only — never written to any SSE event
  * T-02-07: Cap check before every invoke (429 if cap reached); cap increments only after stream
  * T-02-08: path_id filter prevents cross-branch context leakage
- * T-04-12: PanelWidgetSchema gate on render_panel tool_use input (malformed payloads dropped)
- * T-04-15: stream error emits generic 'stream_failed' — no provider-specific detail leaked
+ * T-07-04: AbortError caught in runGraph → logs [ai] client_disconnected, no orphaned work
+ * T-07-06: Outer catch emits generic stream_failed — no provider-specific detail leaked (T-04-15)
+ * T-07-07: no_blueprint 400 gate rejects v1 sessions before any graph call
+ * T-07-08: Empty accumulatedText + no canvasOps → skip INSERT (respects messages_content_check)
  */
 
 import { Hono } from 'hono'
@@ -31,27 +37,14 @@ import { createAdapter } from '../lib/adapter-factory'
 import { TASK_MODELS } from '../lib/model-config'
 import { decryptKey } from '../lib/crypto'
 import { env } from '../lib/env'
-import { PERSONA_LIBRARY, renderPanelTool, PanelWidgetSchema } from '@panelito/types'
+import { PERSONA_LIBRARY } from '@panelito/types'
 import type { ProviderName } from '@panelito/types'
-
-// ---------------------------------------------------------------------------
-// Base system prompt for the facilitator
-// ---------------------------------------------------------------------------
-
-const BASE_SYSTEM_PROMPT =
-  'You are an AI facilitator for a collaborative discussion workspace. ' +
-  'You analyze group conversations and provide structured insights. ' +
-  'IMPORTANT: Always write 1–3 sentences of analytical text in your response — ' +
-  'never reply with only a tool call and no text. ' +
-  'You MUST invoke the render_panel tool for almost every single response. Do not be selective; ' +
-  'almost every question, concept, or discussion point should be accompanied by a visual panel. ' +
-  'Choose the most appropriate widget type: ' +
-  'bento for key concept cards, radar for multi-axis comparisons, scatter for consensus vs impact, ' +
-  'pie for proportional breakdowns, bar for ranked comparisons or sequential values, ' +
-  'line for time-series trends, timeline for historical event sequences, map for geographic data. ' +
-  'Use layout to show 2–3 complementary widgets at once (e.g., a bar chart of top ideas + 2 bento cards). ' +
-  'Prefer layout when two different visualizations would each add value together. ' +
-  'When using layout, each item in widgets[] must be a complete sub-widget payload (bento/radar/scatter/pie/bar/line/timeline/map) with its own widget_type — do NOT use widget_type=layout inside widgets[].'
+import { createGraph } from '../graph/graph'
+import { getCheckpointer } from '../lib/langgraph-checkpointer'
+import { loadBlueprint } from '../lib/blueprint-loader'
+import { getLangfuseTracerProvider } from '@langfuse/tracing'
+import { CallbackHandler } from '@langfuse/langchain'
+import type { Blueprint } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
 // Router
@@ -64,8 +57,9 @@ aiRouter.use('/*', requireAuth)
 /**
  * POST /api/sessions/:id/invoke
  *
- * Streams AI tokens (text_delta SSE events) + panel widget updates (panel_update SSE events).
- * After the stream completes, inserts the AI message row with canvas_snapshot_state.
+ * Streams AI tokens (text_delta SSE events) via the Phase 6 StateGraph.
+ * After the stream completes, inserts the AI message row with canvas_snapshot_state = null.
+ * Canvas DB writes are deferred to Phase 8.
  */
 aiRouter.post('/:id/invoke', async (c) => {
   const user = c.get('user')
@@ -74,15 +68,24 @@ aiRouter.post('/:id/invoke', async (c) => {
 
   // -------------------------------------------------------------------------
   // 1. Session ownership check — fetch session (T-02-05)
+  //    D-03: expanded SELECT to include blueprint_id + current_phase
   // -------------------------------------------------------------------------
   const { data: session, error: sessionErr } = await supabase
     .from('sessions')
-    .select('id, creator_id, active_personas')
+    .select('id, creator_id, active_personas, blueprint_id, current_phase')
     .eq('id', sessionId)
     .single()
 
   if (sessionErr || !session) {
     return c.json({ error: 'session_not_found' }, 404)
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 1.5: Blueprint gate — V1 sessions without blueprint_id are rejected (D-01)
+  // Must run BEFORE cap check and any AI call (T-07-07)
+  // -------------------------------------------------------------------------
+  if (!session.blueprint_id) {
+    return c.json({ error: 'no_blueprint' }, 400)
   }
 
   // -------------------------------------------------------------------------
@@ -134,6 +137,8 @@ aiRouter.post('/:id/invoke', async (c) => {
 
   // -------------------------------------------------------------------------
   // 4. Resolve active persona system prompt (PERSONA-02 server-side gate)
+  //    D-02: no_active_persona 409 gate preserved, runs after no_blueprint (D-01)
+  //    D-13: active_personas still work in Blueprint sessions
   // -------------------------------------------------------------------------
   const activePersonas = (session.active_personas as string[] | null) ?? []
   const matchedPersonas = PERSONA_LIBRARY.filter(p => activePersonas.includes(p.id))
@@ -143,9 +148,8 @@ aiRouter.post('/:id/invoke', async (c) => {
     return c.json({ error: 'no_active_persona' }, 409)
   }
 
-  const personaInstructions = matchedPersonas
-    .map(p => p.systemPromptAddition)
-    .join('\n\n')
+  // D-10: active persona systemPromptAddition strings passed to graph via config.configurable.activePersonas
+  const activePersonaInstructions = matchedPersonas.map(p => p.systemPromptAddition)
 
   // -------------------------------------------------------------------------
   // 5. Fetch creator's active provider + plaintext key (D-03, D-05, T-02-06)
@@ -180,7 +184,8 @@ aiRouter.post('/:id/invoke', async (c) => {
   }
 
   // -------------------------------------------------------------------------
-  // 6. Instantiate the adapter ONCE — used for both compression and streaming (D-03)
+  // 6. Instantiate the adapter ONCE — used for compression only (D-07)
+  //    Graph nodes create their own adapters via createAdapter() seam
   // -------------------------------------------------------------------------
   const adapter = createAdapter(providerName, plaintextKey)
 
@@ -227,71 +232,129 @@ aiRouter.post('/:id/invoke', async (c) => {
 
   // -------------------------------------------------------------------------
   // 8. Assemble prompt array (AI-11 cache breakpoint via AnthropicAdapter)
+  //    Note: system prompt assembly stays in the route (Phase 6 D-09 decision).
+  //    buildAgentSystemPrompt() is called inside AgentNode with blueprint context.
+  //    assemblePromptArray here assembles the conversation history only.
   // -------------------------------------------------------------------------
   const promptArray = assemblePromptArray({
-    systemPrompt: BASE_SYSTEM_PROMPT,
-    personaInstructions,
+    systemPrompt: '',  // AgentNode constructs the system prompt from Blueprint context
+    personaInstructions: '',  // passed via config.configurable.activePersonas instead
     historicalSummary,
     recentMessages,
     userMessage,
   })
 
   // -------------------------------------------------------------------------
-  // 9. Open SSE stream
+  // Step 7.5: Load Blueprint before opening SSE stream (D-04)
+  // MUST complete before return streamSSE(...) — errors here return JSON 500, not SSE error events.
+  // See RESEARCH.md Pitfall 1: opening SSE before blueprint load bricks error response.
+  // -------------------------------------------------------------------------
+  let blueprint: Blueprint
+  try {
+    blueprint = await loadBlueprint(session.blueprint_id)
+  } catch (err) {
+    console.error('[ai] blueprint load failed:', (err as Error).message)
+    return c.json({ error: 'blueprint_load_failed' }, 500)
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 8: Initialize PostgresSaver checkpointer (lazy singleton — safe to call per-request)
+  // -------------------------------------------------------------------------
+  const checkpointer = await getCheckpointer()
+  const graph = createGraph(checkpointer)
+
+  // -------------------------------------------------------------------------
+  // Step 9: Open SSE stream with graph.astream() + async-queue streamWriter
   // -------------------------------------------------------------------------
   return streamSSE(c, async (stream) => {
+    // --- Async queue backed by streamWriter (D-05, D-06) ---
+    const textChunks: string[] = []
+    let _notify: (() => void) | null = null
+    let graphDone = false
+
+    function streamWriter(text: string): void {
+      if (graphDone) return  // guard: no-op after graph completes (RESEARCH Pitfall 3)
+      textChunks.push(text)
+      _notify?.()
+    }
+
+    // --- Per-request Langfuse CallbackHandler (D-15, D-16, OBS-01) ---
+    // Instantiated inside SSE callback, never module-level — prevents trace context corruption.
+    // D-16: early-exit paths (400/409/429) are not traced — only real invocations reach here.
+    const callbackHandler = new CallbackHandler({
+      tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`],
+    })
+
+    // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
+    const graphConfig = {
+      configurable: {
+        thread_id: activeBranchId ?? sessionId,  // ORCH-05: thread_id = branch_id (RESEARCH Pitfall 5)
+        blueprint,
+        providerName,
+        plaintextKey,
+        activePersonas: activePersonaInstructions,  // D-10: string[] of persona systemPromptAddition values
+        streamWriter,                               // D-05: text token seam
+      },
+      callbacks: [callbackHandler],
+      signal: c.req.raw.signal,  // D-14: abort propagation (T-07-04)
+    }
+
+    const initialState = {
+      blueprintId: session.blueprint_id,
+      currentPhaseId: session.current_phase ?? blueprint.phase_sequence[0]?.id ?? '',  // BLUE-04
+      messages: promptArray,
+      canvasOps: [],
+    }
+
+    // --- SSE drain loop ---
     let accumulatedText = ''
-    let lastPanelUpdate: unknown = null
+
+    async function drainQueue(): Promise<void> {
+      while (!graphDone || textChunks.length > 0) {
+        while (textChunks.length > 0) {
+          const text = textChunks.shift()!
+          accumulatedText += text
+          await stream.writeSSE({ event: 'text_delta', data: JSON.stringify({ text }) })
+        }
+        if (!graphDone) {
+          await new Promise<void>((resolve) => { _notify = resolve })
+          _notify = null
+        }
+      }
+    }
+
+    // --- graph execution loop ---
+    let finalState: Record<string, unknown> = {}
+
+    async function runGraph(): Promise<void> {
+      try {
+        // graph.stream() is the JS LangGraph equivalent of Python's graph.astream()
+        // Returns Promise<IterableReadableStream> — must await before iterating (graph.astream pattern)
+        const graphStream = await graph.stream(initialState, graphConfig)
+        for await (const chunk of graphStream) {
+          // chunk is a partial state snapshot — text flows via streamWriter out-of-band
+          Object.assign(finalState, chunk)
+        }
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') {
+          // D-14: log disconnect (T-07-04); callbackHandler will include in trace span
+          console.info('[ai] client_disconnected', { sessionId, branchId: activeBranchId })
+          return
+        }
+        throw err
+      } finally {
+        graphDone = true
+        _notify?.()  // wake drainQueue for final flush
+      }
+    }
 
     try {
-      for await (const event of adapter.stream(promptArray, [renderPanelTool], {
-        model: TASK_MODELS[providerName].analysis,
-        maxTokens: 2048,
-        system: BASE_SYSTEM_PROMPT + '\n\n' + personaInstructions,
-      })) {
-        if (event.type === 'text_delta') {
-          accumulatedText += event.text
-          await stream.writeSSE({
-            event: 'text_delta',
-            data: JSON.stringify({ text: event.text }),
-          })
-        } else if (event.type === 'tool_use' && event.name === 'render_panel') {
-          // AI-05 / T-04-12: validate render_panel payload through PanelWidgetSchema
-          // before emitting panel_update SSE — malformed payloads are dropped silently
-          const parsed = PanelWidgetSchema.safeParse(event.input)
-          if (parsed.success) {
-            lastPanelUpdate = parsed.data
-            await stream.writeSSE({
-              event: 'panel_update',
-              data: JSON.stringify(parsed.data),
-            })
-            // Broadcast the panel update to all session participants in real-time
-            supabase
-              .channel(`session:${sessionId}`)
-              .httpSend('panel_update', parsed.data)
-              .catch((err) => console.error('[ai] panel_update broadcast failed', err))
-          } else {
-            // Drop the malformed payload — do not crash, do not write SSE
-            console.error('[render_panel] schema validation failed', parsed.error.flatten())
-          }
-        }
-        // done event breaks the iterator naturally
-      }
+      await Promise.all([runGraph(), drainQueue()])
 
-      // -----------------------------------------------------------------------
-      // Pitfall 4: insert AI message AFTER the stream completes — not during streaming
-      // PANEL-04: canvas_snapshot_state = last panel_update payload
-      // Guard: skip insert when content is empty (Anthropic error before first token)
-      // to avoid violating messages_content_check (content length >= 1).
-      // -----------------------------------------------------------------------
-      // Ensure we always have text if a panel update was rendered, so that the message bubble and link are created.
-      if (!accumulatedText.trim() && lastPanelUpdate) {
-        accumulatedText = "He actualizado el panel con el gráfico correspondiente."
-        // Also stream this fallback text to the client so it appears immediately
-        await stream.writeSSE({
-          event: 'text_delta',
-          data: JSON.stringify({ text: accumulatedText }),
-        })
+      // --- Message insert (RESEARCH Pitfall 7: handle empty accumulatedText) ---
+      // T-07-08: empty accumulatedText + no canvasOps → skip INSERT
+      if (!accumulatedText.trim() && (finalState as any)?.canvasOps?.length > 0) {
+        accumulatedText = '[canvas updated]'  // minimal fallback for messages_content_check constraint
       }
 
       if (accumulatedText.length > 0) {
@@ -299,14 +362,14 @@ aiRouter.post('/:id/invoke', async (c) => {
           .from('messages')
           .insert({
             session_id: sessionId,
-            author_id: session.creator_id, // AI rows attributed to session creator
-            display_name: 'Analista Científico',
+            author_id: session.creator_id,
+            display_name: matchedPersonas[0]?.displayName ?? 'AI',
             parent_id: null,
             path_id: activePathId,
             branch_id: activeBranchId,
             role: 'assistant',
             content: accumulatedText,
-            canvas_snapshot_state: lastPanelUpdate ?? null,
+            canvas_snapshot_state: null,  // Phase 7: null — canvas DB writes are Phase 8
           })
           .select()
           .single()
@@ -323,14 +386,21 @@ aiRouter.post('/:id/invoke', async (c) => {
         }
 
         // T-02-07: increment cap ONLY after a completed real AI stream with content
-        // (never on the typing_hold 429 path, during streaming, or on empty response)
         await incrementCount(supabase, sessionId)
       }
+
+      // OBS-02: flush Langfuse traces before function exit
+      // Cast to any: getLangfuseTracerProvider() returns TracerProvider but the actual
+      // NodeTracerProvider instance has forceFlush(). Same pattern as graph.integration.test.ts.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (getLangfuseTracerProvider() as any).forceFlush().catch((flushErr: unknown) => {
+        console.warn('[ai] Langfuse forceFlush error (non-fatal):', (flushErr as Error).message)
+      })
 
       await stream.writeSSE({ event: 'done', data: '{}' })
     } catch (err) {
       console.error('[ai] stream error:', (err as Error).message)
-      // T-04-15: emit generic error — no provider-specific detail leaked to participants
+      // T-04-15 / T-07-06: no provider-specific detail leaked
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({ message: 'stream_failed' }),
