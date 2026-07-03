@@ -146,6 +146,12 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
         // D-05: Phase 7 streamWriter seam — routes tokens to SSE via route's async queue
         config?.configurable?.streamWriter?.(event.text)
       } else if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
+        // HUMAN-02 / D-08 (Phase 8): Read phase_signal from raw input BEFORE safeParse.
+        // CanvasOpSchema uses strict Zod parsing — unknown fields (including phase_signal)
+        // are silently dropped. Must extract from rawInput first (RESEARCH.md Pitfall 2 / Pitfall 4).
+        const rawInput = event.input as Record<string, unknown>
+        const rawPhaseSignal = typeof rawInput.phase_signal === 'boolean' ? rawInput.phase_signal : null
+
         // T-06-08: safeParse via CanvasOpSchema; parse failure logged and dropped (fail-silent)
         const parsed = CanvasOpSchema.safeParse(event.input)
         if (parsed.success) {
@@ -161,7 +167,7 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
           // fail-silent: do not throw, do not set agentOutput
         }
         // Only process the first canvas_mutation tool call
-        break
+        return { agentOutput, agentConfidence, phase_signal: rawPhaseSignal }
       }
     }
   } catch (err) {
@@ -169,5 +175,7 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
     return {}
   }
 
-  return { agentOutput, agentConfidence }
+  // phase_signal: null on all non-tool-use paths (DOMAIN_DRIFT, streaming-only response, safeParse failure).
+  // Every exit from agentNode must include phase_signal — see RESEARCH.md Pitfall 4.
+  return { agentOutput, agentConfidence, phase_signal: null }
 }
