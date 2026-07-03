@@ -80,6 +80,11 @@ aiRouter.post('/:id/invoke', async (c) => {
     return c.json({ error: 'session_not_found' }, 404)
   }
 
+  // T-02-05: Ownership gate — reject any authenticated user who does not own the session
+  if (session.creator_id !== user.id) {
+    return c.json({ error: 'forbidden' }, 403)
+  }
+
   // -------------------------------------------------------------------------
   // Step 1.5: Blueprint gate — V1 sessions without blueprint_id are rejected (D-01)
   // Must run BEFORE cap check and any AI call (T-07-07)
