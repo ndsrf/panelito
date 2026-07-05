@@ -25,6 +25,10 @@
  *
  * Phase 2 — Plan 03: AI streaming integration (AI-03, AI-07, D-01, D-02, D-04)
  *
+ * Phase 9 — Plan 09-02: Branch-switch canvas fetch (D-13).
+ * - canvasViewMode: server-resolved Blueprint canvas_view_mode (D-08)
+ * - fetchCanvas: fetches committed-only canvas on branch switch; fail-silent
+ *
  * Responsibilities:
  * - useAIStream: SSE consumer hook for the /invoke endpoint (D-01)
  * - handleAfterSend: callback passed to InputBox; detects @analista and opens the stream
@@ -37,7 +41,7 @@
  * - Streaming dots + placeholder swap (UI-SPEC Surface 6)
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { AnalyticsPanel } from '@/components/workspace/AnalyticsPanel'
 import { BranchNavigator } from '@/components/workspace/BranchNavigator'
 import { ChatStream } from '@/components/workspace/ChatStream'
@@ -49,7 +53,7 @@ import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
 import { useSessionStore } from '@/store/session-store'
 import { apiFetch } from '@/lib/api'
-import type { Session, Message, Branch } from '@panelito/types'
+import type { Session, Message, Branch, CanvasNode, CanvasEdge } from '@panelito/types'
 
 /** Regex to detect @analista mention (case-insensitive, AI-07) */
 const ANALISTA_PATTERN = /@analista/i
@@ -61,6 +65,10 @@ interface WorkspaceProps {
   currentUserDisplayName: string
   shortCode?: string
   initialBranches?: Branch[]
+  /** Server-resolved Blueprint canvas_view_mode (D-08, CANVAS-04).
+   *  Defaults to 'chart' if no Blueprint is set or Blueprint load fails.
+   *  'graph' → GraphCanvas widget gating; 'chart' → existing Recharts panel. */
+  canvasViewMode?: 'graph' | 'chart'
 }
 
 /**
@@ -73,6 +81,7 @@ interface WorkspaceProps {
  * @param currentUserDisplayName - The user's display name for typing presence (CHAT-06).
  * @param shortCode - Session short code for guest session localStorage lookup.
  * @param initialBranches - Initial branches array to populate store.
+ * @param canvasViewMode - Blueprint-resolved canvas view mode (D-08). Defaults to 'chart'.
  */
 export function Workspace({
   session,
@@ -81,6 +90,7 @@ export function Workspace({
   currentUserDisplayName,
   shortCode,
   initialBranches = [],
+  canvasViewMode = 'chart',
 }: WorkspaceProps): ReactNode {
   const router = useRouter()
   const isCreator = currentUserId === session.creator_id
@@ -186,6 +196,26 @@ export function Workspace({
       .catch(() => {})  // non-fatal — Realtime may have already delivered
   }
 
+  // D-13, CANVAS-03: Fetch committed-only canvas snapshot for a given branch.
+  // Full replace (setCanvasData) — not merge. Fail-silent: leaves existing canvas state
+  // unchanged on error (branch switch still completes, canvas may show stale state).
+  const fetchCanvas = useCallback((branchId: string) => {
+    apiFetch<{ nodes: CanvasNode[]; edges: CanvasEdge[] }>(
+      `/api/sessions/${liveSession.id}/canvas?branch_id=${branchId}`
+    )
+      .then(({ nodes, edges }) => {
+        useSessionStore.getState().setCanvasData(nodes, edges)
+      })
+      .catch(() => {}) // fail-silent — leave existing canvas state unchanged on error
+  }, [liveSession.id])
+
+  // Branch switch handler: sets active branch + fetches committed canvas snapshot (D-13).
+  // Passed to BranchNavigator so both actions fire atomically on branch chip click.
+  const handleBranchSwitch = useCallback((newBranchId: string) => {
+    useSessionStore.getState().setBranchId(newBranchId)
+    fetchCanvas(newBranchId) // D-13: fetch committed-only canvas for new branch
+  }, [fetchCanvas])
+
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
   // The session-wide isAIStreaming (all participants) is derived in InputBox from presence.
@@ -277,6 +307,7 @@ export function Workspace({
       <BranchNavigator
         onPointerDown={handlePointerDown}
         onResetHeight={handleResetHeight}
+        onBranchSwitch={handleBranchSwitch}
       />
 
       {/* Chat column: flex:1 area, relative for absolute InputBox positioning */}

@@ -6,6 +6,10 @@
  * LAYOUT-05: Physical divider with chromatic gradient + branch chips.
  * BRANCH-03: Renders all active branches in the session.
  * D-14: Horizontal Smart Scroll with auto-centering.
+ *
+ * Phase 9 (09-02): onBranchSwitch callback replaces direct setBranchId call when
+ * provided. Workspace.tsx supplies this callback so fetchCanvas() fires alongside
+ * setBranchId() on every branch chip click (D-13, CANVAS-03).
  */
 
 import { type ReactNode, useEffect, useRef } from 'react'
@@ -25,17 +29,21 @@ function hexToRgba(hex: string, opacity: number): string {
 interface BranchNavigatorProps {
   onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void
   onResetHeight?: () => void
+  /** Optional callback for branch switches. When provided, replaces the default
+   *  setBranchId(branchId) call so the parent (Workspace) can add canvas fetch logic (D-13). */
+  onBranchSwitch?: (branchId: string) => void
 }
 
 export function BranchNavigator({
   onPointerDown,
   onResetHeight,
+  onBranchSwitch,
 }: BranchNavigatorProps): ReactNode {
   const branches = useSessionStore((s) => s.branches)
   const activeBranchId = useSessionStore((s) => s.activeBranchId)
   const setBranchId = useSessionStore((s) => s.setBranchId)
   const typingUsers = useSessionStore((s) => s.typingUsers)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
   const lastTapRef = useRef<number>(0)
 
@@ -85,6 +93,16 @@ export function BranchNavigator({
     }
   }
 
+  const handleBranchClick = (branchId: string) => {
+    if (onBranchSwitch) {
+      // Parent (Workspace) owns branch switch logic — includes canvas fetch (D-13)
+      onBranchSwitch(branchId)
+    } else {
+      // Fallback: direct store update (used when rendered without Workspace context)
+      setBranchId(branchId)
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -105,7 +123,7 @@ export function BranchNavigator({
           return (
             <button
               key={branch.id}
-              onClick={() => setBranchId(branch.id)}
+              onClick={() => handleBranchClick(branch.id)}
               data-active={isActive ? 'true' : 'false'}
               className="flex items-center gap-2 rounded-full border px-3 py-1 min-h-[32px] cursor-pointer select-none hover:brightness-110 active:scale-95"
               style={{

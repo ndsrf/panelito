@@ -19,6 +19,11 @@ import { Workspace } from './workspace'
  * Plan 04: hasApiKey is hardcoded false — Plan 06 wires the real value
  * from creator_settings.
  *
+ * Phase 9 (09-02, D-08, CANVAS-04):
+ * 4. Load active Blueprint from domain_blueprints via Supabase server client
+ * 5. Extract canvas_view_mode ('graph' | 'chart'); default 'chart' on failure (fail-silent)
+ * 6. Pass canvasViewMode to <Workspace> — same pattern as hasApiKey
+ *
  * SESS-02: Session data fetched and passed to workspace.
  * SESS-05/06: session.status passed — Workspace gates CreatorControls.
  */
@@ -72,6 +77,30 @@ export default async function WorkspacePage({
     console.error('Failed to fetch branches:', err)
   }
 
+  // D-08, CANVAS-04: Resolve canvas_view_mode server-side from the session's Blueprint.
+  // Queried directly from domain_blueprints via Supabase server client (no Blueprint HTTP API exists).
+  // Fail-silent: default 'chart' if blueprint_id absent or Blueprint load fails.
+  // 'chart' default means no GraphCanvas shown — safe fallback for sessions without a Blueprint.
+  let canvasViewMode: 'graph' | 'chart' = 'chart'
+  if (session.blueprint_id) {
+    try {
+      const { data: blueprintRow } = await supabase
+        .from('domain_blueprints')
+        .select('definition')
+        .eq('id', session.blueprint_id)
+        .single()
+
+      if (blueprintRow?.definition && typeof blueprintRow.definition === 'object') {
+        const def = blueprintRow.definition as Record<string, unknown>
+        if (def.canvas_view_mode === 'graph' || def.canvas_view_mode === 'chart') {
+          canvasViewMode = def.canvas_view_mode
+        }
+      }
+    } catch {
+      // fail-silent — no graph canvas shown for this session; existing chart panel behavior
+    }
+  }
+
   return (
     <Workspace
       session={session}
@@ -80,6 +109,7 @@ export default async function WorkspacePage({
       currentUserDisplayName={displayName}
       shortCode={session.short_code}
       initialBranches={branches}
+      canvasViewMode={canvasViewMode}
     />
   )
 }
