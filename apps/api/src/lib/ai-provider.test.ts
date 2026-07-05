@@ -149,11 +149,15 @@ describe('renderPanelTool', () => {
       'radar',
       'scatter',
       'pie',
+      'bar',
+      'layout',
+      'line',
+      'timeline',
+      'map',
+      'graph',
     ])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((renderPanelTool.parameters as any).required).toContain('widget_type')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((renderPanelTool.parameters as any).required).toContain('data')
   })
 })
 

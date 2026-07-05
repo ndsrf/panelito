@@ -473,17 +473,27 @@ aiRouter.post('/:id/invoke', async (c) => {
 
       // -------------------------------------------------------------------
       // D-18 (CANVAS-02): canvas upserts AFTER 'done' event — fail-silent
-      // Only committed ops (status='committed') are persisted to DB (D-14)
-      // ADD_NODE ops first to generate UUIDs (D-15), then ADD_EDGE (D-17)
+      // Phase 9 D-01 reversal: ghost nodes ARE now persisted (Phase 8 D-14
+      // excluded them from DB — that decision is reversed here).
+      // ADD_NODE ops first to generate UUIDs (D-15/D-17), then ADD_EDGE.
       // -------------------------------------------------------------------
       const committedOps = ((finalState as any)?.canvasOps ?? []).filter(
         (op: import('@panelito/types').CanvasOp) => op.op !== 'NO_ACTION' && op.status === 'committed'
       )
 
+      // Phase 9 D-01: ghost ops also persisted — reverses Phase 8 D-14
+      // Ghost nodes need NO deduplication (Pitfall 5 — multiple same-label ghosts coexist until expiry)
+      const ghostOps = ((finalState as any)?.canvasOps ?? []).filter(
+        (op: import('@panelito/types').CanvasOp) => op.op !== 'NO_ACTION' && (op as any).status === 'ghost'
+      )
+
+      const committedNodeRows: import('@panelito/types').CanvasNode[] = []
+      const committedEdgeRows: import('@panelito/types').CanvasEdge[] = []
+      const ghostNodeRows: import('@panelito/types').CanvasNode[] = []
+      const ghostEdgeRows: import('@panelito/types').CanvasEdge[] = []
+
       if (committedOps.length > 0) {
         const nodeIdMap = new Map<string, string>()  // label → uuid (same-invocation edge refs)
-        const nodeRows: import('@panelito/types').CanvasNode[] = []
-        const edgeRows: import('@panelito/types').CanvasEdge[] = []
 
         // Step 1: ADD_NODE ops — server-generated UUIDs (D-15)
         for (const op of committedOps.filter((o: any) => o.op === 'ADD_NODE')) {
@@ -508,7 +518,7 @@ aiRouter.post('/:id/invoke', async (c) => {
             console.warn('[ai] canvas_nodes upsert failed — skipping (fail-silent)', nerr?.message)
           } else {
             nodeIdMap.set(op.label, nodeId)
-            nodeRows.push(nrow)
+            committedNodeRows.push(nrow)
           }
         }
 
@@ -548,17 +558,99 @@ aiRouter.post('/:id/invoke', async (c) => {
           if (eerr || !erow) {
             console.warn('[ai] canvas_edges upsert failed — skipping (fail-silent)', eerr?.message)
           } else {
-            edgeRows.push(erow)
+            committedEdgeRows.push(erow)
+          }
+        }
+      }
+
+      // Phase 9 D-01: persist ghost nodes — ADD_NODE before ADD_EDGE (D-17)
+      // ghost nodes get server-generated UUIDs; no deduplication needed (Pitfall 5)
+      if (ghostOps.length > 0) {
+        const ghostNodeIdMap = new Map<string, string>()  // label → uuid for ghost edge refs
+
+        // Ghost Step 1: ADD_NODE ops with status='ghost'
+        for (const op of ghostOps.filter((o: any) => o.op === 'ADD_NODE')) {
+          const nodeId = crypto.randomUUID()
+          const { data: gnrow, error: gnerr } = await supabase
+            .from('canvas_nodes')
+            .upsert({
+              id: nodeId,
+              session_id: sessionId,
+              branch_id: activeBranchId,
+              blueprint_id: session.blueprint_id,
+              node_type_id: op.node_type_id,
+              label: op.label,
+              status: 'ghost',  // Phase 9 D-01
+              position_x: null,
+              position_y: null,
+            }, { onConflict: 'id' })
+            .select()
+            .single()
+
+          if (gnerr || !gnrow) {
+            console.warn('[ai] ghost canvas_nodes upsert failed — skipping (fail-silent)', gnerr?.message)
+          } else {
+            ghostNodeIdMap.set(op.label, nodeId)
+            ghostNodeRows.push(gnrow)
           }
         }
 
-        // Step 3: broadcast canvas_update — fire-and-forget (D-16)
-        if (nodeRows.length > 0 || edgeRows.length > 0) {
-          supabase
-            .channel(`session:${sessionId}`)
-            .httpSend('canvas_update', { nodes: nodeRows, edges: edgeRows })
-            .catch((err) => console.error('[ai] canvas_update broadcast failed', err))
+        // Ghost Step 2: ADD_EDGE ops — ghost edges may reference ghost nodes (FK is by id, status-agnostic)
+        for (const op of ghostOps.filter((o: any) => o.op === 'ADD_EDGE')) {
+          const sourceId = ghostNodeIdMap.get(op.source_node_id) ?? op.source_node_id
+          const targetId = ghostNodeIdMap.get(op.target_node_id) ?? op.target_node_id
+
+          const [{ count: srcCount }, { count: tgtCount }] = await Promise.all([
+            supabase.from('canvas_nodes').select('id', { count: 'exact', head: true })
+              .eq('id', sourceId).eq('session_id', sessionId),
+            supabase.from('canvas_nodes').select('id', { count: 'exact', head: true })
+              .eq('id', targetId).eq('session_id', sessionId),
+          ])
+
+          if (!srcCount || !tgtCount) {
+            console.warn('[ai] ghost ADD_EDGE references unknown node — dropping silently')
+            continue
+          }
+
+          const edgeId = crypto.randomUUID()
+          const { data: gerow, error: geerr } = await supabase
+            .from('canvas_edges')
+            .upsert({
+              id: edgeId,
+              session_id: sessionId,
+              branch_id: activeBranchId,
+              blueprint_id: session.blueprint_id,
+              source_node_id: sourceId,
+              target_node_id: targetId,
+              edge_type_id: op.edge_type_id,
+              status: 'ghost',  // Phase 9 D-01
+            }, { onConflict: 'id' })
+            .select()
+            .single()
+
+          if (geerr || !gerow) {
+            console.warn('[ai] ghost canvas_edges upsert failed — skipping (fail-silent)', geerr?.message)
+          } else {
+            ghostEdgeRows.push(gerow)
+          }
         }
+      }
+
+      // Phase 9 D-02: broadcast canvas_update with BOTH committed and ghost rows — fire-and-forget
+      const allNodeRows = [...committedNodeRows, ...ghostNodeRows]
+      const allEdgeRows = [...committedEdgeRows, ...ghostEdgeRows]
+      if (allNodeRows.length > 0 || allEdgeRows.length > 0) {
+        supabase
+          .channel(`session:${sessionId}`)
+          .httpSend('canvas_update', { nodes: allNodeRows, edges: allEdgeRows })
+          .catch((err) => console.error('[ai] canvas_update broadcast failed', err))
+
+        // Phase 9 D-07: broadcast panel_update to trigger GraphCanvas panel switch for all participants
+        // Same mechanism as chart widget updates — panelStore.setWidget() handles the switch client-side
+        supabase
+          .channel(`session:${sessionId}`)
+          .httpSend('panel_update', { widget_type: 'graph' })
+          .catch((err) => console.error('[ai] panel_update broadcast failed', err))
       }
     } catch (err) {
       console.error('[ai] stream error:', (err as Error).message)

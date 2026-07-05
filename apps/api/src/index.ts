@@ -9,6 +9,7 @@ import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
 import reactionsRouter from "./routes/reactions";
 import personasRouter from "./routes/personas";
+import { canvasSessionRouter, canvasNodesRouter } from "./routes/canvas";
 import { createServiceClient } from "./lib/supabase";
 import { setupLangfuseOtel } from "./lib/langfuse-otel";
 
@@ -88,5 +89,13 @@ app.route("/sessions/:id/reactions", reactionsRouter);
 // POST /api/sessions/:id/personas
 // -------------------------------------------------------
 app.route("/sessions/:id/personas", personasRouter);
+
+// -------------------------------------------------------
+// Canvas routes (CANVAS-03, Phase 9)
+// GET  /api/sessions/:id/canvas?branch_id=  — committed nodes/edges for branch
+// PATCH /api/canvas_nodes/:id               — confirm or dismiss ghost node
+// -------------------------------------------------------
+app.route("/sessions", canvasSessionRouter);
+app.route("/canvas_nodes", canvasNodesRouter);
 
 export default app;
