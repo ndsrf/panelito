@@ -96,13 +96,15 @@ export const renderPanelTool: ProviderTool = {
   description:
     'Renders a visual analytics widget in the analytics panel. ' +
     'Pass widget-specific data properties at the TOP LEVEL (not nested in a "data" field). ' +
-    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[]; bar → bars[]; layout → widgets[]; line → line_points[]; timeline → events[]; map → countries[].',
+    'bento → cards[]; radar → axes[]; scatter → points[]; pie → segments[]; bar → bars[]; layout → widgets[]; line → line_points[]; timeline → events[]; map → countries[]; graph → no additional fields (canvas data from sessionStore).',
   parameters: {
     type: 'object',
     properties: {
       widget_type: {
         type: 'string',
-        enum: ['bento', 'radar', 'scatter', 'pie', 'bar', 'layout', 'line', 'timeline', 'map'],
+        // Phase 9 D-07: 'graph' triggers GraphCanvas via panel_update broadcast;
+        // AI can now select 'graph' when a canvas mutation is committed.
+        enum: ['bento', 'radar', 'scatter', 'pie', 'bar', 'layout', 'line', 'timeline', 'map', 'graph'],
         description: 'The type of widget to render',
       },
       title: {

@@ -43,9 +43,10 @@ describe('renderPanelTool', () => {
     expect(required).toContain('widget_type')
   })
 
-  it('widget_type enum deep-equals bento radar scatter pie bar layout', () => {
+  it('widget_type enum includes all widget types including graph', () => {
     const props = (renderPanelTool.parameters as Record<string, unknown>).properties as Record<string, { enum?: string[] }>
-    expect(props['widget_type']?.enum).toEqual(['bento', 'radar', 'scatter', 'pie', 'bar', 'layout'])
+    // Phase 9 D-07: 'graph' added so AI can emit panel_update with widget_type='graph'
+    expect(props['widget_type']?.enum).toEqual(['bento', 'radar', 'scatter', 'pie', 'bar', 'layout', 'line', 'timeline', 'map', 'graph'])
   })
 })
 
