@@ -196,8 +196,8 @@ Plans:
 Plans:
 **Wave 1** *(parallel — no file overlap between 09-01 and 09-02)*
 
-- [ ] 09-01-PLAN.md — Backend + types: 'graph' PanelWidget type, GET /canvas + PATCH /canvas_nodes/:id (with session-membership check), ai.ts ghost persistence + committed/ghost broadcast + panel_update('graph'), migration 0011 pg_cron ghost expiry [BLOCKING push], @dagrejs/dagre install (CANVAS-03, CANVAS-04, UI-02)
-- [ ] 09-02-PLAN.md — Client wiring: sessionStore mergeCanvasData (upsert-by-id), use-session-channel merge + SUBSCRIBED reconnect fetch, workspace branch-switch canvas fetch, page.tsx server-side canvas_view_mode prop (CANVAS-03, CANVAS-04, UI-03)
+- [x] 09-01-PLAN.md — Backend + types: 'graph' PanelWidget type, GET /canvas + PATCH /canvas_nodes/:id (with session-membership check), ai.ts ghost persistence + committed/ghost broadcast + panel_update('graph'), migration 0011 pg_cron ghost expiry [BLOCKING push], @dagrejs/dagre install (CANVAS-03, CANVAS-04, UI-02)
+- [x] 09-02-PLAN.md — Client wiring: sessionStore mergeCanvasData (upsert-by-id), use-session-channel merge + SUBSCRIBED reconnect fetch, workspace branch-switch canvas fetch, page.tsx server-side canvas_view_mode prop (CANVAS-03, CANVAS-04, UI-03)
 
 **Wave 2** *(blocked on Wave 1 — needs 'graph' type from 09-01)*
 
@@ -225,7 +225,7 @@ Plans:
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
-| 9. Graph Canvas Frontend | v2.0 | 0/4 | Not started | - |
+| 9. Graph Canvas Frontend | v2.0 | 2/4 | In Progress|  |
 
 ---
 
