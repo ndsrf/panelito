@@ -201,7 +201,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — needs 'graph' type from 09-01)*
 
-- [ ] 09-03-PLAN.md — GraphCanvas renderer: graphLayout (dagre), GraphNode (committed/ghost + confirm/dismiss), GraphEdge (Blueprint-colored), GraphCanvas (@xyflow/react store-driven), widget-registry 'graph' registration ssr:false (UI-01, UI-02, UI-03, CANVAS-04)
+- [x] 09-03-PLAN.md — GraphCanvas renderer: graphLayout (dagre), GraphNode (committed/ghost + confirm/dismiss), GraphEdge (Blueprint-colored), GraphCanvas (@xyflow/react store-driven), widget-registry 'graph' registration ssr:false (UI-01, UI-02, UI-03, CANVAS-04)
 
 **Wave 3** *(blocked on Wave 2 — acceptance gate)*
 
@@ -225,7 +225,7 @@ Plans:
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
-| 9. Graph Canvas Frontend | v2.0 | 2/4 | In Progress|  |
+| 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 
 ---
 
