@@ -13,7 +13,7 @@
  */
 
 import { BaseEdge, getSmoothStepPath } from '@xyflow/react'
-import type { EdgeProps } from '@xyflow/react'
+import type { EdgeProps, EdgeTypes } from '@xyflow/react'
 
 type GraphEdgeData = {
   blueprintColor?: string
@@ -27,7 +27,7 @@ function GraphEdge({
   sourcePosition,
   targetPosition,
   data,
-}: EdgeProps<{ data: GraphEdgeData }>) {
+}: EdgeProps) {
   const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -54,4 +54,4 @@ function GraphEdge({
  * edgeTypes — module-level map of custom edge type renderers.
  * MUST be defined outside any component (Pitfall 1 — prevents remount storm).
  */
-export const edgeTypes = { graphEdge: GraphEdge }
+export const edgeTypes: EdgeTypes = { graphEdge: GraphEdge }
