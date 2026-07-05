@@ -191,7 +191,22 @@ Plans:
   3. A canvas mutation broadcast in Phase 8 triggers a live re-render on all connected clients within one second without a full page reload or manual branch switch
   4. A session using the Debate Blueprint renders the Graph Canvas (View A); a session with canvas_view_mode: chart renders the existing Recharts panel (View B); both rendering paths coexist and neither crashes
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1** *(parallel — no file overlap between 09-01 and 09-02)*
+
+- [ ] 09-01-PLAN.md — Backend + types: 'graph' PanelWidget type, GET /canvas + PATCH /canvas_nodes/:id (with session-membership check), ai.ts ghost persistence + committed/ghost broadcast + panel_update('graph'), migration 0011 pg_cron ghost expiry [BLOCKING push], @dagrejs/dagre install (CANVAS-03, CANVAS-04, UI-02)
+- [ ] 09-02-PLAN.md — Client wiring: sessionStore mergeCanvasData (upsert-by-id), use-session-channel merge + SUBSCRIBED reconnect fetch, workspace branch-switch canvas fetch, page.tsx server-side canvas_view_mode prop (CANVAS-03, CANVAS-04, UI-03)
+
+**Wave 2** *(blocked on Wave 1 — needs 'graph' type from 09-01)*
+
+- [ ] 09-03-PLAN.md — GraphCanvas renderer: graphLayout (dagre), GraphNode (committed/ghost + confirm/dismiss), GraphEdge (Blueprint-colored), GraphCanvas (@xyflow/react store-driven), widget-registry 'graph' registration ssr:false (UI-01, UI-02, UI-03, CANVAS-04)
+
+**Wave 3** *(blocked on Wave 2 — acceptance gate)*
+
+- [ ] 09-04-PLAN.md — Human-verify: view-mode routing + live render (SC-1, SC-4) and real-time multi-client updates + ghost lifecycle (SC-2, SC-3) against the running app (CANVAS-03, CANVAS-04, UI-01, UI-02, UI-03)
+
 **UI hint**: yes
 
 ---
@@ -210,7 +225,7 @@ Plans:
 | 6. Graph Construction + Checkpointer | v2.0 | 4/4 | Complete    | 2026-07-02 |
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
-| 9. Graph Canvas Frontend | v2.0 | 0/? | Not started | - |
+| 9. Graph Canvas Frontend | v2.0 | 0/4 | Not started | - |
 
 ---
 
