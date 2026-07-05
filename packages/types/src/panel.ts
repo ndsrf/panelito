@@ -100,6 +100,12 @@ export const BasePanelWidgetSchema = z.discriminatedUnion('widget_type', [
     countries: z.array(MapCountrySchema).min(1).max(50),
     highlight_color: z.string().optional(),
   }),
+  // D-06 (Phase 9): Graph Canvas widget — no embedded node/edge payload.
+  // GraphCanvas reads node/edge data directly from sessionStore.canvasNodes/canvasEdges
+  // to avoid dual-source-of-truth bugs. The 'graph' variant is intentionally minimal.
+  z.object({
+    widget_type: z.literal("graph"),
+  }),
 ])
 
 export type BasePanelWidget = z.infer<typeof BasePanelWidgetSchema>

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.102.0",
+    "@dagrejs/dagre": "3.0.0",
     "@hookform/resolvers": "^5.4.0",
     "@panelito/types": "workspace:*",
     "@supabase/phoenix": "0.4.2",
