@@ -9,7 +9,7 @@
  */
 
 import { create } from 'zustand'
-import type { Message, Session, Branch, CanvasNode, CanvasEdge } from '@panelito/types'
+import type { Message, Session, Branch, CanvasNode, CanvasEdge, Blueprint } from '@panelito/types'
 import { usePanelStore } from './panel-store'
 
 export interface TypingUser {
@@ -41,6 +41,13 @@ interface SessionStoreState {
 
   /** Canvas edges — committed + ghost rows from live broadcasts (CANVAS-02, Phase 9 D-01). */
   canvasEdges: CanvasEdge[]
+
+  /**
+   * Active Blueprint — resolved server-side and passed from page.tsx via Workspace.
+   * Used by GraphCanvas to resolve node_type_id → color and edge_type_id → color.
+   * Null when no Blueprint is configured for the session.
+   */
+  blueprint: Blueprint | null
 
   /** Add a single message. De-duplicates by id — idempotent on re-delivery. */
   addMessage: (msg: Message) => void
@@ -87,6 +94,9 @@ interface SessionStoreState {
    * merging preserves earlier nodes from prior invocations (D-02, D-14).
    */
   mergeCanvasData: (nodes: CanvasNode[], edges: CanvasEdge[]) => void
+
+  /** Set the active Blueprint (called once from Workspace on mount). */
+  setBlueprint: (blueprint: Blueprint | null) => void
 }
 
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
@@ -99,6 +109,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   currentPhase: null,
   canvasNodes: [],
   canvasEdges: [],
+  blueprint: null,
 
   addMessage: (msg) =>
     set((state) => {
@@ -176,6 +187,8 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   setCurrentPhase: (phase) => set({ currentPhase: phase }),
 
   setCanvasData: (nodes, edges) => set({ canvasNodes: nodes, canvasEdges: edges }),
+
+  setBlueprint: (blueprint) => set({ blueprint }),
 
   mergeCanvasData: (nodes, edges) =>
     set((state) => {
