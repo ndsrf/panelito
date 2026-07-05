@@ -3,7 +3,8 @@ import { requireUser, getUser } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase/server'
 import { apiFetch } from '@/lib/api'
 import { getCreatorSettings } from '@/lib/creator-settings'
-import type { Session, Branch } from '@panelito/types'
+import type { Session, Branch, Blueprint } from '@panelito/types'
+import { BlueprintSchema } from '@panelito/types'
 import { Workspace } from './workspace'
 
 /**
@@ -78,10 +79,12 @@ export default async function WorkspacePage({
   }
 
   // D-08, CANVAS-04: Resolve canvas_view_mode server-side from the session's Blueprint.
+  // Also parse the full Blueprint definition so GraphCanvas can resolve node/edge colors client-side.
   // Queried directly from domain_blueprints via Supabase server client (no Blueprint HTTP API exists).
-  // Fail-silent: default 'chart' if blueprint_id absent or Blueprint load fails.
+  // Fail-silent: default 'chart' / null Blueprint if blueprint_id absent or Blueprint load fails.
   // 'chart' default means no GraphCanvas shown — safe fallback for sessions without a Blueprint.
   let canvasViewMode: 'graph' | 'chart' = 'chart'
+  let blueprint: Blueprint | null = null
   if (session.blueprint_id) {
     try {
       const { data: blueprintRow } = await supabase
@@ -94,6 +97,11 @@ export default async function WorkspacePage({
         const def = blueprintRow.definition as Record<string, unknown>
         if (def.canvas_view_mode === 'graph' || def.canvas_view_mode === 'chart') {
           canvasViewMode = def.canvas_view_mode
+        }
+        // Parse full Blueprint for client-side color resolution in GraphCanvas
+        const parsed = BlueprintSchema.safeParse(def)
+        if (parsed.success) {
+          blueprint = parsed.data
         }
       }
     } catch {
@@ -110,6 +118,7 @@ export default async function WorkspacePage({
       shortCode={session.short_code}
       initialBranches={branches}
       canvasViewMode={canvasViewMode}
+      blueprint={blueprint}
     />
   )
 }

@@ -53,7 +53,7 @@ import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
 import { useSessionStore } from '@/store/session-store'
 import { apiFetch } from '@/lib/api'
-import type { Session, Message, Branch, CanvasNode, CanvasEdge } from '@panelito/types'
+import type { Session, Message, Branch, Blueprint, CanvasNode, CanvasEdge } from '@panelito/types'
 
 /** Regex to detect @analista mention (case-insensitive, AI-07) */
 const ANALISTA_PATTERN = /@analista/i
@@ -69,6 +69,9 @@ interface WorkspaceProps {
    *  Defaults to 'chart' if no Blueprint is set or Blueprint load fails.
    *  'graph' → GraphCanvas widget gating; 'chart' → existing Recharts panel. */
   canvasViewMode?: 'graph' | 'chart'
+  /** Full Blueprint definition parsed server-side (09-03). Used by GraphCanvas to resolve
+   *  node_type_id → color and edge_type_id → color at runtime. Null when no Blueprint set. */
+  blueprint?: Blueprint | null
 }
 
 /**
@@ -91,6 +94,7 @@ export function Workspace({
   shortCode,
   initialBranches = [],
   canvasViewMode = 'chart',
+  blueprint = null,
 }: WorkspaceProps): ReactNode {
   const router = useRouter()
   const isCreator = currentUserId === session.creator_id
@@ -152,6 +156,12 @@ export function Workspace({
   useEffect(() => {
     useSessionStore.getState().setBranches(initialBranches)
   }, [initialBranches])
+
+  // 09-03: Set active Blueprint in store for client-side color resolution in GraphCanvas.
+  // blueprint is null when no Blueprint is configured — GraphCanvas falls back to neutral color.
+  useEffect(() => {
+    useSessionStore.getState().setBlueprint(blueprint ?? null)
+  }, [blueprint])
 
   // SESS-07/09/11/12: Subscribe to live session_status_change broadcasts
   useSessionStatus(session.id, session)
