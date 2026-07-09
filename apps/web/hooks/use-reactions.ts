@@ -113,7 +113,7 @@ export function useReactions(
 
     fetchReactions()
 
-    const intervalId = setInterval(fetchReactions, 2000)
+    const intervalId = setInterval(fetchReactions, 15000)
     return () => clearInterval(intervalId)
   }, [sessionId, currentUserId])
 

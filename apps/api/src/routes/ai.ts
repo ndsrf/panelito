@@ -381,12 +381,16 @@ aiRouter.post('/:id/invoke', async (c) => {
 
     async function runGraph(): Promise<void> {
       try {
-        // graph.stream() is the JS LangGraph equivalent of Python's graph.astream()
-        // Returns Promise<IterableReadableStream> — must await before iterating (graph.astream pattern)
+        // graph.stream() with default streamMode='updates' emits { [nodeName]: nodeReturnValue }
+        // per node. Object.assign(finalState, chunk) would store node-keyed wrappers, making
+        // finalState.canvasOps always undefined. Instead we merge the node's return value directly
+        // so finalState holds field-level values (canvasOps, phase_signal, agentConfidence, etc).
         const graphStream = await graph.stream(initialState, graphConfig)
         for await (const chunk of graphStream) {
-          // chunk is a partial state snapshot — text flows via streamWriter out-of-band
-          Object.assign(finalState, chunk)
+          // chunk = { nodeName: { field: value, ... } } — merge the inner value, not the wrapper
+          for (const nodeOutput of Object.values(chunk)) {
+            Object.assign(finalState, nodeOutput)
+          }
         }
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
@@ -469,21 +473,27 @@ aiRouter.post('/:id/invoke', async (c) => {
         // If no next phase exists, suppress the signal (already at final phase)
       }
 
-      await stream.writeSSE({ event: 'done', data: '{}' })
-
       // -------------------------------------------------------------------
-      // D-18 (CANVAS-02): canvas upserts AFTER 'done' event — fail-silent
-      // Phase 9 D-01 reversal: ghost nodes ARE now persisted (Phase 8 D-14
-      // excluded them from DB — that decision is reversed here).
+      // Canvas upserts before 'done' so committed nodes/edges can be
+      // delivered to the invoking client via SSE (canvas_update SSE event).
+      //
+      // Realtime httpSend broadcasts fire after 'done' as fire-and-forget for
+      // all other participants. In WSL2 local dev the browser cannot reach
+      // Supabase Realtime (ERR_CONNECTION_TIMED_OUT), so SSE is the only
+      // reliable delivery path for the invoking client.
+      //
+      // Phase 9 D-01 reversal: ghost nodes ARE now persisted.
       // ADD_NODE ops first to generate UUIDs (D-15/D-17), then ADD_EDGE.
       // -------------------------------------------------------------------
-      const committedOps = ((finalState as any)?.canvasOps ?? []).filter(
+      const allCanvasOps = (finalState as any)?.canvasOps ?? []
+
+      const committedOps = allCanvasOps.filter(
         (op: import('@panelito/types').CanvasOp) => op.op !== 'NO_ACTION' && op.status === 'committed'
       )
 
       // Phase 9 D-01: ghost ops also persisted — reverses Phase 8 D-14
       // Ghost nodes need NO deduplication (Pitfall 5 — multiple same-label ghosts coexist until expiry)
-      const ghostOps = ((finalState as any)?.canvasOps ?? []).filter(
+      const ghostOps = allCanvasOps.filter(
         (op: import('@panelito/types').CanvasOp) => op.op !== 'NO_ACTION' && (op as any).status === 'ghost'
       )
 
@@ -636,7 +646,32 @@ aiRouter.post('/:id/invoke', async (c) => {
         }
       }
 
-      // Phase 9 D-02: broadcast canvas_update with BOTH committed and ghost rows — fire-and-forget
+      // SSE delivery to the invoking client — committed + ghost nodes.
+      // Ghost nodes must be included here: Realtime is unreachable in WSL2 local dev
+      // (ERR_CONNECTION_TIMED_OUT), so SSE is the only delivery path for the invoking client.
+      const sseNodeRows = [...committedNodeRows, ...ghostNodeRows]
+      const sseEdgeRows = [...committedEdgeRows, ...ghostEdgeRows]
+      if (sseNodeRows.length > 0 || sseEdgeRows.length > 0) {
+        await stream.writeSSE({
+          event: 'canvas_update',
+          data: JSON.stringify({ nodes: sseNodeRows, edges: sseEdgeRows }),
+        })
+      }
+
+      // SSE panel_update: switch the invoking client's panel to 'graph'.
+      // Must fire BEFORE 'done' — client stops processing SSE events after done.
+      const hasCanvasOps = sseNodeRows.length > 0 || sseEdgeRows.length > 0
+      if (hasCanvasOps) {
+        await stream.writeSSE({
+          event: 'panel_update',
+          data: JSON.stringify({ widget_type: 'graph' }),
+        })
+      }
+
+      await stream.writeSSE({ event: 'done', data: '{}' })
+
+      // Phase 9 D-02: Realtime broadcast for all other participants — fire-and-forget.
+      // Sends committed + ghost so late-joining clients and non-invokers get full canvas state.
       const allNodeRows = [...committedNodeRows, ...ghostNodeRows]
       const allEdgeRows = [...committedEdgeRows, ...ghostEdgeRows]
       if (allNodeRows.length > 0 || allEdgeRows.length > 0) {
@@ -645,8 +680,6 @@ aiRouter.post('/:id/invoke', async (c) => {
           .httpSend('canvas_update', { nodes: allNodeRows, edges: allEdgeRows })
           .catch((err) => console.error('[ai] canvas_update broadcast failed', err))
 
-        // Phase 9 D-07: broadcast panel_update to trigger GraphCanvas panel switch for all participants
-        // Same mechanism as chart widget updates — panelStore.setWidget() handles the switch client-side
         supabase
           .channel(`session:${sessionId}`)
           .httpSend('panel_update', { widget_type: 'graph' })

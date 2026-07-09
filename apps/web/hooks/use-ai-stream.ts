@@ -31,6 +31,7 @@ import { useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PanelWidgetSchema } from '@panelito/types'
 import { usePanelStore } from '@/store/panel-store'
+import { useSessionStore } from '@/store/session-store'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787'
@@ -224,8 +225,23 @@ export function useAIStream(sessionId: string, options?: UseAIStreamOptions): Us
               } catch {
                 console.warn('[ai-stream] malformed text_delta:', data)
               }
+            } else if (event === 'canvas_update') {
+              // WSL2 fallback: canvas nodes delivered via SSE when Realtime is unreachable.
+              // Same merge semantics as the Realtime canvas_update handler.
+              try {
+                const payload = JSON.parse(data) as { nodes?: unknown[]; edges?: unknown[] }
+                const nodes = Array.isArray(payload.nodes) ? payload.nodes : []
+                const edges = Array.isArray(payload.edges) ? payload.edges : []
+                console.log('[ai-stream] canvas_update SSE received', nodes.length, 'nodes', edges.length, 'edges')
+                if (nodes.length > 0 || edges.length > 0) {
+                  useSessionStore.getState().mergeCanvasData(nodes as any, edges as any)
+                }
+              } catch {
+                console.warn('[ai-stream] malformed canvas_update JSON:', data)
+              }
             } else if (event === 'panel_update') {
               // AI-05: Zod gate — validate before touching panelStore
+              console.log('[ai-stream] panel_update SSE received:', data)
               try {
                 const raw = JSON.parse(data)
                 handlePanelUpdate(raw)

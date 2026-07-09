@@ -52,6 +52,7 @@ import { useSessionStatus } from '@/hooks/use-session-status'
 import { useCreatorPresence } from '@/hooks/use-creator-presence'
 import { useAIStream } from '@/hooks/use-ai-stream'
 import { useSessionStore } from '@/store/session-store'
+import { usePanelStore } from '@/store/panel-store'
 import { apiFetch } from '@/lib/api'
 import type { Session, Message, Branch, Blueprint, CanvasNode, CanvasEdge } from '@panelito/types'
 
@@ -215,6 +216,10 @@ export function Workspace({
     )
       .then(({ nodes, edges }) => {
         useSessionStore.getState().setCanvasData(nodes, edges)
+        // Restore graph panel when canvas has data — mirrors what SSE panel_update does at runtime.
+        if (nodes.length > 0) {
+          usePanelStore.getState().setWidget({ widget_type: 'graph' })
+        }
       })
       .catch(() => {}) // fail-silent — leave existing canvas state unchanged on error
   }, [liveSession.id])
@@ -225,6 +230,17 @@ export function Workspace({
     useSessionStore.getState().setBranchId(newBranchId)
     fetchCanvas(newBranchId) // D-13: fetch committed-only canvas for new branch
   }, [fetchCanvas])
+
+  // 09-04: Hydrate canvas on mount. activeBranchId starts as 'main' (store default), then
+  // setBranches() resolves it to the real UUID. This effect fires once when the real UUID
+  // is first available. handleBranchSwitch covers subsequent explicit branch changes.
+  const didFetchCanvasOnMount = useRef(false)
+  useEffect(() => {
+    if (activeBranchId !== 'main' && !didFetchCanvasOnMount.current) {
+      didFetchCanvasOnMount.current = true
+      fetchCanvas(activeBranchId)
+    }
+  }, [activeBranchId, fetchCanvas])
 
   // Phase 2 (D-01): SSE consumer hook for the AI invoke stream.
   // localAIStreaming: true on THIS client while it is the invoking client streaming.
