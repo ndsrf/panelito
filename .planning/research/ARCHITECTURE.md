@@ -1,678 +1,790 @@
-# Architecture: NSAI Integration into Hono + Supabase + Next.js
+# Architecture: Proactive Bot Engine on LangGraph JS + Supabase
 
-**Milestone:** v2.0 NSAI — Neuro-Symbolic Collaborative Engine
-**Researched:** 2026-07-01
-**Confidence:** HIGH (all integration points verified against official docs and live codebase)
+**Milestone:** v3.0 — The Bots Must Help the Conversation Flow
+**Researched:** 2026-07-09
+**Confidence:** HIGH (based on live codebase read + LangGraph JS 1.4.7 docs verified via Context7)
 
----
-
-## Context: What Already Exists
-
-The existing stack is well-structured for this evolution. The key observation is that the
-current `/invoke` route already does exactly what the NSAI engine needs to do — it just does
-it imperatively rather than as a graph. The integration path is surgical, not a rewrite.
-
-Existing components that remain unchanged:
-- `AIProvider` interface and adapter factory (`createAdapter`)
-- Auth middleware (`requireAuth`)
-- All Supabase CRUD routes (sessions, messages, branches, reactions)
-- `use-ai-stream.ts` on the frontend (SSE consumption logic is reusable)
-- `PanelWidgetSchema` validation gate
-
-Existing components that get modified:
-- `routes/ai.ts` — the `/invoke` POST handler is replaced with a LangGraph execution path
-- `packages/types/src/ai.ts` — new `CanvasNode` and `CanvasEdge` types added
-- Supabase schema — three new tables added (see below)
+> This document supersedes the v2.0 ARCHITECTURE.md and focuses exclusively on v3.0's
+> architectural additions. All v2.0 components described in the previous version are live
+> and operational — the question here is what to add and where.
 
 ---
 
-## Integration Overview
-
-```
-POST /api/sessions/:id/invoke
-         │
-         ▼
-  [MODIFIED: routes/ai.ts]
-         │
-  ① Load Blueprint from domain_blueprints
-  ② Validate Blueprint with Ajv
-  ③ Build LangGraph (OrchestratorNode + Agent nodes)
-     thread_id = branch_id
-  ④ graph.stream(input, { configurable: { thread_id } })
-     ├── streamMode: ["messages", "custom"]
-     ├── callbacks: [langfuseHandler]
-         │
-         ▼
-  ⑤ Stream loop:
-     ├── text_delta → SSE event: text_delta (unchanged, frontend reads this)
-     ├── canvas_mutation → write to Supabase canvas_nodes/canvas_edges
-     │                   → Supabase Realtime broadcast → all clients
-     └── panel_update  → SSE event: panel_update (existing widget path unchanged)
-         │
-         ▼
-  ⑥ After stream: insert AI message row (unchanged pattern)
-  ⑦ langfuseHandler.flushAsync()
-```
-
----
-
-## Question 1: Where Does LangGraph Execute in the Hono Route?
-
-### Replacement, Not Addition
-
-The LangGraph graph **replaces** the direct `adapter.stream()` call inside the SSE handler
-in `routes/ai.ts`. Everything else in that route stays: auth check, cap check, API key
-decryption, persona loading, message history fetch, message insert after stream.
-
-**Current shape (simplified):**
-```typescript
-return streamSSE(c, async (stream) => {
-  for await (const event of adapter.stream(promptArray, [renderPanelTool], opts)) {
-    // handle text_delta and tool_use
-  }
-})
-```
-
-**New shape (simplified):**
-```typescript
-return streamSSE(c, async (stream) => {
-  const graph = buildNSAIGraph(adapter, blueprint, { branchId, sessionId })
-  const graphConfig = {
-    configurable: { thread_id: branchId },
-    callbacks: [langfuseHandler],
-  }
-  for await (const chunk of await graph.stream(input, { ...graphConfig, streamMode: ["messages", "custom"] })) {
-    // handle LangGraph stream chunks
-  }
-  await langfuseHandler.flushAsync()
-})
-```
-
-The graph construction (`buildNSAIGraph`) is a pure function that takes the adapter, the
-loaded Blueprint, and identifiers. It returns a compiled `StateGraph`. This function lives
-in a new file: `apps/api/src/lib/nsai/graph.ts`.
-
-### How the Graph Is Wired
-
-LangGraph `StateGraph` with `Annotation.Root`:
-
-```typescript
-const NSAIStateAnnotation = Annotation.Root({
-  messages:      Annotation<ProviderMessage[]>({ reducer: (a, b) => [...a, ...b] }),
-  canvasNodes:   Annotation<CanvasNode[]>({ reducer: (a, b) => mergeNodes(a, b) }),
-  canvasEdges:   Annotation<CanvasEdge[]>({ reducer: (a, b) => mergeEdges(a, b) }),
-  domainMatch:   Annotation<'DOMAIN_MATCH' | 'DOMAIN_BRIDGE' | 'DOMAIN_DRIFT'>,
-  confidence:    Annotation<number>,
-  pendingMutations: Annotation<CanvasMutation[]>({ reducer: (a, b) => [...a, ...b] }),
-})
-```
-
-Nodes:
-- `orchestratorNode` — runs flex-soft guardrail classification, sets `domainMatch`, routes to agent
-- `agentNode` (one per active domain persona, selected by Blueprint) — calls AIProvider adapter,
-  produces `pendingMutations` + text
-- `mutationGateNode` — applies confidence threshold: >0.85 direct, 0.5–0.85 ghost, <0.5 silent
-
-Edges:
-```typescript
-graph
-  .addEdge(START, 'orchestrator')
-  .addConditionalEdges('orchestrator', routeByDomainMatch, {
-    DOMAIN_MATCH: 'agent',
-    DOMAIN_BRIDGE: 'agent',
-    DOMAIN_DRIFT: END,  // silent — no agent fires
-  })
-  .addEdge('agent', 'mutationGate')
-  .addEdge('mutationGate', END)
-```
-
-### What the Stream Loop Handles
-
-LangGraph emits different chunk shapes depending on `streamMode`. Using `["messages", "custom"]`:
-
-- `messages` mode yields `[messageChunk, metadata]` — token-by-token LLM text. These map
-  directly to `text_delta` SSE events (same as today).
-- `custom` mode yields whatever nodes write via `config.writer?.(payload)`. Agent nodes use
-  this to emit `canvas_mutation` payloads without blocking the text stream.
-
-The `mutationGateNode` calls `config.writer?.({ type: 'canvas_mutation', mutation })` for
-each approved mutation. The route handler's stream loop catches these and writes them to
-Supabase (not to the SSE stream — canvas state goes through Realtime, not SSE).
-
-The existing `panel_update` SSE path survives intact. The agent node can still call the
-`render_panel` tool; the route handles `tool_use` events exactly as before via `PanelWidgetSchema`.
-The two paths (graph canvas and chart widgets) coexist.
-
----
-
-## Question 2: How Does the LangGraph Postgres Checkpointer Connect to Supabase?
-
-### Package
-
-Use `@langchain/langgraph-checkpoint-postgres`. This is the official LangGraph JS checkpointer
-for Postgres. It creates three tables: `checkpoints`, `checkpoint_blobs`, `checkpoint_writes`,
-and a `checkpoint_migrations` tracking table.
-
-### Connection String Requirement
-
-The PostgresSaver uses the `pg` connection pool internally. It requires prepared statements,
-which means it **must not** use Supabase's transaction-mode pooler (port 6543). Use the
-**session-mode connection** instead.
-
-Supabase provides two connection strings:
-- `postgresql://postgres.[ref]:[pass]@aws-[region].pooler.supabase.com:5432/postgres` — session
-  mode via Supavisor, supports prepared statements. Use this.
-- `postgresql://postgres.[ref]:[pass]@aws-[region].pooler.supabase.com:6543/postgres` — transaction
-  mode, does NOT support prepared statements. Do not use for the checkpointer.
-
-Alternatively use the direct connection string (bypasses Supavisor entirely):
-`postgresql://postgres:[pass]@db.[ref].supabase.co:5432/postgres` — direct to Postgres.
-This works but consumes one persistent connection. Acceptable for a single Vercel function.
-
-### Setup Pattern
-
-```typescript
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
-
-// Called once at module load (cold start), not on every request
-const checkpointer = PostgresSaver.fromConnString(process.env.SUPABASE_DIRECT_URL!)
-
-// Run setup() exactly once — idempotent, safe to call on every cold start
-await checkpointer.setup()
-
-// Use in graph compilation
-const graph = builder.compile({ checkpointer })
-```
-
-**Vercel module-level singleton pattern:** Initialize `checkpointer` outside the request
-handler. Vercel reuses warm function instances, so `setup()` runs only on cold start. Inside
-the handler, use `graph.stream(input, { configurable: { thread_id: branchId } })`.
-
-### What `thread_id = branch_id` Means
-
-When a user switches branches, the branch UUID passed to `/invoke` changes. LangGraph loads
-the checkpoint for that branch, resuming its graph state. Branch isolation is achieved
-automatically through `thread_id`. No extra filtering is needed in the graph itself —
-`thread_id` is the isolation boundary.
-
----
-
-## Question 3: New Supabase Tables
-
-### Table: `domain_blueprints`
-
-Stores the JSON schema defining a session's domain ontology. Blueprint is loaded once per
-`/invoke` call, validated with Ajv, then used to configure the graph.
-
-```sql
-CREATE TABLE public.domain_blueprints (
-  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id   uuid        NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
-  domain       text        NOT NULL,             -- e.g. 'debate', 'strategy', 'red_team'
-  version      int         NOT NULL DEFAULT 1,
-  schema_json  jsonb       NOT NULL,             -- full Blueprint JSON
-  is_active    boolean     NOT NULL DEFAULT true,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  updated_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX domain_blueprints_session_active_idx
-  ON public.domain_blueprints (session_id) WHERE is_active = true;
-
-ALTER TABLE public.domain_blueprints ENABLE ROW LEVEL SECURITY;
-
--- Only session creator can manage blueprints; participants can read
-CREATE POLICY "blueprints_select" ON public.domain_blueprints
-  FOR SELECT USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "blueprints_insert" ON public.domain_blueprints
-  FOR INSERT WITH CHECK (
-    auth.uid() = (SELECT creator_id FROM public.sessions WHERE id = session_id)
-  );
-
-CREATE POLICY "blueprints_update" ON public.domain_blueprints
-  FOR UPDATE USING (
-    auth.uid() = (SELECT creator_id FROM public.sessions WHERE id = session_id)
-  );
-```
-
-**Blueprint JSON shape (minimum viable for Debate domain):**
-```json
-{
-  "domain": "debate",
-  "node_types": [
-    { "type": "Hypothesis",      "color": "#6366f1", "icon": "lightbulb" },
-    { "type": "Evidence",        "color": "#22c55e", "icon": "check-circle" },
-    { "type": "CounterArgument", "color": "#ef4444", "icon": "x-circle" },
-    { "type": "Action",          "color": "#f59e0b", "icon": "arrow-right" }
-  ],
-  "edge_types": ["SUPPORTS", "CONTRADICTS", "BUILDS_ON"],
-  "active_personas": ["scientific_analyst", "devils_advocate"],
-  "view_mode": "graph"
-}
-```
-
-### Table: `canvas_nodes`
-
-```sql
-CREATE TABLE public.canvas_nodes (
-  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id   uuid        NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
-  branch_id    uuid        NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
-  node_type    text        NOT NULL,    -- Blueprint-defined: 'Hypothesis', 'Evidence', etc.
-  label        text        NOT NULL,
-  description  text,
-  confidence   numeric     NOT NULL DEFAULT 1.0 CHECK (confidence BETWEEN 0 AND 1),
-  status       text        NOT NULL DEFAULT 'direct'
-                           CHECK (status IN ('direct', 'ghost', 'silent')),
-  source_message_id uuid   REFERENCES public.messages(id) ON DELETE SET NULL,
-  position_x   numeric     NOT NULL DEFAULT 0,
-  position_y   numeric     NOT NULL DEFAULT 0,
-  metadata     jsonb,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  updated_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX canvas_nodes_branch_idx ON public.canvas_nodes (branch_id);
-CREATE INDEX canvas_nodes_session_idx ON public.canvas_nodes (session_id, branch_id);
-
-ALTER TABLE public.canvas_nodes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "canvas_nodes_select" ON public.canvas_nodes
-  FOR SELECT USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "canvas_nodes_insert" ON public.canvas_nodes
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "canvas_nodes_update" ON public.canvas_nodes
-  FOR UPDATE USING (auth.uid() IS NOT NULL);
-```
-
-### Table: `canvas_edges`
-
-```sql
-CREATE TABLE public.canvas_edges (
-  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id   uuid        NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
-  branch_id    uuid        NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
-  source_node_id uuid      NOT NULL REFERENCES public.canvas_nodes(id) ON DELETE CASCADE,
-  target_node_id uuid      NOT NULL REFERENCES public.canvas_nodes(id) ON DELETE CASCADE,
-  edge_type    text        NOT NULL,    -- Blueprint-defined: 'SUPPORTS', 'CONTRADICTS', etc.
-  confidence   numeric     NOT NULL DEFAULT 1.0 CHECK (confidence BETWEEN 0 AND 1),
-  status       text        NOT NULL DEFAULT 'direct'
-                           CHECK (status IN ('direct', 'ghost', 'silent')),
-  source_message_id uuid   REFERENCES public.messages(id) ON DELETE SET NULL,
-  metadata     jsonb,
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX canvas_edges_branch_idx ON public.canvas_edges (branch_id);
-CREATE UNIQUE INDEX canvas_edges_pair_idx ON public.canvas_edges
-  (branch_id, source_node_id, target_node_id, edge_type);
-
-ALTER TABLE public.canvas_edges ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "canvas_edges_select" ON public.canvas_edges
-  FOR SELECT USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "canvas_edges_insert" ON public.canvas_edges
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "canvas_edges_update" ON public.canvas_edges
-  FOR UPDATE USING (auth.uid() IS NOT NULL);
-```
-
-### Checkpointer Tables (auto-created by `checkpointer.setup()`)
-
-LangGraph creates these automatically in the `public` schema:
-- `checkpoints` — one row per graph superstep; keyed on `(thread_id, checkpoint_ns, checkpoint_id)`
-- `checkpoint_blobs` — serialized large state values (message lists, canvas arrays)
-- `checkpoint_writes` — intermediate write log between supersteps
-- `checkpoint_migrations` — schema version tracking
-
-These tables are internal to LangGraph. Do not query them directly. Do not add RLS — they
-are only accessed by the service-role checkpointer client.
-
-**Recommendation:** Create a separate `SUPABASE_DIRECT_URL` environment variable pointing
-to the direct connection string (not the anon key URL) specifically for the checkpointer.
-The existing `@supabase/supabase-js` client in the rest of the API continues to use the
-existing credentials.
-
----
-
-## Question 4: Canvas State Flow — LangGraph → Supabase → Realtime → Frontend
-
-### Full Path
-
-```
-LangGraph mutationGateNode
-    │  calls config.writer({ type: 'canvas_mutation', mutation })
-    ▼
-routes/ai.ts stream loop catches 'canvas_mutation' chunk
-    │
-    ├── if mutation.op === 'upsert_node':
-    │     INSERT INTO canvas_nodes ... ON CONFLICT (id) DO UPDATE
-    │
-    ├── if mutation.op === 'upsert_edge':
-    │     INSERT INTO canvas_edges ... ON CONFLICT DO UPDATE
-    │
-    └── if mutation.op === 'delete_node':
-          DELETE FROM canvas_nodes WHERE id = ...
-    │
-    ▼
-After each Supabase write:
-supabase.channel(`session:${sessionId}`)
-  .httpSend('canvas_mutation', { op, data })
-    │
-    ▼
-Supabase Realtime broadcast → all connected clients on that channel
-    │
-    ▼
-Frontend: useSessionChannel hook
-  .on('broadcast', { event: 'canvas_mutation' }, handler)
-    │
-    ▼
-Zustand canvasStore.applyMutation(mutation)
-    │
-    ▼
-GraphCanvas component re-renders
-```
-
-### Why Realtime Broadcast Instead of SSE for Canvas
-
-The SSE stream goes only to the invoking client (the one that pressed send). Canvas mutations
-must reach all session participants. The existing pattern (`supabase.channel().httpSend()`)
-already handles this for `new_message` and `panel_update` events. Canvas mutations follow
-the same pattern.
-
-The existing `use-session-channel.ts` hook already subscribes to the `session:${sessionId}`
-channel. Extending it to handle `canvas_mutation` events is additive — no structural change.
-
-### Canvas State Hydration on Join/Branch Switch
-
-When a participant joins a session or switches branches, they need the current canvas state.
-This comes from a direct Supabase query, not Realtime:
-
-```typescript
-// New API endpoint: GET /api/sessions/:id/canvas?branch_id=...
-// Returns { nodes: CanvasNode[], edges: CanvasEdge[] }
-const { nodes, edges } = await fetch(`/api/sessions/${sessionId}/canvas?branch_id=${branchId}`)
-```
-
-This endpoint is new. It queries `canvas_nodes` and `canvas_edges` filtered by `branch_id`.
-It is the single source of truth on initial load; Realtime broadcast keeps it current after.
-
-### Ghost Node Rendering
-
-Nodes with `status = 'ghost'` are rendered in the `GraphCanvas` component with reduced
-opacity and a dashed border. Ghost nodes are written to Supabase normally (so all clients
-see them) but the `status` field drives the visual treatment. Promoting a ghost to `direct`
-is an UPDATE to the `status` column — triggering another broadcast.
-
----
-
-## Question 5: Langfuse in a Hono Serverless Function
-
-### The Flush Problem
-
-Vercel Serverless Functions (Hono bridged via `app/api/[[...route]]/route.ts`) are short-lived.
-Langfuse's LangChain callback handler queues events and flushes them in the background. Without
-explicit flushing, traces are silently lost when the function exits.
-
-### Solution
-
-```typescript
-import { CallbackHandler } from '@langfuse/langchain'
-
-// Inside the SSE handler, per-request:
-const langfuseHandler = new CallbackHandler({
-  secretKey:  env.LANGFUSE_SECRET_KEY,
-  publicKey:  env.LANGFUSE_PUBLIC_KEY,
-  baseUrl:    env.LANGFUSE_BASE_URL ?? 'https://cloud.langfuse.com',
-  sessionId:  sessionId,
-  userId:     session.creator_id,
-  tags:       [providerName, `branch:${branchId ?? 'main'}`],
-})
-
-// After the stream loop completes, before the SSE 'done' event:
-await langfuseHandler.flushAsync()
-
-await stream.writeSSE({ event: 'done', data: '{}' })
-```
-
-**Key facts (verified):**
-- `CallbackHandler` is from `langfuse-langchain` (package: `langfuse-langchain`)
-- Pass it via `{ callbacks: [langfuseHandler] }` to `graph.stream()` or `graph.invoke()`
-- `flushAsync()` blocks until all pending trace events are delivered
-- Do not set `LANGCHAIN_CALLBACKS_BACKGROUND=false` globally — it slows all callbacks.
-  The explicit `flushAsync()` is more targeted.
-- Create a new `CallbackHandler` instance per request, not a module-level singleton.
-  Handler instances accumulate trace context; sharing across requests corrupts traces.
-
-### What Langfuse Captures Automatically
-
-When passed as a LangGraph callback, Langfuse traces:
-- Each graph node execution (name, input state, output state, duration)
-- LLM calls within nodes (model, tokens in/out, cost estimate, latency)
-- Tool calls (name, input, output)
-- Overall graph run (total cost, total latency, success/error)
-
-No manual span creation needed. The callback handler instruments everything automatically.
-
-### Environment Variables to Add
-
-```
-LANGFUSE_SECRET_KEY=...
-LANGFUSE_PUBLIC_KEY=...
-LANGFUSE_BASE_URL=https://cloud.langfuse.com  # or self-hosted URL
-```
-
----
-
-## Question 6: Build Order
-
-The dependencies form a strict chain. Each layer must be complete before the next can be
-tested end-to-end.
-
-### Layer 0: Schema Foundation (no code dependencies, must be first)
-
-**Why first:** Every subsequent piece writes to or reads from these tables. Migration order
-matters — `canvas_nodes` references `branches`, which must exist.
-
-Tasks:
-1. Migration: `canvas_nodes` table + RLS
-2. Migration: `canvas_edges` table + RLS
-3. Migration: `domain_blueprints` table + RLS
-4. Seed: Debate/Strategy Blueprint row for testing
-5. Add `SUPABASE_DIRECT_URL` env var
-
-### Layer 1: Types Package (no runtime dependencies)
-
-**Why second:** The TypeScript types for `CanvasNode`, `CanvasEdge`, `CanvasMutation`, and
-`Blueprint` are used by both the API (graph nodes) and the frontend (Zustand store, GraphCanvas).
-Defining them first prevents type-chasing later.
-
-Tasks:
-1. `packages/types/src/canvas.ts` — `CanvasNode`, `CanvasEdge`, `CanvasMutation` types
-2. `packages/types/src/blueprint.ts` — `Blueprint`, `NodeTypeDef`, `EdgeTypeDef` types
-3. Export from `packages/types/src/index.ts`
-
-### Layer 2: Blueprint Loading + Ajv Validation (API only, no LangGraph yet)
-
-**Why third:** Proves the Blueprint round-trip (DB → API → Ajv) before adding LangGraph.
-Fail fast on schema issues without touching the graph.
-
-Tasks:
-1. `apps/api/src/lib/nsai/blueprint-loader.ts` — fetch active blueprint from `domain_blueprints`
-2. `apps/api/src/lib/nsai/blueprint-validator.ts` — Ajv schema for Blueprint JSON
-3. Hono middleware that validates Blueprint on `/invoke` (returns 422 on invalid Blueprint)
-4. `GET /api/sessions/:id/blueprints/active` endpoint (creator UI will need this)
-
-### Layer 3: LangGraph Graph Construction (API, no Supabase canvas writes yet)
-
-**Why fourth:** Build the graph as a unit, testable in isolation before wiring Realtime.
-Use `MemorySaver` checkpointer during development, swap to `PostgresSaver` in Layer 4.
-
-Tasks:
-1. Install: `@langchain/langgraph`, `@langchain/langgraph-checkpoint-postgres`
-2. `apps/api/src/lib/nsai/graph.ts` — `buildNSAIGraph(adapter, blueprint, opts)` function
-3. `apps/api/src/lib/nsai/nodes/orchestrator.ts` — domain guardrail node
-4. `apps/api/src/lib/nsai/nodes/agent.ts` — parameterized agent node (takes Blueprint persona)
-5. `apps/api/src/lib/nsai/nodes/mutation-gate.ts` — confidence threshold routing
-6. Unit tests: graph compilation, state transitions, routing logic
-
-### Layer 4: Postgres Checkpointer (swaps MemorySaver for PostgresSaver)
-
-**Why fifth:** Checkpointer is an infrastructure swap, not a logic change. Separating it
-lets Layer 3 unit tests run without a Supabase connection.
-
-Tasks:
-1. `apps/api/src/lib/nsai/checkpointer.ts` — singleton `PostgresSaver` with `setup()` guard
-2. Run `checkpointer.setup()` once; verify tables created in Supabase
-3. Update `buildNSAIGraph` to accept checkpointer as parameter
-4. Integration test: same `thread_id` across two `/invoke` calls resumes state
-
-### Layer 5: `/invoke` Route Modification (the critical seam)
-
-**Why sixth:** This is where everything connects. The route modification is the highest-risk
-step — it touches the existing streaming path that v1 users depend on.
-
-Tasks:
-1. **Modify** `apps/api/src/routes/ai.ts`:
-   - Load Blueprint via `blueprint-loader`
-   - Build graph via `buildNSAIGraph`
-   - Replace `adapter.stream()` loop with `graph.stream()` loop
-   - Keep all pre/post stream logic (cap check, message insert, etc.)
-2. Stream loop changes:
-   - `messages` mode chunks → forward as `text_delta` SSE (same as today)
-   - `custom` mode chunks with `type === 'canvas_mutation'` → write to Supabase (NEW)
-   - `tool_use` events from agent nodes → existing `render_panel` path (unchanged)
-3. Add `langfuseHandler` construction + `flushAsync()` call
-4. Smoke test: existing widget rendering still works (panel_update SSE still fires)
-
-### Layer 6: Canvas Supabase Writes + Realtime Broadcast
-
-**Why seventh:** Canvas persistence is a new data path. Prove writes land correctly before
-adding the frontend consumer.
-
-Tasks:
-1. `apps/api/src/lib/nsai/canvas-writer.ts` — `applyCanvasMutation(supabase, mutation)` function
-2. Call `canvasWriter` from route stream loop for `canvas_mutation` chunks
-3. After each write: `supabase.channel(`session:${sessionId}`).httpSend('canvas_mutation', mutation)`
-4. Verify via Supabase dashboard that rows land in `canvas_nodes` / `canvas_edges`
-
-### Layer 7: Canvas Hydration Endpoint
-
-**Why eighth:** Frontend cannot load initial canvas state without this endpoint.
-
-Tasks:
-1. New route: `GET /api/sessions/:id/canvas?branch_id=...`
-2. Returns `{ nodes: CanvasNode[], edges: CanvasEdge[] }`
-3. Filtered by `branch_id`; respects RLS
-
-### Layer 8: Frontend — Zustand Canvas Store + Realtime Handler
-
-**Why ninth:** State management before UI component.
-
-Tasks:
-1. `apps/web/store/canvas-store.ts` — `canvasStore` with `nodes`, `edges` state
-   - `applyMutation(mutation: CanvasMutation)` reducer
-   - `loadBranch(branchId)` fetches from Layer 7 endpoint
-2. **Modify** `apps/web/hooks/use-session-channel.ts`:
-   - Add `.on('broadcast', { event: 'canvas_mutation' }, ...)` handler
-   - Calls `canvasStore.applyMutation(mutation)`
-3. **Modify** `apps/web/hooks/use-ai-stream.ts`: no changes needed (SSE path unchanged)
-
-### Layer 9: GraphCanvas Frontend Component
-
-**Why last:** UI is the final consumer of all preceding layers.
-
-Tasks:
-1. Install: `reactflow` (or `@xyflow/react`) — the standard graph canvas library for React
-2. `apps/web/components/canvas/GraphCanvas.tsx` — reads from `canvasStore`
-3. Renders `CanvasNode` components styled per Blueprint `node_types` color/icon
-4. Renders `CanvasEdge` components labeled per Blueprint `edge_types`
-5. Ghost nodes rendered with opacity + dashed style based on `status` field
-6. Hydrates on mount via `canvasStore.loadBranch(branchId)`
-7. Integrate into the analytics panel as View A (alongside existing chart widgets)
-
----
-
-## Vercel Serverless Constraints
-
-### Time Limits
-
-| Plan | Default | Max | Extended Max |
-|------|---------|-----|-------------|
-| Hobby | 300s | 300s | — |
-| Pro | 300s | 800s | 1800s (beta) |
-
-LangGraph graphs with multi-step reasoning can run long. For a single `/invoke` call with
-OrchestratorNode + AgentNode + MutationGateNode, expect 5–30 seconds total (dominated by
-LLM API latency). This fits comfortably within the 300s default. No special duration config
-needed in v2.0.
-
-### Connection Pooling
-
-The `PostgresSaver` uses a `pg.Pool` internally. In Vercel serverless, each cold start
-creates a new pool. Warm instances reuse the pool. The direct Supabase connection string
-supports persistent connections. Set `max: 3` on the pool config to avoid exhausting
-Supabase's connection limit across concurrent function instances.
-
-### Cold Start
-
-LangGraph + `@anthropic-ai/sdk` adds ~2–4MB to the bundle. Expect 1–2s additional cold
-start latency. Acceptable for a conversational application where users tolerate a brief
-first-response delay.
-
----
-
-## Component Boundary Summary
-
-| Component | Location | Status | What Changes |
-|-----------|----------|--------|-------------|
-| `routes/ai.ts` | `apps/api/src/routes/` | MODIFIED | Replace `adapter.stream()` loop with `graph.stream()` loop; add Blueprint load; add Langfuse flush |
-| `lib/nsai/graph.ts` | `apps/api/src/lib/nsai/` | NEW | `buildNSAIGraph()` function |
-| `lib/nsai/nodes/*.ts` | `apps/api/src/lib/nsai/nodes/` | NEW | Orchestrator, Agent, MutationGate nodes |
-| `lib/nsai/blueprint-loader.ts` | `apps/api/src/lib/nsai/` | NEW | Fetch active Blueprint from Supabase |
-| `lib/nsai/blueprint-validator.ts` | `apps/api/src/lib/nsai/` | NEW | Ajv schema validation |
-| `lib/nsai/canvas-writer.ts` | `apps/api/src/lib/nsai/` | NEW | Write `CanvasMutation` to Supabase |
-| `lib/nsai/checkpointer.ts` | `apps/api/src/lib/nsai/` | NEW | `PostgresSaver` singleton |
-| `packages/types/src/canvas.ts` | `packages/types/src/` | NEW | `CanvasNode`, `CanvasEdge`, `CanvasMutation` |
-| `packages/types/src/blueprint.ts` | `packages/types/src/` | NEW | `Blueprint`, `NodeTypeDef`, `EdgeTypeDef` |
-| `routes/canvas.ts` | `apps/api/src/routes/` | NEW | `GET /api/sessions/:id/canvas` |
-| `store/canvas-store.ts` | `apps/web/store/` | NEW | Zustand canvas state |
-| `hooks/use-session-channel.ts` | `apps/web/hooks/` | MODIFIED | Add `canvas_mutation` broadcast handler |
-| `components/canvas/GraphCanvas.tsx` | `apps/web/components/canvas/` | NEW | React Flow graph renderer |
-| Supabase schema | migrations | NEW | `canvas_nodes`, `canvas_edges`, `domain_blueprints` tables |
-| LangGraph checkpointer tables | auto-created | NEW | `checkpoints`, `checkpoint_blobs`, `checkpoint_writes` |
+## Executive Summary
+
+The key architectural insight for v3.0: **proactive bots are not a new invocation path; they
+are a new trigger path that feeds the same invoke route**. The LangGraph graph, SSE streaming,
+mic lock, and Supabase persistence all remain exactly as they are. What changes is:
+
+1. A **Trigger Engine** (server-side timer + event classifier) decides _when_ a bot should
+   speak without a human message.
+2. A **Proactive Invoke function** (internal, no HTTP request) feeds an artificial input into
+   the existing `graph.stream()` call with a synthetic trigger context.
+3. A **Personality Dispatcher** (an evolution of the existing `activePersonas` config key)
+   maps trigger type → persona → specialized prompt.
+4. The **in-memory conversation graph** (argument structure) lives _inside_ the LangGraph
+   thread state as a new field — not as a separate service — keeping it durable and
+   branch-isolated automatically.
+5. **Model routing** is already partially implemented in `model-config.ts`; v3.0 adds
+   `'facilitation'` and `'graph_reasoning'` task types and routes them to the right tier.
 
 ---
 
 ## What Does NOT Change
 
-The following are explicitly preserved and require no modification:
+These components are stable and require no modification:
 
-- `AIProvider` interface and all three adapters (Anthropic, OpenAI, Gemini)
-- `adapter-factory.ts` (`createAdapter`)
-- `lib/anthropic.ts` (`assemblePromptArray`, `compressHistory`, `verifyApiKey`)
-- All non-AI routes (sessions, messages, branches, reactions, keys, settings)
-- `use-ai-stream.ts` SSE consumption logic
-- `PanelWidgetSchema` and the `panel_update` SSE event path
-- Auth middleware
-- All existing Supabase tables (no schema changes to existing tables)
-- Supabase Realtime channel naming (`session:${sessionId}`) and broadcast pattern
+| Component | Location | Why Stable |
+|-----------|----------|------------|
+| `graph.ts` `createGraph()` | `apps/api/src/graph/` | Graph topology sufficient; new nodes add via new edges |
+| `state.ts` `GraphStateAnnotation` | `apps/api/src/graph/` | New fields are additive Annotation additions |
+| `nodes/orchestrator.ts` | `apps/api/src/graph/nodes/` | Domain guardrail unchanged; trigger context bypasses it |
+| `nodes/mutation-gate.ts` | `apps/api/src/graph/nodes/` | Confidence thresholds unchanged |
+| `routes/ai.ts` (`/invoke` route) | `apps/api/src/routes/` | Mic lock, SSE, cap guard, canvas writes all reused |
+| All Supabase CRUD routes | `apps/api/src/routes/` | No changes needed |
+| `adapter-factory.ts` | `apps/api/src/lib/` | Multi-provider adapter seam already clean |
+| `model-config.ts` | `apps/api/src/lib/` | Extended (new task types), not replaced |
+| PostgresSaver checkpointer | `apps/api/src/lib/` | Thread-per-branch model works for proactive invocations too |
+| `@panelito/types` canvas/blueprint types | `packages/types/` | Additive extensions only |
+| Frontend (Next.js, xyflow, Zustand) | `apps/web/` | Canvas rendering already handles all node/edge status values |
+
+---
+
+## New Components
+
+### 1. Trigger Engine (`apps/api/src/services/trigger-engine.ts`)
+
+**Responsibility:** Detect trigger conditions across active sessions and emit trigger events
+to the appropriate session's proactive invocation function.
+
+**What it watches:**
+- **Silence window**: tracks `last_message_at` per branch (already queryable from the
+  `messages` table ordered by `created_at`). After N seconds of silence (N configured per
+  Blueprint), fires a `silence` trigger.
+- **Phase readiness**: evaluates the `phase_signal` field in the LangGraph thread state
+  checkpoint. When `phase_signal === true` persists across messages without human confirmation,
+  the Coach bot is triggered.
+- **Semantic drift**: a lightweight classification call (reuses OrchestratorNode logic)
+  on the last N messages; if majority is `DOMAIN_DRIFT`, fires a `drift` trigger.
+- **Unlinked assertion**: reads the conversation graph (new `argGraph` state field) to detect
+  nodes with no edges after a new message is processed.
+- **Fact-check signal**: a claim-type classifier on the last message; fires if the message
+  contains an empirically verifiable claim.
+- **Moderation**: a safety classifier on the last message; fires if the message scores above
+  a configured threshold.
+
+**How it runs:** The Trigger Engine is a Node.js `setInterval`-based loop started at API
+server startup (`apps/api/src/server.ts`). It runs every 5 seconds across all active sessions.
+This is the simplest approach that works within the existing Hono/Node.js API — no separate
+process, no pg_cron, no external scheduler. Vercel serverless does not support background
+timers; this engine runs on the standalone Node.js server deployment (`server.ts`), not on
+the Vercel/Next.js bridge.
+
+**Why not pg_cron:** pg_cron fires SQL functions, not Hono route handlers. It cannot open
+SSE streams or call the graph. Suitable for auto-freeze (which just runs SQL UPDATE), but
+not for complex bot invocations.
+
+**Why not a separate Vercel Edge Function:** The proactive invoke needs access to the
+PostgresSaver checkpointer (direct Postgres connection), the LangGraph graph instance, and
+the Supabase service client. All of these are already initialized in the API process.
+Keeping the trigger engine in the same process avoids cross-service auth, cold starts, and
+timeouts on a background trigger.
+
+**Interface:**
+```typescript
+type TriggerType =
+  | 'silence'
+  | 'phase_readiness'
+  | 'semantic_drift'
+  | 'unlinked_assertion'
+  | 'fact_check'
+  | 'moderation'
+
+interface TriggerEvent {
+  sessionId: string
+  branchId: string
+  triggerType: TriggerType
+  triggerContext: Record<string, unknown>  // type-specific metadata
+}
+
+function startTriggerEngine(): void
+function stopTriggerEngine(): void
+```
+
+---
+
+### 2. Proactive Invoke Function (`apps/api/src/services/proactive-invoker.ts`)
+
+**Responsibility:** When the Trigger Engine fires an event, construct a synthetic bot turn
+and run it through the LangGraph graph, then broadcast the result exactly as the `/invoke`
+route does.
+
+**Key insight:** This function replicates the inner SSE handler body from `routes/ai.ts`
+but runs without an HTTP request. It calls `graph.stream()` with the same config shape,
+reads from the same PostgresSaver checkpoint for the target `thread_id`, and writes to
+Supabase + broadcasts via Realtime exactly as the human-invoked path does.
+
+**What it does differently from `/invoke`:**
+- No HTTP request/response cycle, no SSE stream (output goes directly to Supabase + Realtime)
+- Mic lock: must acquire `try_acquire_mic` with `p_holder_id = 'system_trigger'` to prevent
+  collision with human turns
+- Message construction: instead of `userMessage` from HTTP body, the trigger context becomes
+  a synthetic system input injected as a special message type (role: `'tool'` or a sentinel
+  user message with a `[TRIGGER:silence]` prefix stripped before display)
+- Cap guard: proactive triggers are not counted against the creator's AI cap (or counted at
+  a reduced rate — configurable)
+- Persona selection: determined by `PersonalityDispatcher` (see below), not by
+  `session.active_personas`
+
+**Retry and back-pressure:** The Trigger Engine checks if a mic lock is already held before
+firing. If the mic is locked (human or previous bot is speaking), the trigger is deferred
+and retried on the next 5-second scan. A trigger that cannot fire for more than 60 seconds
+is dropped to prevent staleness.
+
+```typescript
+async function proactiveInvoke(
+  event: TriggerEvent,
+  graph: ReturnType<typeof createGraph>,
+  checkpointer: PostgresSaver,
+  supabase: SupabaseClient,
+): Promise<void>
+```
+
+---
+
+### 3. Personality Dispatcher (`apps/api/src/services/personality-dispatcher.ts`)
+
+**Responsibility:** Given a TriggerType, return the persona id and specialized system prompt
+instructions for the bot that should respond.
+
+**Trigger → Persona mapping:**
+| Trigger | Assigned Persona | Rationale |
+|---------|-----------------|-----------|
+| `silence` | Coach | Silence-breaking requires a Socratic, empathetic nudge — not a challenge |
+| `phase_readiness` | Coach | Advancing phases is a facilitation move |
+| `semantic_drift` | Coach | Gentle redirection, not an adversarial challenge |
+| `unlinked_assertion` | Analyst | Identifying graph gaps is a structural/analytical task |
+| `fact_check` | Analyst | Fact verification is neutral and data-driven by design |
+| `moderation` | Coach | Moderation should be empathetic and de-escalating |
+
+**Devil's Advocate persona** is NOT assigned to any proactive trigger. It responds only
+when a human explicitly invokes it via a Power Reaction or when the Blueprint configures
+it as a phase-specific participant. Unsolicited adversarial challenges destroy group
+dynamics.
+
+**Output per persona:**
+
+The dispatcher returns `PersonaDispatch`:
+```typescript
+interface PersonaDispatch {
+  personaId: string
+  displayName: string
+  systemPromptAddition: string  // appended to AgentNode's base system prompt
+  taskType: 'facilitation' | 'graph_reasoning' | 'fact_check'
+}
+```
+
+The `taskType` field drives model selection (see Model Routing section).
+
+---
+
+### 4. Argument Graph in LangGraph State (`apps/api/src/graph/state.ts` — extended)
+
+**Responsibility:** Maintain a bots-internal model of the argument structure — typed,
+directional edges between positions — for use in facilitation and unlinked-assertion detection.
+
+**Critical design decision: argGraph lives in LangGraph thread state, not a separate service.**
+
+Reasons:
+- Branch isolation is free: thread_id = branch_id; each branch has its own argGraph
+- Durability is free: PostgresSaver checkpoints it alongside messages and canvasOps
+- Consistency: argGraph and canvas graph are always updated in the same graph execution;
+  no possibility of the two falling out of sync across separate services
+- Simplicity: no additional infrastructure, no new tables, no cross-service auth
+
+**What is the argGraph and how does it differ from the canvas graph:**
+
+| | Canvas Graph (xyflow/canvas_nodes+canvas_edges) | Argument Graph (argGraph in state) |
+|---|---|---|
+| Purpose | Visual display to users | Internal bot reasoning context |
+| Who reads it | Frontend (xyflow), all session participants | LangGraph nodes only |
+| Who writes it | MutationGateNode → route → Supabase | New ArgGraphNode in LangGraph |
+| Persistence | Supabase tables (canvas_nodes, canvas_edges) | LangGraph checkpoint (Postgres) |
+| Granularity | Committed + ghost nodes visible to users | All nodes including silent-tier ones |
+| Schema | Blueprint-typed (node_type_id, edge_type_id from Blueprint vocabulary) | Argument-typed (SUPPORTS, CONTRADICTS, QUESTIONS, BUILDS_ON, CONCEDES) |
+| Branch isolation | branch_id FK on every row | Automatic via thread_id |
+| Temporal granularity | Created per-message per-node | Updated per-message (incremental) |
+
+The argument graph is intentionally simpler and faster to update than the canvas graph: it
+does not need to go through MutationGate confidence thresholds, and it does not produce
+visual output.
+
+**State field addition:**
+```typescript
+// In GraphStateAnnotation (state.ts)
+argGraph: Annotation<ArgumentGraph>({
+  reducer: (prev: ArgumentGraph, update: ArgumentGraphUpdate) => applyArgGraphUpdate(prev, update),
+  default: () => ({ nodes: [], edges: [] }),
+}),
+```
+
+Where:
+```typescript
+interface ArgGraphNode {
+  id: string               // uuid
+  label: string            // human assertion text (truncated to 80 chars)
+  speakerId: string        // participant display_name or bot personaId
+  messageTimestamp: string // ISO timestamp of source message
+}
+
+interface ArgGraphEdge {
+  id: string
+  sourceId: string
+  targetId: string
+  relation: 'SUPPORTS' | 'CONTRADICTS' | 'BUILDS_ON' | 'QUESTIONS' | 'CONCEDES'
+}
+
+interface ArgumentGraph {
+  nodes: ArgGraphNode[]
+  edges: ArgGraphEdge[]
+}
+
+type ArgumentGraphUpdate = {
+  addNodes?: ArgGraphNode[]
+  addEdges?: ArgGraphEdge[]
+}
+```
+
+**ArgGraphBuilderNode** (new LangGraph node, `apps/api/src/graph/nodes/arg-graph-builder.ts`):
+Runs after AgentNode on every message (including proactive bot turns). Makes a small,
+fast LLM call with `graph_reasoning` model to identify:
+1. The primary claim in the last message (→ new ArgGraphNode)
+2. Relationships to existing ArgGraphNodes (→ new ArgGraphEdges)
+
+It uses the Haiku-tier model (fast, cheap) and returns an `ArgumentGraphUpdate`. The
+`applyArgGraphUpdate` reducer merges the update into the accumulated `argGraph` in state.
+
+---
+
+### 5. Per-Session User Profiles in LangGraph State (`apps/api/src/graph/state.ts` — extended)
+
+**Responsibility:** Maintain an in-memory per-participant model for personalized bot facilitation.
+
+**Same rationale as argGraph:** thread state = correct home for per-session in-memory data.
+No new Supabase tables needed; checkpointed automatically.
+
+```typescript
+// In GraphStateAnnotation (state.ts)
+participantProfiles: Annotation<ParticipantProfileMap>({
+  reducer: (prev: ParticipantProfileMap, update: ParticipantProfileMapUpdate) =>
+    mergeParticipantProfiles(prev, update),
+  default: () => ({}),
+}),
+```
+
+Where:
+```typescript
+interface ParticipantProfile {
+  displayName: string
+  statedPositions: string[]    // key assertions the participant has made
+  engagementPattern: 'active' | 'quiet' | 'dominant'
+  lastSeenTimestamp: string
+}
+
+type ParticipantProfileMap = Record<string, ParticipantProfile>  // key: displayName
+type ParticipantProfileMapUpdate = Partial<ParticipantProfileMap>
+```
+
+The ArgGraphBuilderNode also handles profile updates (same LLM call, since it already reads
+the last message). The Coach bot reads `participantProfiles` from state when constructing
+its facilitation prompt: "You said earlier X — does this contradict what you just said?"
+
+---
+
+## Updated LangGraph Graph Topology
+
+The v3.0 graph topology adds ArgGraphBuilderNode and branches on trigger type:
+
+```
+START
+  │
+  ▼
+orchestratorNode
+  │
+  ├─ DOMAIN_DRIFT + driftAction='replied' → driftReplyNode → END
+  ├─ DOMAIN_DRIFT + driftAction='ignored' → END
+  │
+  └─ DOMAIN_MATCH | DOMAIN_BRIDGE ──────────────────────────────┐
+                                                                 │
+                                                                 ▼
+                                                          agentNode
+                                                                 │
+                                                                 ▼
+                                                        mutationGateNode
+                                                                 │
+                                                                 ▼
+                                                     argGraphBuilderNode  (NEW)
+                                                                 │
+                                                                 ▼
+                                                               END
+
+PROACTIVE PATH (bypasses orchestratorNode):
+
+proactiveTriggerNode (NEW)
+  │
+  ├─ triggerType='silence' | 'phase_readiness' | 'semantic_drift'
+  │     → personalityDispatch(Coach) → facilitationAgentNode → END
+  │
+  └─ triggerType='unlinked_assertion' | 'fact_check'
+        → personalityDispatch(Analyst) → analyticsAgentNode → END
+```
+
+**How the proactive path bypasses OrchestratorNode:** Proactive bot turns set a new state
+field `triggerType` on initial state. A conditional edge from START routes to either
+`orchestratorNode` (when `triggerType === null`, i.e. normal human message) or to
+`proactiveTriggerNode` (when `triggerType !== null`). This keeps the graph topology clean
+and avoids polluting orchestratorNode with trigger-path logic.
+
+New graph topology additions:
+```typescript
+// graph.ts additions
+.addNode('proactiveTrigger', proactiveTriggerNode)
+.addNode('facilitationAgent', facilitationAgentNode)
+.addNode('analyticsAgent', analyticsAgentNode)
+.addNode('argGraphBuilder', argGraphBuilderNode)
+
+// Change START edge to conditional:
+.addConditionalEdges(START, routeFromStart, {
+  normal: 'orchestrator',
+  proactive: 'proactiveTrigger',
+})
+
+// Proactive paths
+.addConditionalEdges('proactiveTrigger', routeProactiveTrigger, {
+  facilitation: 'facilitationAgent',
+  analytics: 'analyticsAgent',
+})
+.addEdge('facilitationAgent', 'argGraphBuilder')
+.addEdge('analyticsAgent', 'mutationGate')  // analytics bots CAN mutate canvas
+.addEdge('mutationGate', 'argGraphBuilder')
+
+// Normal path: agent → mutationGate → argGraphBuilder
+.addEdge('agent', 'mutationGate')
+.addEdge('mutationGate', 'argGraphBuilder')
+.addEdge('argGraphBuilder', END)
+.addEdge('driftReply', END)
+```
+
+---
+
+## Data Flow: Silence Window → Bot Message
+
+This is the end-to-end flow for the most representative trigger type.
+
+```
+1. TRIGGER DETECTION (server startup loop, every 5s)
+   TriggerEngine.scan():
+     SELECT session_id, branch_id, MAX(created_at) AS last_msg
+     FROM messages
+     WHERE session_id IN (active_sessions)
+     GROUP BY session_id, branch_id
+
+     if NOW() - last_msg > blueprint.silence_threshold_seconds:
+       emit TriggerEvent { type: 'silence', sessionId, branchId }
+
+2. MIC CHECK (Trigger Engine before emitting)
+   supabase.rpc('try_acquire_mic', { p_branch_id, p_holder_id: 'system_trigger', p_expiry_seconds: 30 })
+   if NOT acquired → defer trigger (will retry in 5s)
+
+3. PERSONA DISPATCH (PersonalityDispatcher)
+   personalityDispatch('silence') → { personaId: 'coach', taskType: 'facilitation', systemPromptAddition: '...' }
+
+4. GRAPH INVOCATION (ProactiveInvoker)
+   graph.stream(
+     {
+       blueprintId: session.blueprint_id,
+       currentPhaseId: session.current_phase,
+       messages: [...existingMessages],    // from PostgresSaver checkpoint
+       triggerType: 'silence',             // NEW: routes START → proactiveTrigger
+       argGraph: existingArgGraph,         // from checkpoint
+       participantProfiles: existingProfiles,
+       canvasOps: [],
+     },
+     {
+       configurable: {
+         thread_id: branchId,
+         blueprint,
+         providerName,
+         plaintextKey,
+         personaDispatch: { personaId: 'coach', taskType: 'facilitation', systemPromptAddition: '...' },
+       }
+     }
+   )
+
+5. PROACTIVE TRIGGER NODE EXECUTES
+   proactiveTriggerNode reads triggerType + argGraph + participantProfiles from state
+   Returns { routeKey: 'facilitation', proactiveContext: { silenceWindowMs: 45000 } }
+
+6. FACILITATION AGENT EXECUTES
+   facilitationAgentNode calls adapter.stream() with:
+     - model: TASK_MODELS[provider].facilitation  (Haiku — no canvas mutations needed)
+     - system: buildFacilitationPrompt(blueprint, triggerType, argGraph, participantProfiles)
+   Streams text tokens → direct to Supabase message insert (no SSE stream to invoking client
+   since there IS no invoking client for a proactive turn)
+
+7. ARG GRAPH BUILDER EXECUTES
+   argGraphBuilderNode calls adapter.stream() with:
+     - model: TASK_MODELS[provider].facilitation  (Haiku)
+     - input: the bot's just-emitted message
+   Returns ArgumentGraphUpdate → merged into argGraph in state
+
+8. RESULT BROADCAST
+   ProactiveInvoker:
+   - INSERT new AI message row into messages table (role: 'assistant', author_id: system bot uuid)
+   - supabase.channel(`session:${sessionId}`).httpSend('new_message', row)   [Realtime to all]
+   - supabase.rpc('release_mic', { p_branch_id: branchId })
+   - if canvasOps.length > 0: upsert canvas_nodes/canvas_edges, broadcast canvas_update
+
+9. FRONTEND RECEIVES
+   All participants' useSessionChannel receives 'new_message' broadcast
+   Chat displays bot message with Coach display name and avatar
+   No SSE stream needed — Realtime handles all participants equally
+```
+
+---
+
+## Model Routing Pattern
+
+The existing `model-config.ts` uses four task types. v3.0 adds two more:
+
+```typescript
+// model-config.ts v3.0 extension
+export type TaskType =
+  | 'analysis'          // existing: AgentNode full canvas mutation call
+  | 'compression'       // existing: history summarization
+  | 'categorization'    // existing: branch labeler
+  | 'classification'    // existing: OrchestratorNode domain guardrail
+  | 'facilitation'      // NEW: Coach/facilitation bots (text only, no tool use)
+  | 'graph_reasoning'   // NEW: ArgGraphBuilderNode (structured arg identification)
+
+export const TASK_MODELS: Record<ProviderName, Record<TaskType, string>> = {
+  anthropic: {
+    analysis:        'claude-sonnet-4-6',              // existing
+    compression:     'claude-haiku-4-5-20251001',      // existing
+    categorization:  'claude-haiku-4-5-20251001',      // existing
+    classification:  'claude-haiku-4-5-20251001',      // existing
+    facilitation:    'claude-haiku-4-5-20251001',      // NEW: Coach text-only turns
+    graph_reasoning: 'claude-haiku-4-5-20251001',      // NEW: ArgGraph structure extraction
+  },
+  // ... other providers mapped accordingly
+}
+```
+
+**Routing decisions:**
+- **Silence/drift facilitation**: Haiku. The Coach bot generates conversational text, not
+  structured tool calls. Haiku is fast enough for real-time chat and far cheaper.
+- **Unlinked assertion / fact-check (Analyst)**: Sonnet (`analysis` task type). The Analyst
+  bot must reason about graph structure AND produce canvas mutations — same as the normal
+  agent call.
+- **ArgGraphBuilder**: Haiku. It produces a small structured JSON update; Haiku handles this
+  well with a tightly scoped prompt.
+- **Claim-type classifier (fact-check detector)**: Haiku / `classification`. Single label output,
+  32 tokens max.
+- **Moderation classifier**: Haiku / `classification`. Binary safe/unsafe output.
+
+---
+
+## Integration Points: What Changes in Existing Code
+
+### `apps/api/src/graph/state.ts` — MODIFIED
+
+Add three new fields to `GraphStateAnnotation`:
+
+```typescript
+// New fields (additive)
+triggerType: Annotation<TriggerType | null>({
+  reducer: (_, v) => v,
+  default: () => null,
+}),
+argGraph: Annotation<ArgumentGraph>({
+  reducer: (prev, update) => applyArgGraphUpdate(prev, update),
+  default: () => ({ nodes: [], edges: [] }),
+}),
+participantProfiles: Annotation<ParticipantProfileMap>({
+  reducer: (prev, update) => mergeParticipantProfiles(prev, update),
+  default: () => ({}),
+}),
+```
+
+These are backward-compatible: existing graph invocations don't set `triggerType` (defaults
+to null), which routes to the normal orchestrator path. Existing checkpoints without these
+fields deserialize with the default values.
+
+### `apps/api/src/graph/graph.ts` — MODIFIED
+
+- Change `START` edge to a `addConditionalEdges(START, routeFromStart, ...)` that checks
+  `state.triggerType !== null`
+- Add four new nodes: `proactiveTrigger`, `facilitationAgent`, `analyticsAgent`,
+  `argGraphBuilder`
+- Add new edges as described in the topology section
+- Import new node functions
+
+**Risk level: MEDIUM.** The conditional edge from START is a structural change that could
+break routing if the `routeFromStart` function has a bug. Mitigate by testing both paths
+(triggerType null → orchestrator, triggerType set → proactiveTrigger) before adding any
+other new nodes.
+
+### `apps/api/src/lib/model-config.ts` — MODIFIED
+
+Add `facilitation` and `graph_reasoning` task types. Additive, zero risk of regression.
+
+### `apps/api/src/server.ts` — MODIFIED
+
+Add `startTriggerEngine()` call at startup (standalone Node.js only, not Vercel bridge).
+
+```typescript
+// server.ts
+import { startTriggerEngine } from './services/trigger-engine'
+startTriggerEngine()
+```
+
+This is the standalone server entry point. The Vercel bridge (`app/api/[[...route]]/route.ts`)
+does not call this — proactive triggers do not run on the Vercel deployment in v3.0. This is
+an acceptable constraint; the standalone deployment (local dev, Docker, or a persistent
+Node.js host) is the v3.0 execution environment for proactive features.
+
+### `apps/api/src/routes/ai.ts` — UNCHANGED (preferred)
+
+The `/invoke` route is kept strictly human-invoked. The `ProactiveInvoker` function calls
+the graph directly (internal function call), not via HTTP. This avoids the need to
+authenticate a self-request, handle SSE in a background context, or touch the highest-risk
+file in the codebase.
+
+**The mic lock is the coordination point**, not the HTTP route.
+
+---
+
+## Highest-Risk Changes (Flagged for Phase-Level Attention)
+
+### Risk 1: Conditional edge from START — CRITICAL SEAM
+**File:** `apps/api/src/graph/graph.ts`
+**Risk:** The `routeFromStart` function must not regress the `null`-triggerType path. Any
+bug here breaks ALL invocations, human and proactive.
+**Mitigation:** Write unit tests for `routeFromStart` before adding it. Keep the function
+tiny (single `if` on `state.triggerType`). Merge this change alone, with no other graph
+changes in the same phase.
+
+### Risk 2: argGraph state field size growth
+**File:** `apps/api/src/graph/state.ts` (argGraph reducer)
+**Risk:** The argGraph accumulates indefinitely as the conversation grows. With long sessions,
+the checkpoint payload may become very large, slowing PostgresSaver serialization.
+**Mitigation:** Cap `argGraph.nodes` at the last 50 nodes and edges at the last 100. The
+reducer should prune by age (oldest nodes dropped first). A long conversation has enough
+recent context; older argument nodes are rarely referenced by bots.
+
+### Risk 3: Trigger Engine scan query on messages table
+**File:** `apps/api/src/services/trigger-engine.ts`
+**Risk:** Scanning all active sessions every 5 seconds is a table scan. At scale this could
+be slow.
+**Mitigation:** Index `messages(session_id, branch_id, created_at DESC)` — likely already
+covered by the `session_id` index. Add a `SELECT MAX(created_at) GROUP BY (session_id, branch_id)`
+query with a WHERE on `sessions.status = 'active'`. This is a cheap aggregation query in
+Postgres; not a concern until thousands of concurrent sessions.
+
+### Risk 4: Proactive mic lock collision with human invoke
+**Files:** `apps/api/src/services/proactive-invoker.ts`, `apps/api/src/routes/ai.ts`
+**Risk:** A human sends a message exactly as the trigger engine fires. Both attempt to
+acquire the mic simultaneously.
+**Mitigation:** The existing `try_acquire_mic` RPC is already atomic (Postgres UPDATE with
+WHERE). The Trigger Engine defers if `acquired = false`. The human path gets priority
+(first-come-first-served at DB level). This is correct behavior — the bot's silence
+intervention should yield to a human who just broke the silence.
+
+### Risk 5: Proactive turns counted against cap
+**File:** `apps/api/src/lib/cap-guard.ts`
+**Risk:** Proactive bots could rapidly exhaust the creator's AI cap, especially with frequent
+silence triggers on an idle session.
+**Mitigation:** ProactiveInvoker skips `incrementCount()` for facilitation-tier calls (Haiku,
+text only). Only Analyst-tier calls with canvas mutations count against the cap. Long-term:
+add a separate `proactive_ai_count` column if finer billing control is needed.
+
+---
+
+## Suggested Build Order
+
+Each phase must be independently testable. Dependencies are strict left-to-right.
+
+### Phase A: State Extension (prerequisite for everything)
+
+1. Add `triggerType`, `argGraph`, `participantProfiles` fields to `GraphStateAnnotation`
+2. Implement `applyArgGraphUpdate()` and `mergeParticipantProfiles()` reducer helpers
+3. Add `facilitation` and `graph_reasoning` to `model-config.ts`
+4. Unit-test the new reducers in isolation
+
+**Tests possible:** Pure function unit tests for reducers. No LangGraph invocation needed.
+**Risk:** LOW — additive state fields with defaults.
+
+### Phase B: Personality Dispatcher + Prompt System
+
+1. Implement `PersonalityDispatcher` with trigger → persona mapping
+2. Write personality-specific system prompts for Coach and Analyst
+3. Write `buildFacilitationPrompt(blueprint, triggerType, argGraph, participantProfiles)`
+4. Write `buildAnalysisPromptWithArgContext(blueprint, argGraph, participantProfiles)`
+5. Unit-test prompts with snapshot tests
+
+**Tests possible:** Prompt shape tests, PersonalityDispatcher mapping tests.
+**Risk:** LOW — pure functions.
+
+### Phase C: ArgGraphBuilderNode + FacilitationAgentNode + AnalyticsAgentNode
+
+1. Implement `argGraphBuilderNode` (calls Haiku, returns `ArgumentGraphUpdate`)
+2. Implement `facilitationAgentNode` (Coach persona, text-only, no tool use)
+3. Implement `analyticsAgentNode` (Analyst persona, uses `canvasMutationTool`, same as
+   existing `agentNode` but with different system prompt)
+4. Unit-test with mock adapters
+
+**Tests possible:** Node unit tests with mock adapters (same pattern as existing
+`agent.ts` tests).
+**Risk:** LOW — new nodes follow exact same seam pattern as existing nodes.
+
+### Phase D: ProactiveTriggerNode + Graph Topology Change
+
+1. Implement `proactiveTriggerNode` (reads `triggerType`, returns route key)
+2. Add conditional edge from START (`routeFromStart`)
+3. Wire new nodes into `graph.ts` with new edges
+4. Update `createGraph()` to include new nodes
+5. Integration-test: normal path (triggerType=null) unaffected; proactive path routes correctly
+
+**Tests possible:** Graph integration tests with MemorySaver, testing both paths.
+**Risk:** HIGH — the conditional edge from START touches the core routing logic. Must be
+isolated in its own phase with thorough integration tests before ProactiveInvoker is built.
+
+### Phase E: ProactiveInvoker (core proactive execution)
+
+1. Implement `proactiveInvoke()` function (no HTTP, direct graph call)
+2. Mic lock acquisition with `p_holder_id = 'system_trigger'`
+3. Message insert + Realtime broadcast (reuse logic from route but as direct calls)
+4. Canvas writes for Analyst-tier proactive calls
+5. Integration-test: fire a proactive invocation on a real thread, verify message appears
+   in DB and broadcasts via Realtime
+
+**Tests possible:** Integration tests against real Supabase (or a local Supabase container).
+**Risk:** MEDIUM — touches Supabase write paths and Realtime, but all patterns are copied
+from the existing `/invoke` route.
+
+### Phase F: Trigger Engine (the timer loop)
+
+1. Implement `TriggerEngine` with `setInterval`-based scan loop
+2. Implement silence-window detection first (simplest trigger, most visible)
+3. Wire into `server.ts` startup
+4. Manual smoke test: idle in a session for N seconds, watch Coach bot speak
+5. Implement remaining triggers one at a time: phase readiness, drift, unlinked assertion,
+   fact-check, moderation
+
+**Tests possible:** Unit tests for each trigger condition function (evaluate trigger conditions
+against mock data); integration test for the full scan loop is difficult to unit-test
+(time-dependent) — rely on manual smoke testing.
+**Risk:** MEDIUM — the timer loop itself is simple Node.js; the classification calls for
+drift/fact-check/moderation add LLM cost per scan cycle. Must implement debouncing to prevent
+repeated firing on the same trigger condition.
+
+### Phase G: Per-Session User Profiles (personality personalization)
+
+1. Implement `participantProfileUpdater` in ArgGraphBuilderNode (piggyback on existing Haiku call)
+2. Inject `participantProfiles` into facilitation prompt construction
+3. Test that Coach bot references earlier participant statements
+
+**Tests possible:** Integration tests checking profile accumulation across multiple invocations.
+**Risk:** LOW — additive feature, Coach bot can function without profiles (they default to `{}`).
+
+### Phase H: Natural Bot Speech + No Artifact Policy
+
+1. Audit all bot prompts for `[canvas updated]` and system artifact patterns
+2. The existing `accumulatedText` fallback in `ai.ts` (`'[canvas updated]'`) must be replaced
+   for bot-generated messages — use the bot's actual text or omit the message insert
+3. Add prompt rule: "Never start your message with brackets, never mention canvas operations"
+4. Add a post-processing filter on bot text output before message insert
+
+**Risk:** LOW — prompt engineering + light post-processing.
+
+---
+
+## Deployment Constraint: Standalone Server Required for Proactive Features
+
+The Trigger Engine cannot run on Vercel serverless because serverless functions are
+request-scoped (no persistent process for `setInterval`). The proactive bot engine runs
+on the **standalone Node.js server** (`apps/api/src/server.ts` with `@hono/node-server`).
+
+The Vercel deployment (Next.js bridge) continues to serve the human `/invoke` path and all
+CRUD routes. For a full v3.0 deployment, the standalone API server must be deployed
+separately (e.g. Railway, Fly.io, or Docker on a VPS). This was already anticipated in the
+project's architecture decision to keep `server.ts` and the Vercel bridge as separate entry
+points.
+
+---
+
+## Component Map: All v3.0 Changes at a Glance
+
+| Component | Location | Status | Nature of Change |
+|-----------|----------|--------|-----------------|
+| `state.ts` | `apps/api/src/graph/` | MODIFIED | Add `triggerType`, `argGraph`, `participantProfiles` fields |
+| `graph.ts` | `apps/api/src/graph/` | MODIFIED | Conditional START edge, 4 new nodes, new edge wiring |
+| `model-config.ts` | `apps/api/src/lib/` | MODIFIED | Add `facilitation`, `graph_reasoning` task types |
+| `server.ts` | `apps/api/src/` | MODIFIED | Add `startTriggerEngine()` call |
+| `nodes/proactive-trigger.ts` | `apps/api/src/graph/nodes/` | NEW | Routes proactive path, reads triggerType |
+| `nodes/facilitation-agent.ts` | `apps/api/src/graph/nodes/` | NEW | Coach persona, text-only, Haiku model |
+| `nodes/analytics-agent.ts` | `apps/api/src/graph/nodes/` | NEW | Analyst persona, canvas mutations, Sonnet model |
+| `nodes/arg-graph-builder.ts` | `apps/api/src/graph/nodes/` | NEW | Argument graph extraction, Haiku model |
+| `services/trigger-engine.ts` | `apps/api/src/services/` | NEW | setInterval scan loop, 6 trigger condition detectors |
+| `services/proactive-invoker.ts` | `apps/api/src/services/` | NEW | Internal graph invocation, mic lock, broadcast |
+| `services/personality-dispatcher.ts` | `apps/api/src/services/` | NEW | Trigger → persona + prompt mapping |
+| `routes/ai.ts` | `apps/api/src/routes/` | UNCHANGED | Human invoke path preserved as-is |
+| Supabase migrations | `supabase/migrations/` | NEW (optional) | Index on `messages(session_id, branch_id, created_at DESC)` if not exists |
+| `@panelito/types` | `packages/types/` | MODIFIED | Add `TriggerType`, `ArgumentGraph`, `ParticipantProfile` types |
+
+---
+
+## What the Roadmap Planner Needs to Know
+
+**Phase sequencing is hard-constrained by three dependencies:**
+
+1. **State extension (Phase A) must come first.** Every subsequent phase depends on the
+   new state fields. Without `triggerType`, the START edge cannot route.
+
+2. **Graph topology change (Phase D) is the highest-risk phase.** It must be isolated,
+   tested thoroughly, and NOT combined with ProactiveInvoker work (Phase E). If Phase D
+   breaks something, Phase E tests will be impossible to interpret.
+
+3. **TriggerEngine (Phase F) depends on ProactiveInvoker (Phase E).** The engine detects
+   triggers; the invoker acts on them. Building the engine first would produce events with
+   nowhere to go.
+
+**The happy path for "smoke test" at each phase:**
+- After Phase A: existing `/invoke` calls behave identically (no regression)
+- After Phase C: unit tests pass for all new nodes
+- After Phase D: integration test shows correct routing for both triggerType=null and
+  triggerType='silence'
+- After Phase E: manually POST to a debug endpoint that fires a proactive invocation;
+  verify message in DB and Realtime broadcast
+- After Phase F: idle in a session for 30 seconds; watch Coach speak
+
+**Devil's Advocate bot is a v3.1 feature**, not v3.0. It requires a human-triggered
+invocation mechanism (Power Reaction integration) that is separate from the proactive
+trigger system. Do not include it in v3.0 scope.
 
 ---
 
 ## Sources
 
-- LangGraph JS streaming modes: https://langchain-ai.github.io/langgraphjs/how-tos/streaming-content/
-- LangGraph JS checkpointer persistence: https://langchain-ai.github.io/langgraphjs/concepts/human_in_the_loop/
-- `@langchain/langgraph-checkpoint-postgres` tables: https://blog.lordpatil.com/posts/langgraph-postgres-checkpointer/
-- Langfuse LangChain TypeScript callbacks: https://langfuse.com/docs/langchain/typescript
-- Vercel function duration limits: https://vercel.com/docs/functions/configuring-functions/duration
-- Supabase connection modes (session vs transaction pooler): https://supabase.com/docs/guides/database/connecting-to-postgres
-- Supabase Realtime broadcast `httpSend`: https://supabase.com/docs/guides/realtime/broadcast
-- `@hono/ajv-validator` middleware: https://jsr.io/@hono/ajv-validator
-- LangGraph multi-agent routing: https://docs.langchain.com/oss/javascript/langgraph/workflows-agents
+- LangGraph JS 1.4.7 docs (verified via Context7 `/websites/langchain_oss_javascript_langgraph`):
+  - Conditional edges: https://langchain-ai.github.io/langgraphjs/how-tos/
+  - Human-in-the-loop interrupt pattern: https://docs.langchain.com/oss/javascript/langgraph/interrupts
+  - Graph invocation with null input (resume): https://docs.langchain.com/oss/javascript/langgraph/fault-tolerance
+- Existing codebase (read directly):
+  - `apps/api/src/graph/graph.ts` — current topology
+  - `apps/api/src/graph/state.ts` — current state schema
+  - `apps/api/src/graph/nodes/agent.ts` — adapter seam pattern
+  - `apps/api/src/routes/ai.ts` — full invoke route including mic lock, SSE, canvas writes
+  - `apps/api/src/lib/model-config.ts` — existing task type → model mapping
+  - `supabase/migrations/0004_auto_freeze_pg_cron.sql` — pg_cron precedent (auto-freeze)
+  - `supabase/migrations/0010_mic_lock.sql` — mic lock RPC functions
