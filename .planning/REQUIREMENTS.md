@@ -1,7 +1,7 @@
 # Requirements: Project Multiverse
 
-**Defined:** 2026-07-01
-**Core Value:** The live analytics panel stays perfectly synchronized with the active conversation branch in real time — transforming passive group chat into structured, visual collective thinking. In v2.0, the panel becomes a Neuro-Symbolic engine: the LLM acts as cartographer, mapping human speech into a structured ontology graph anchored to a human-defined Blueprint.
+**Defined:** 2026-07-01 (v2.0) | **v3.0 added:** 2026-07-09
+**Core Value:** The live analytics panel stays perfectly synchronized with the active conversation branch in real time — transforming passive group chat into structured, visual collective thinking. Bots are proactive facilitators, not passive responders.
 
 ---
 
@@ -125,3 +125,122 @@
 
 *Requirements defined: 2026-07-01*
 *Last updated: 2026-07-01 — traceability finalized after v2.0 roadmap creation*
+
+---
+
+## v3.0 Requirements
+
+### Proactive Bot Infrastructure (BOT)
+
+- [ ] **BOT-01**: A session token budget guard with circuit breaker exists per branch; hard ceiling (configurable, default 200 tokens/minute averaged over 5-minute window) prevents cost explosion on creator's BYOK key; when circuit trips, all proactive bot invocations are paused for 10 minutes and the session creator is notified
+- [ ] **BOT-02**: A global bot arbitration lock prevents multiple bots from firing simultaneously on the same branch; each bot scores its trigger affinity (0–9) and the highest scorer wins; other bots stand down for that N-second window
+- [ ] **BOT-03**: A two-signal silence gate checks both elapsed time since last human message AND Supabase Presence `is_typing` state before any silence-based trigger fires; if any participant is typing, the trigger is suppressed
+- [ ] **BOT-04**: LangGraph thread state uses dual thread_id separation: `branch_id:human` (existing path) and `branch_id:bot` (new proactive path); concurrent write-skew between human and proactive invocations is prevented by construction
+- [ ] **BOT-05**: All bot state (argGraph, user profiles, trigger metadata) persists in LangGraph PostgresSaver thread state — no JavaScript process memory; survives Vercel cold starts and serverless function recycling
+
+### Bot Personalities (PERSONA)
+
+- [ ] **PERSONA-01**: Coach bot is wired into the LangGraph graph as a new FacilitationAgentNode; its prompt enforces Socratic discipline — every output ends with a question, never a statement or answer; it never gives conclusions, only surfaces them
+- [ ] **PERSONA-02**: Analyst/Fact-Checker bot is wired as a new AnalyticsAgentNode; its output always cites the specific prior message (speaker name + paraphrased content) it is responding to; when operating as Fact-Checker it uses uncertainty framing exclusively ("I can't verify that — what's the source?") and never makes confident counter-assertions
+- [ ] **PERSONA-03**: Each personality has configurable per-session cooldown budgets (default: Coach 3/15min, Analyst 2/15min, Fact-check 1/30min) stored in the Blueprint or session config; Creator can adjust in session settings
+- [ ] **PERSONA-04**: Persona consistency is maintained across long sessions via a periodic re-anchor mechanism that refreshes the persona context window every 15 bot invocations; tested against a 100-turn synthetic session before release
+
+### Trigger Types (TRIGGER)
+
+- [ ] **TRIGGER-01**: Silence window trigger — Coach fires when no human message arrives within N seconds (default 45s, Blueprint-configurable) AND no participant has `is_typing: true`; fires at most once per cooldown window
+- [ ] **TRIGGER-02**: Blueprint phase signal trigger — when the in-context argGraph and message history contain sufficient coverage of the current phase's required topics (evaluated by the Analyst bot), a phase-readiness signal is emitted; the Coach asks the group if they are ready to advance
+- [ ] **TRIGGER-03**: Semantic drift trigger — when the cosine similarity between the last 3 messages (embedded locally via all-MiniLM-L6-v2 ONNX) and the Blueprint's domain centroid drops below threshold (default 0.6), the Coach gently redirects the conversation; threshold is Blueprint-configurable
+- [ ] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
+- [ ] **TRIGGER-05**: Fact-check trigger — when the classifier detects a message containing a verifiable factual claim with low self-consistency (heuristic pre-filter → Haiku → Sonnet three-tier escalation), the Analyst/Fact-Checker responds with uncertainty framing; never operates without the pre-filter
+- [ ] **TRIGGER-06**: Moderation trigger — when a message is classified as rude, disruptive, or off-topic by the heuristic pre-filter (no LLM cost), the Coach intervenes with a neutral, non-accusatory facilitation move
+- [ ] **TRIGGER-07**: A TriggerEngine module runs on the standalone Node.js server (`server.ts`) as a persistent `setInterval` scan loop (not Vercel serverless); it evaluates all 6 trigger conditions per active branch and dispatches to a ProactiveInvoker when a trigger fires
+
+### Coherent Graph Model (GRAPH)
+
+- [ ] **GRAPH-01**: The in-memory conversation graph (argGraph) is stored as a custom reducer field in LangGraph thread state; it persists across all invocations on a branch (human and proactive) via PostgresSaver; each branch has its own isolated argGraph
+- [ ] **GRAPH-02**: An ArgGraphBuilderNode updates the argGraph after each LangGraph run (human or proactive); it classifies the new content against existing nodes and proposes typed edges using the Blueprint's edge vocabulary
+- [ ] **GRAPH-03**: After the first 3 nodes in a session, every new CanvasNode proposed by a bot must include at least one edge proposal in its CanvasOp output; if no strong connection is found, a tentative ghost edge is created to the most semantically similar existing node
+- [ ] **GRAPH-04**: The argGraph drives the Analyst's facilitation context — before any Analyst invocation, the argGraph summary (nodes, edges, open assertions) is injected into the prompt so the Analyst can reference specific prior content by name
+
+### Per-Session User Profiles (PROFILE)
+
+- [ ] **PROFILE-01**: The ArgGraphBuilderNode maintains an in-memory profile per session participant (stored in LangGraph thread state via InMemoryStore namespaced by `[sessionId, participantId, 'profile']`) tracking: stated positions, key assertions made, engagement level (messages sent, reactions used)
+- [ ] **PROFILE-02**: The Coach bot receives a summary of each participant's profile as part of its prompt context, enabling personalized facilitation ("Earlier you mentioned X — does this new point support or challenge that?")
+
+### Model Cost Routing (COST)
+
+- [ ] **COST-01**: All proactive bot invocations use task-based model routing via the existing TASK_MODELS registry; facilitation moves (Coach silence/phase triggers, moderation) route to the provider's **fast/light tier** (Claude Haiku, GPT-4o-mini, or equivalent); analysis and graph reasoning (Analyst, Fact-Checker, ArgGraphBuilder) route to the provider's **capable tier** (Claude Sonnet, GPT-4o, or equivalent); tier-to-model mapping is resolved per provider at runtime, never hardcoded
+- [ ] **COST-02**: Trigger classification uses a three-tier escalation gate (heuristic regex/rule → light-tier classifier → capable-tier for confirmed positives) to minimize LLM calls during the detection phase; raw trigger evaluation never calls the capable-tier model directly
+- [ ] **COST-03**: Langfuse traces tag each LLM call with its trigger type and model tier; cost attribution by trigger type is visible in the Langfuse dashboard
+
+### Natural Bot Speech (SPEECH)
+
+- [ ] **SPEECH-01**: No bot message in the chat stream contains system artifact strings ("[canvas updated]", "[graph modified]", "[node added]", or similar); all bot output is conversational, persona-consistent, and natural
+- [ ] **SPEECH-02**: The message rendering layer blocks any message content matching system artifact patterns at the frontend layer as defense-in-depth; blocked strings are replaced with an empty string (silent drop)
+- [ ] **SPEECH-03**: Canvas update confirmations are communicated exclusively through the canvas UI (ghost → committed animation, node count badge) — never through chat text
+
+## v3.0 Future Requirements
+
+### Devil's Advocate (v3.1)
+
+- **DA-01**: Devil's Advocate bot available as a Power Reaction trigger ("🔥 Challenge this") — human must explicitly invoke it; it never fires proactively
+- **DA-02**: Devil's Advocate always acknowledges the prior point before challenging ("That's an interesting position — have you considered...")
+- **DA-03**: Devil's Advocate cooldown enforced: max 1 invocation per participant per 10 minutes to prevent adversarial exhaustion
+
+### Persistent User Memory (v4.0)
+
+- **MEM-01**: For registered users, session profile data is stored in Supabase after session close and indexed via pgvector for future retrieval
+- **MEM-02**: Returning user profiles are retrieved at session start to provide continuity across sessions
+
+## v3.0 Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Devil's Advocate proactive trigger | CHI 2025 research: unsolicited adversarial challenges destroy group dynamics; requires human Power Reaction invocation — v3.1 |
+| Persistent user memory (vector DB) | Infrastructure scope; no pgvector indexing in v3.0 — v4.0 |
+| Standalone server deployment automation | Out of scope for solo dev v3.0; documented as manual step |
+| Semantic drift threshold auto-tuning | Requires real session data; calibrate manually from Langfuse after 5-10 sessions |
+| Multi-session user profile continuity | Requires persistent memory — v4.0 |
+
+## v3.0 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| BOT-01 | Phase 10 | Pending |
+| BOT-02 | Phase 10 | Pending |
+| BOT-03 | Phase 10 | Pending |
+| BOT-04 | Phase 10 | Pending |
+| BOT-05 | Phase 10 | Pending |
+| PERSONA-01 | Phase 11 | Pending |
+| PERSONA-02 | Phase 11 | Pending |
+| PERSONA-03 | Phase 11 | Pending |
+| PERSONA-04 | Phase 14 | Pending |
+| TRIGGER-01 | Phase 11 | Pending |
+| TRIGGER-02 | Phase 13 | Pending |
+| TRIGGER-03 | Phase 12 | Pending |
+| TRIGGER-04 | Phase 12 | Pending |
+| TRIGGER-05 | Phase 12 | Pending |
+| TRIGGER-06 | Phase 12 | Pending |
+| TRIGGER-07 | Phase 14 | Pending |
+| GRAPH-01 | Phase 11 | Pending |
+| GRAPH-02 | Phase 11 | Pending |
+| GRAPH-03 | Phase 12 | Pending |
+| GRAPH-04 | Phase 11 | Pending |
+| PROFILE-01 | Phase 13 | Pending |
+| PROFILE-02 | Phase 13 | Pending |
+| COST-01 | Phase 12 | Pending |
+| COST-02 | Phase 12 | Pending |
+| COST-03 | Phase 14 | Pending |
+| SPEECH-01 | Phase 14 | Pending |
+| SPEECH-02 | Phase 14 | Pending |
+| SPEECH-03 | Phase 14 | Pending |
+
+**v3.0 Coverage:**
+- v3.0 requirements: 28 total (5 BOT + 4 PERSONA + 7 TRIGGER + 4 GRAPH + 2 PROFILE + 3 COST + 3 SPEECH)
+- Mapped to phases: 28
+- Unmapped: 0 ✓
+
+---
+
+*v3.0 requirements defined: 2026-07-09*
+*Last updated: 2026-07-09 — initial v3.0 requirements*
