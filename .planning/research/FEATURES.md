@@ -1,296 +1,351 @@
-# Feature Landscape: Project Multiverse v2.0 NSAI Engine
+# Feature Landscape: Project Multiverse v3.0 Proactive Bot Facilitation
 
-**Domain:** Neuro-Symbolic AI collaborative workspace — structured group deliberation with ontology-constrained LLM orchestration
-**Research date:** 2026-07-01
-**Milestone scope:** SUBSEQUENT MILESTONE — adds NSAI engine to an existing real-time workspace
-
----
-
-## Existing Features (v1 baseline — already built)
-
-The following are NOT features to plan — they are dependencies to preserve:
-
-- Multi-user real-time chat, sub-second delivery via Supabase Realtime broadcast
-- Conversation branching (fork from any message, up to 5 branches, branch-isolated AI context)
-- AI analytics panel (Recharts bento/radar/scatter/pie widgets)
-- Multi-provider LLM abstraction (Anthropic, OpenAI, Gemini)
-- 4 power reactions triggering AI responses
-- Analyst persona toggle
+**Domain:** Proactive AI facilitation bots for synchronous group deliberation
+**Research date:** 2026-07-09
+**Milestone scope:** SUBSEQUENT MILESTONE — adds proactive bot facilitation engine to existing v2.0 NSAI workspace
 
 ---
 
-## Table Stakes (Must Have — NSAI system breaks without these)
+## Existing Features (v1 + v2 baseline — already built, do NOT re-plan)
 
-These are the minimum viable behaviors for the v2.0 layer. Missing any one of these means the NSAI engine either doesn't function or violates the core human-control thesis.
+The following are NOT features to plan — they are dependencies to preserve and build on:
 
-### 1. LangGraph Orchestration with OrchestratorNode + Agent Nodes
-
-**Why expected:** LangGraph 1.0 (released October 2025) is the production standard for stateful multi-agent orchestration, deployed at Uber, JP Morgan, Klarna. It is the only JS framework that natively supports hierarchical orchestrator-worker patterns with built-in checkpointing and human-in-the-loop interrupts. Direct LLM calls have no state graph, no conditional routing, and no interrupt capability — they cannot model the domain guardrail → confidence check → autonomy decision chain this system requires.
-
-**Expected behavior:**
-- OrchestratorNode receives every human message and routes it through the domain guardrail first (before any agent sees it)
-- Conditional edges route to the appropriate domain Agent node based on DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT classification
-- Agent nodes produce a structured `CanvasOp` block (node/edge mutations) alongside a text response
-- `thread_id` maps 1:1 to `branch_id` — each branch has a fully isolated graph execution context
-- Postgres checkpointer (via Supabase Postgres) persists graph state between turns; graph can resume after reconnect
-
-**Complexity:** HIGH
-**Dependencies:** Supabase Postgres schema extension (checkpointer tables), existing branch_id system, AIProvider abstraction
-
-**LangGraph JS streaming pattern (verified):**
-```typescript
-// Three simultaneous stream modes for real-time UI
-for await (const event of graph.stream(input, {
-  streamMode: ["updates", "custom", "messages"],
-  configurable: { thread_id: branchId }
-})) {
-  // "messages" → token-by-token to chat bubble
-  // "updates" → node completion signals (progress indicator)
-  // "custom" → CanvasOp blocks via get_stream_writer()
-}
-```
-
-**Vercel constraint:** Use Node.js runtime, NOT Edge runtime. Node.js functions support up to 300s (Hobby) / 800s (Pro) duration. Edge runtime requires response within 25s — too tight for multi-node graph execution. Multi-step agents with several LLM calls can easily exceed 25s.
+- Multi-user real-time chat via Supabase Realtime broadcast
+- Conversation branching (fork, isolated context, color-coded timeline)
+- AI analytics panel (Recharts bento/radar/scatter/pie + Universal Graph Canvas with xyflow/react)
+- LangGraph JS orchestration (OrchestratorNode + domain Agent nodes)
+- Domain Blueprints (JSON, Supabase-stored, Ajv runtime validation)
+- Universal CanvasNode + CanvasEdge data model (committed + ghost nodes)
+- Confidence-based autonomy matrix (direct >0.85 / ghost 0.5–0.85 / silent <0.5)
+- Mic Check Pattern (human must explicitly release floor for bots to respond)
+- Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT)
+- Langfuse observability (graph tracing, costs, latency, prompts)
+- Bots respond reactively when invoked by humans in chat
 
 ---
 
-### 2. Domain Blueprints (JSON → Ajv → Prompt Injection)
+## Table Stakes (The Proactive System Breaks Without These)
 
-**Why expected:** The "neuro-symbolic" thesis requires that the LLM operates within a runtime-loaded ontology, not a hard-coded prompt. Blueprints are what separate this from a standard chatbot: the canvas vocabulary (node types, edge types, colors) must be injectable per-session without code changes.
+### 1. Intervention Gating and Cooldown Budget
 
-**Expected behavior:**
-- Blueprint JSON is stored in Supabase and loaded at session start; validated against a meta-schema using Ajv before use
-- Blueprint defines: allowed node types, allowed edge types, active personas, canvas view mode, phase sequence
-- Blueprint contents are injected into the system prompt at graph compile time (not per-message) — this is the stable prefix that benefits from Anthropic prompt caching
-- LLM is constrained to only propose node/edge types that exist in the loaded Blueprint
-- Invalid Blueprint (Ajv fails) → session cannot start; user sees error before entering workspace
+**Why it's table stakes:** The single most-cited failure mode in facilitation bot research is over-intervention. Research on proactive AI facilitation (CHI 2025, CHI 2026) consistently identifies that bots which speak too frequently are marginalized, ignored, and ultimately damage conversation quality. A facilitation bot without rate control is worse than no bot at all — it produces "bot fatigue," erodes trust, and actively suppresses human participation.
 
-**Ajv performance note (HIGH confidence):** Compile schemas once at application boot, not per-request. `ajv.compile(schema)` takes 10–100ms; calling it per-request caps throughput at 10–100 req/s. Cache compiled validator functions:
-```typescript
-const validateBlueprint = ajv.compile(BlueprintMetaSchema); // at boot
-// Per-request:
-const valid = validateBlueprint(runtimeBlueprint); // < 1ms, 90k+ validations/sec
-```
+**Required behavior:**
+- Per-bot cooldown: each personality has a minimum silence window after its own last message (recommended: 60–90 seconds) before it can trigger again
+- Global session cooldown: after any bot speaks, a global gate blocks all bot speech for N seconds (recommended: 30 seconds) — prevents bot pile-ons
+- Maximum interventions per time window: no more than 2–3 bot messages per 5-minute window across all personalities combined
+- Trigger priority queue: when multiple triggers fire simultaneously, only the highest-priority fires; others are queued or discarded
+- Never interrupt a human in mid-typing: gate on Mic Check state — if `mic_check !== null`, all proactive triggers are suppressed
 
-**Prompt caching interaction:** Blueprint JSON + persona definitions + tool schemas form the stable prefix. Mark with `cache_control: { type: "ephemeral" }` on the last content block of the static prefix. On subsequent turns (same thread), Claude serves these tokens from KV cache at 10% of standard input cost and 85% lower latency.
+**Why this is non-negotiable:** Research (CHI 2026 proactive agent study) shows that peer agents that intervene every 3 minutes created disruption even when their content was helpful. The facilitator agent's contributions "became marginalized over time" once it was perceived as repetitive. The 52% proactive intervention rate cited in one study correlated with customer satisfaction decline, not improvement.
 
-**Complexity:** MEDIUM (JSON schema authoring is the hard part; Ajv integration is low effort)
-**Dependencies:** Supabase storage schema, LangGraph state for carrying Blueprint through graph
+**Complexity:** MEDIUM — state machine in LangGraph or a separate intervention scheduler
+**Dependencies:** Mic Check Pattern (existing), session state in Supabase, LangGraph conditional routing
 
 ---
 
-### 3. Universal CanvasNode + CanvasEdge Data Model
+### 2. Trigger Classification Layer (Lightweight)
 
-**Why expected:** A single schema that domains customize through vocabulary and color, not structure, is the only pattern that keeps graph rendering generic. If each domain had its own schema, the frontend canvas component would need domain-specific rendering logic.
+**Why it's table stakes:** Proactive intervention requires continuous background evaluation of conversation state. Without a dedicated classification layer, the system has no way to know when to speak. This is the perceptual layer — it must run cheaply on every message or on a timer, not on the expensive model.
 
-**Expected behavior:**
-- Single `CanvasNode` type: `{ id, type, label, confidence, status, position, metadata }`
-- Single `CanvasEdge` type: `{ id, source, target, type, label, weight }`
-- `type` field maps to Blueprint-defined vocabulary (e.g., "Hypothesis", "Evidence" in Debate domain)
-- `status` field carries autonomy state: `"committed"` | `"ghost"` | `"pending_human"`
-- `metadata` is a freeform `Record<string, unknown>` for domain-specific data that doesn't affect rendering
+**Six trigger types required:**
 
-**Complexity:** LOW (schema design; no novel engineering)
-**Dependencies:** Blueprint definitions must enumerate all valid `type` values
+| Trigger | Signal | Classification Method |
+|---------|--------|----------------------|
+| Silence window | N seconds since last human message (no typing indicator active) | Timer + Mic Check state polling |
+| Blueprint phase signal | Conversation content matches phase-advance criteria in Blueprint | Small LLM call: "Does this conversation indicate readiness to advance from phase X to Y?" |
+| Semantic drift | Embedding cosine distance from Blueprint domain description exceeds threshold | Embedding similarity (reuse existing DOMAIN_DRIFT classifier; repurpose for proactive drift alert) |
+| Unlinked assertion | New human message contains a claim that relates to an existing graph node with no edge | LLM call against current graph state: "Does this claim connect to any existing canvas node?" |
+| Fact-check trigger | Human message contains a clearly false or unsupported claim | Small LLM classification: "Is this claim empirically verifiable and likely incorrect?" |
+| Moderation trigger | Human message contains rude, dismissive, or disruptive content | Small LLM or rule-based classifier |
 
----
+**Implementation pattern:** Triggers are evaluated as a pipeline after each human message is committed to the database. The pipeline runs on the small/cheap model tier. Only if a trigger fires AND passes the intervention gate (see feature 1) does the proactive response generation begin.
 
-### 4. Confidence-Based Autonomy Matrix
+**Critical design constraint:** The trigger classification call must NOT be user-visible. It runs silently in the background. No "thinking..." indicator, no skeleton loaders, no UI feedback during trigger evaluation. If no trigger fires, the user sees nothing. If a trigger fires, they see the bot message appear naturally after a deliberate short delay (1–2 seconds) — not instantly.
 
-**Why expected:** The core claim of the NSAI engine is that AI acts as cartographer, not author. Without a calibrated autonomy threshold, the AI either mutates the canvas without human awareness (violates control thesis) or requires confirmation on every token (unusable friction).
-
-**Expected behavior:**
-
-| Confidence | Action | UX Signal |
-|------------|--------|-----------|
-| > 0.85 | Direct canvas mutation — node/edge committed immediately | Node appears solid, full opacity |
-| 0.5 – 0.85 | Ghost mutation — node/edge rendered as tentative (dashed border, ~40% opacity) | "Click to confirm" affordance visible |
-| < 0.5 | No canvas mutation — text-only sidebar suggestion | Grey suggestion text in chat, no canvas change |
-
-**Implementation pattern:**
-- LLM outputs confidence as a verbalized field in the structured `CanvasOp` block (not extracted from prose)
-- Confidence is produced via tool use / structured output — NOT verbalized uncertainty ("I think...") which is miscalibrated in RLHF models
-- Ghost nodes are non-blocking: session can continue while ghost nodes sit unconfirmed
-- Bulk ghost promotion: session admin can "confirm all ghosts" at phase transition
-
-**Critical calibration warning (MEDIUM confidence):** Verbalized LLM confidence is systematically miscalibrated — RLHF training decouples verbal confidence from actual epistemic state. The 0.85/0.5 thresholds in the design are design-intent values, not empirically validated accuracy thresholds. In production, monitor ghost promotion rate (what % of ghosts get confirmed vs rejected) and tune thresholds based on observed behavior. High rejection rates → lower the direct-mutation threshold. Zero ghosts ever generated → threshold too high.
-
-**Complexity:** MEDIUM
-**Dependencies:** Structured output from LLM (tool use schema enforces confidence field); CanvasNode `status` field; React canvas component rendering for ghost state
+**Complexity:** MEDIUM — pipeline orchestration; individual classifiers are small LLM calls
+**Dependencies:** Existing domain guardrail classifier (can be extended), LangGraph state for graph context, Langfuse (all trigger evaluations should be traced for tuning)
 
 ---
 
-### 5. Flex-Soft Domain Guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT)
+### 3. Bot Personality Differentiation (Distinct System Prompts and Trigger Affinity)
 
-**Why expected:** Without a routing layer, every user message hits the domain agent regardless of relevance. In a Debate/Strategy Blueprint session, questions like "what should I have for lunch?" would produce graph mutations about lunch, polluting the canvas.
+**Why it's table stakes:** If multiple bots are deployed but they speak in an identical voice with identical patterns, the multi-personality system provides zero value over a single bot. Research on devil's advocate AI systems (CHI 2025) and Socratic chatbot designs consistently shows that personality must be stable and legible — users need to predict how each bot will behave in order to trust its interventions.
 
-**Expected behavior:**
-- Every incoming human message passes through a lightweight classifier node BEFORE reaching any domain Agent
-- Classification produces one of three labels:
-  - `DOMAIN_MATCH`: message is on-topic for active Blueprint → route to domain Agent
-  - `DOMAIN_BRIDGE`: message is adjacent/related → route to domain Agent with context note; LLM decides if canvas mutation is warranted
-  - `DOMAIN_DRIFT`: message is off-topic → pass to plain LLM for conversational response; NO canvas mutation produced
-- Classification must be synchronous and fast (target < 50ms) — it blocks the main response path
-- "Flex-Soft" means: DOMAIN_DRIFT does NOT refuse or block the message; it just routes to a non-mutating path. Human conversation continues; only canvas is protected.
+**Three personalities required:**
 
-**Implementation options (ordered by latency):**
-1. Lightweight classifier model (embedding similarity to Blueprint topic summary) — fastest, ~30ms
-2. Small LLM call with few-shot examples — ~200ms, more accurate
-3. Full domain agent with early exit — slowest but most nuanced
+**Coach (Socratic):**
+- Character: empathetic, question-driven, never provides answers, guides humans to their own conclusions
+- Six Socratic question classes to rotate through: clarification, challenging assumptions, evidence and reasoning, alternative viewpoints, implications and consequences, meta-questions about the question itself
+- Speech template constraint: ALL Coach output must end with a question. If the output doesn't contain a "?", it fails the persona contract.
+- Primary trigger affinity: silence window (fills dead air with a guiding question), Blueprint phase signal (asks "what would it mean to move forward?"), semantic drift (asks "how does this connect back to what we were exploring?")
+- Avoids: statements of fact, opinions, direct recommendations, summarization
 
-**Recommended for v1:** Option 2 (small LLM call). Domain classification with brief few-shot prompts is ~200ms, well within perceived response time. Option 1 requires embedding infrastructure not yet in the stack.
+**Devil's Advocate:**
+- Character: adversarial but not hostile, risk-surfacing, assumption-challenging, psychologically safe skepticism
+- Speech pattern: acknowledges the position first ("I see the case for X..."), then introduces the counter ("...but what happens when Y?"). Never leads with pure negation.
+- Research finding (CHI 2025 minority voice amplification study): persuasive rhetoric with empathetic framing outperforms eristic (combative) rhetoric. The devil's advocate must be a sophisticated skeptic, not a contrarian troll.
+- Primary trigger affinity: unlinked assertion (challenges the assumption behind a claim), fact-check trigger (surfaces alternative evidence), Blueprint phase signal (asks "are we sure we've pressure-tested this before moving on?")
+- Avoids: personal attacks, repeating the same counter-argument twice, agreeing with the group consensus
 
-**Complexity:** MEDIUM (routing logic is straightforward; the calibration of what counts as BRIDGE vs DRIFT is the ongoing work)
-**Dependencies:** LangGraph conditional edges; Blueprint topic metadata (each Blueprint needs a `domain_description` field for classifier context)
+**Analyst / Fact-Checker:**
+- Character: neutral, structured, data-driven, tracks the logical state of the argument graph
+- Speech pattern: references the conversation record explicitly ("You've agreed on X and Y, but Z hasn't been established yet"), proposes connections between claims, flags logical gaps
+- Primary trigger affinity: unlinked assertion (proposes the edge: "this sounds like it SUPPORTS your earlier hypothesis"), fact-check trigger (primary responder), semantic drift (notes "we've moved away from the evidence phase — here's what's still open")
+- Avoids: emotional language, personal observations about participants, opinions on which side is right
 
----
+**Multi-bot coordination rule:** When multiple bots would trigger on the same message, only the bot with the highest "enthusiasm score" for that trigger type speaks. The Analyst gets priority on fact-check and unlinked assertion. The Coach gets priority on silence window. The Devil's Advocate gets priority on phase-signal challenges. Implementation follows the "Enthusiasm" framework discovered in real multi-bot deployments: each bot evaluates its own enthusiasm score (0–9), the highest score wins, others stay silent.
 
-### 6. Mic Check Pattern (Human Turn Token)
-
-**Why expected:** In a multi-user session, LLM cannot know whose turn it is, whether someone is typing, or whether a human message is still forming. Without a floor control mechanism, LLM may respond to incomplete thoughts, respond mid-typing, or respond to one participant while another has the floor.
-
-**Expected behavior:**
-- A `mic_check` field in session/branch state tracks which `user_id` currently holds the floor (or `null` if floor is open)
-- LLM generation is gated: if `mic_check !== null` AND the current user is not the `mic_check` holder, message submission is blocked at the UI layer
-- When a user begins composing a message, they implicitly claim the floor (`mic_check = user_id`)
-- On message send, floor is released (`mic_check = null`) — LLM then fires
-- On 30-second typing timeout without send, floor auto-releases
-- Implementation uses Supabase Realtime broadcast (not DB write) for `mic_check` state — sub-100ms propagation, no persistence needed
-
-**This is primarily a UX convention, not a technical lock.** The LLM itself does not check the token — the client and Hono endpoint enforce it. This means it can be violated by race conditions in the 100-300ms network window, which is acceptable: rare races produce benign double-responses.
-
-**Complexity:** LOW (Supabase broadcast + Zustand state; no graph changes)
-**Dependencies:** Supabase Realtime broadcast channel; Zustand branch state; existing user identity
+**Complexity:** MEDIUM — system prompt engineering + trigger affinity routing table
+**Dependencies:** Intervention gate (feature 1), trigger classification layer (feature 2), LangGraph personality routing
 
 ---
 
-### 7. Human Consensus Pattern (Phase Gating)
+### 4. Natural Bot Speech (No System Artifact Strings)
 
-**Why expected:** Research on AI-facilitated structured deliberation (GROW coaching, debate stages, consensus building) consistently shows a critical pattern: LLM can signal readiness to advance a phase but cannot unilaterally advance it. Unilateral LLM phase advancement removes meaningful human agency — users feel shepherded rather than facilitated.
+**Why it's table stakes:** The moment a user sees "[canvas updated]" or "PHASE_SIGNAL: READY_TO_ADVANCE" in a chat bubble, the facilitation illusion collapses. The bot becomes a system, not a participant. Research on chatbot personality design confirms that legible, human-like speech patterns are required for users to engage with bots as conversational partners rather than tools.
 
-**Expected behavior:**
-- Each Blueprint defines an ordered `phases` array (e.g., `["Framing", "Evidence", "Debate", "Synthesis"]`)
-- `current_phase` is stored in Supabase session state (not LangGraph state — it outlives any single graph execution)
-- LLM can emit a `phase_signal: { type: "READY_TO_ADVANCE", reason: string }` in the structured output — this renders as a UI indicator ("AI thinks you're ready to move to Evidence phase")
-- Phase advancement requires an explicit human action: admin clicks "Advance Phase" button in the UI
-- On phase advance: LangGraph state is updated, new system prompt prefix for the new phase is compiled, graph continues
-- LLM cannot call any tool, emit any mutation block, or produce any output that changes `current_phase`
+**Required constraints:**
+- All bot chat output is conversational prose only — no JSON, no bracket annotations, no status strings
+- Canvas mutations triggered by a proactive intervention are NOT announced in the chat message. The graph updates silently (using existing ghost/committed node logic). The bot's words justify the update implicitly.
+- If the Analyst bot adds a node connection, it says: "Your point about X actually links directly to the hypothesis we put on the canvas earlier — they're in tension." It does NOT say: "I have added an edge of type CONTRADICTS between node-a7 and node-b3."
+- Bot messages include a visible bot identity badge (avatar + name) so users know which personality is speaking — but the message text itself reads as natural speech
+- Distinct voice rules enforced at the prompt level: Coach ends with "?", Analyst references specific prior content, Devil's Advocate frames objections empathetically
 
-**Complexity:** LOW–MEDIUM (the state machine is simple; the UX for surfacing phase signals clearly is the non-trivial part)
-**Dependencies:** Blueprint `phases` definition; Supabase session table `current_phase` field; LangGraph state schema includes `current_phase` as read-only (from DB) context
-
----
-
-### 8. Langfuse Observability
-
-**Why expected:** LangGraph multi-node execution makes debugging non-trivial without traces. When a message produces no canvas mutation, you need to know whether it was DOMAIN_DRIFT routing, a low-confidence ghost that wasn't rendered, a schema validation failure, or a model error. Langfuse is the de facto open-source standard for LLM observability in 2025-2026.
-
-**Expected behavior:**
-- Every graph execution (per user message) produces a Langfuse trace capturing: all node executions, LLM calls within each node, latency per node, token counts, estimated cost, the `thread_id` / `branch_id`
-- Integration pattern (TypeScript, HIGH confidence):
-  ```typescript
-  import { CallbackHandler } from "@langfuse/langchain";
-  const langfuseHandler = new CallbackHandler({
-    sessionId: branchId,
-    userId: creatorUserId,
-    tags: [blueprintId, currentPhase],
-  });
-  await graph.invoke(input, { callbacks: [langfuseHandler] });
-  ```
-- Langfuse dashboard shows: cost per session, p95 latency per node, DOMAIN_DRIFT rate (tags), confidence distribution
-- Does NOT require modifying individual nodes — the callback handler auto-instruments the entire graph
-
-**Complexity:** LOW (single dependency, callback pattern; dashboard is zero-config)
-**Dependencies:** `@langfuse/langchain` npm package; Langfuse account (self-hosted or cloud); LangGraph's callback support
+**Complexity:** LOW — prompt engineering discipline; existing message rendering already supports bot badges
+**Dependencies:** Existing bot message rendering infrastructure
 
 ---
 
-## Differentiators (What Makes This System Distinct)
+### 5. In-Memory Per-Session User Profiles
 
-### Universal Graph Canvas (View A)
+**Why it's table stakes:** Personalized facilitation — "You said earlier X, does this contradict that?" — is what separates a generic bot from a genuine facilitator. Research on AI memory for personalization confirms that referencing prior user statements produces a significantly stronger feeling of being understood and a stronger sense of conversation coherence. Without profiles, every bot intervention treats each message as if it came from a stranger.
 
-**Why it differentiates:** Most collaborative AI tools produce text. A live, interactive knowledge graph that evolves in real time alongside conversation is the core visual differentiator of the NSAI engine.
+**Required profile fields (per participant, per session):**
+- `stated_positions: string[]` — key claims a participant has made, updated on each of their messages
+- `key_assertions: { claim: string, message_id: string, timestamp: number }[]` — specific verifiable assertions with the message reference
+- `engagement_pattern: { message_count: number, avg_message_length: number, response_latency_avg_ms: number, silence_periods: number }` — used to calibrate whether silence trigger is actually unusual for this person
+- `last_spoke_at: number` — timestamp, used for silence window calculation
+- `positions_changed: { from: string, to: string, evidence: string }[]` — tracks when a participant reverses or evolves their position
 
-**Expected behavior:**
-- React Flow (confirmed production-ready for node/edge graph rendering, used in AI pipeline tools like LangGraph Studio itself)
-- Nodes are drag-repositionable by humans; LLM proposes positions but humans override freely
-- Ghost nodes (`status: "ghost"`) render with dashed border and reduced opacity; click to promote to committed
-- Edge labels show relationship type from Blueprint vocabulary
-- Canvas is synchronized across all users in the branch via Supabase Realtime broadcast (canvas mutations broadcast as `CanvasOp` events)
-- Multi-user conflict: "last write wins" is acceptable for v1 (CRDT/Yjs is v3+ complexity)
-- Canvas coexists with existing Recharts widgets — Blueprint `canvas_view_mode` determines which is active (canvas, charts, or split)
+**Storage:** In-memory only (Zustand store on the backend within the LangGraph thread state). Profiles are NOT persisted to the database. They are reconstructed if the session is resumed from scratch. This is intentional — session-scoped, not long-term user profiling.
 
-**Complexity:** HIGH
-**Dependencies:** React Flow library; existing Supabase Realtime infrastructure; CanvasNode/CanvasEdge schema; Blueprint `canvas_view_mode` field
+**LLM access pattern:** Profiles are injected into the bot's context as a compact structured block. The LLM does not query the profile database — the profile is included in the LangGraph state that gets passed to the node on each invocation.
 
-**React Flow note (HIGH confidence):** React Flow is the standard choice for interactive node-edge graphs in React. It is used in production AI tools (LangGraph Studio, Hugging Face pipeline builders). Supports custom node rendering, collaborative examples with Yjs, and virtualization for large graphs. The free tier (MIT license) is sufficient for this use case.
+**Complexity:** MEDIUM — state schema design + extraction logic on each human message; the extraction itself is a cheap LLM classification call ("what position did this participant just assert?")
+**Dependencies:** LangGraph state schema extension, per-participant state tracking
 
 ---
 
-### Debate/Strategy Blueprint as Production Domain
+### 6. Silence Window Trigger (Timer-Based)
 
-**Why it differentiates:** This is the first concrete proof that the Blueprint system is real, not theoretical. Without a shipped domain, the NSAI engine is infrastructure with no product.
+**Why it's table stakes:** This is the most basic form of proactive facilitation — when conversation stalls, a bot intervenes. Without it, the system can only respond to active messages, which means it fails to help groups through the most common group dynamics failure mode: dead air.
 
-**Blueprint definition:**
-```json
-{
-  "id": "debate-strategy-v1",
-  "node_types": ["Hypothesis", "Evidence", "Counter-Argument", "Action"],
-  "edge_types": ["SUPPORTS", "CONTRADICTS", "BUILDS_ON"],
-  "phases": ["Framing", "Evidence", "Debate", "Synthesis"],
-  "canvas_view_mode": "canvas",
-  "personas": ["analyst", "devil_advocate"],
-  "domain_description": "Structured debate and strategic decision-making"
-}
-```
+**Required behavior:**
+- Default silence threshold: 45–60 seconds of no human messages (configurable per Blueprint)
+- Timer resets on every human message or typing indicator event
+- If `mic_check !== null` (someone is typing), do NOT fire — they're about to speak
+- If the last message in the conversation was a bot message, add an additional delay (90 seconds) — prevents bot-bot loops
+- Coach gets priority on silence triggers (ask a question, don't summarize)
 
-**Complexity:** LOW (JSON authoring; the infrastructure is table stakes above)
-**Dependencies:** Blueprint schema defined and Ajv meta-schema validated
+**Implementation:** Server-side timer per branch, tracked in LangGraph state or a Supabase real-time presence channel. The timer fires a trigger event that goes through the intervention gate before any LLM call is made.
+
+**Complexity:** LOW — timer mechanics; the routing logic is shared with the rest of the trigger system
+**Dependencies:** Supabase Realtime presence or server-side timer, intervention gate (feature 1)
 
 ---
 
-### LangGraph thread_id = branch_id (Graph State as Branch Memory)
+## Differentiators (What Makes This Facilitation System Stand Out)
 
-**Why it differentiates:** Existing v1 branching isolates chat context. v2.0 elevates this: each branch has not just isolated message history but isolated graph execution state — the canvas, the accumulated ontology graph, the confidence history. Switching branches switches the entire NSAI engine state.
+### A. Argument-Coherent Graph Building (Typed Edges, No Isolated Nodes)
 
-**Expected behavior:**
-- `thread_id` is set to `branch_id` on every graph invocation — LangGraph checkpointer key
-- Branch switch in UI triggers graph state reload from checkpointer (< 200ms for typical session)
-- Branch fork creates a new `branch_id` → new LangGraph thread; initial state is a deep copy of parent thread's last checkpoint
-- Merge operation synthesizes two threads' canvas states — this is a human-supervised operation (Human Consensus Pattern applies)
+**Why it differentiates:** Most collaborative AI tools add nodes to a canvas but leave the edges to humans. The result is a graph of disconnected claims — a flat list with a visual metaphor. A graph where every new node is positioned in typed relationship to existing nodes is a genuine argument structure, not a visualization of a list.
 
-**Complexity:** MEDIUM (the branch fork as thread-copy is the novel part; standard LangGraph threading is well-documented)
-**Dependencies:** Postgres checkpointer (Supabase); existing branch_id system; branch fork logic
+**Required behavior:**
+- Every canvas mutation triggered by a bot (proactive or reactive) includes at least one typed edge to an existing node, or a justified exception is logged
+- Bot Analyst is the primary architect of edges: it detects when a new human assertion relates to an existing node and proposes the connection
+- Edge types extend the existing Blueprint vocabulary: SUPPORTS, CONTRADICTS, BUILDS_ON, QUESTIONS, QUALIFIES — the Blueprint defines which are allowed per session
+- The Analyst's "unlinked assertion" trigger fires specifically when it detects a new claim that should connect to an existing node but doesn't yet
+- In-memory graph state is maintained in LangGraph state as a lightweight adjacency list — bots can query it during trigger evaluation
 
----
+**IBIS lineage:** This follows the Issue-Based Information System (IBIS) pattern — a well-established argumentation structure where Issues, Positions, and Arguments are connected by typed edges (supports, objects-to). The v3.0 graph model is a Blueprint-flavored IBIS, where node types are domain-specific but the edge typing principle is the same.
 
-### Prompt Caching + LangGraph State Compression
-
-**Why it differentiates:** Multi-user sessions can run for 1–2 hours. Without caching, a 100-message session passes 50K+ tokens as context per LLM call, costing ~$0.75 per response. With prompt caching and state compression, that drops by 60–90%.
-
-**Expected behavior:**
-- Anthropic prompt caching: Blueprint JSON + tool schemas + system prompt are the stable prefix. Mark with `cache_control: { type: "ephemeral" }`. Cache TTL is 5 minutes — any gap longer than 5 minutes invalidates the cache.
-- LangGraph state compression: after every N messages (configurable, default: 20), summarize older messages in the graph state into a compact summary node rather than carrying full message history. The summary replaces the raw messages in the state.
-- State compression is a LangGraph standard pattern (documented); implementation is a summarization node that runs conditionally when `len(messages) > threshold`
-
-**Complexity:** MEDIUM (prompt caching is low-effort; state compression requires a summarization node in the graph with careful prompt design to not lose critical ontology context)
-**Dependencies:** Anthropic SDK `cache_control` support; LangGraph state schema
+**Complexity:** HIGH — requires bots to reason over graph state; LLM context must include the current graph in a queryable form
+**Dependencies:** Existing CanvasNode/CanvasEdge model, Blueprint edge type vocabulary, LangGraph state carrying graph adjacency list
 
 ---
 
-## Anti-Features (Explicitly NOT Building)
+### B. Task-Based LLM Cost Routing (Cheap Classifier → Expensive Reasoner)
 
-| Anti-Feature | Why NOT | What to Do Instead |
+**Why it differentiates:** Proactive bots evaluate every human message for trigger conditions. Without tiered model routing, this doubles or triples per-session LLM costs. Tiered routing makes proactive facilitation economically viable.
+
+**Routing table:**
+
+| Task | Model Tier | Rationale |
+|------|-----------|-----------|
+| Trigger classification (all 6 triggers) | Small/cheap (Haiku or equivalent) | Binary classification — cheap models perform within ~3% of frontier models for this |
+| Silence window timer check | No LLM needed | Pure state check |
+| Moderation detection | Small model or rule-based | Short-context classification |
+| Semantic drift scoring | Embedding API only | Cosine similarity, no LLM generation needed |
+| Unlinked assertion edge proposal | Heavy model | Requires graph state reasoning |
+| Fact-check claim evaluation | Heavy model | Requires world knowledge and nuanced judgment |
+| Coach question generation | Medium or heavy model | Quality matters for Socratic questions |
+| Devil's Advocate counter-argument | Heavy model | Quality and persona fidelity matter |
+
+**Implementation:** Task type is determined before the LLM call. A routing function selects the model tier. With current (2026) pricing, a ~15–20x price difference between small and heavy models means routing 60–70% of calls to the small tier reduces per-session AI cost by 40–70%.
+
+**Complexity:** MEDIUM — routing logic is straightforward; the mapping table is the main design artifact
+**Dependencies:** Anthropic SDK model parameter selection, Langfuse tagging for cost attribution per task type
+
+---
+
+### C. Blueprint Phase Signal Detection (Proactive Phase Advancement Nudge)
+
+**Why it differentiates:** The existing Human Consensus Pattern lets the LLM signal phase readiness, but only reactively (when a human message triggers it). A proactive phase signal — "I notice we've covered all the evidence phase objectives, should we move to Debate?" — models real human facilitation behavior.
+
+**Required behavior:**
+- Bot monitors the conversation against Blueprint phase objectives periodically (not on every message — use a sliding window check every 5–7 human messages)
+- When the conversation content suggests phase objectives are met, the Coach or Analyst generates a phase advancement nudge in natural language
+- This is a suggestion, never a command. The Human Consensus Pattern is preserved — only a human admin can advance the phase.
+- The nudge message references specific evidence from the conversation: "You've proposed three distinct hypotheses and challenged two of them — the Framing phase criteria look satisfied."
+
+**Complexity:** MEDIUM — periodic LLM evaluation against Blueprint phase criteria (medium model tier)
+**Dependencies:** Blueprint `phases` definition with per-phase objective criteria, LangGraph state with conversation summary, Human Consensus Pattern (existing)
+
+---
+
+### D. Moderation Trigger (Non-Punitive Redirection)
+
+**Why it differentiates:** Real human facilitators de-escalate without shaming or blocking. A bot that deletes messages or bans users feels punitive and creates resentment. A bot that reframes and redirects maintains safety while preserving conversational flow.
+
+**Required behavior:**
+- Moderation trigger fires on: personal attacks, dismissive put-downs, deliberately disruptive messages
+- Response strategy: redirection to substance, NOT deletion or warnings
+  - Coach: "Let's focus on the ideas rather than the people — what's the strongest case for [the opposing view]?"
+  - Devil's Advocate: not the primary responder for moderation (its adversarial framing can escalate)
+  - Analyst: "That's a strong reaction — what specifically in [user]'s argument prompted it?"
+- Moderation trigger has the highest intervention priority — it bypasses the global cooldown gate
+- The moderation message does NOT reference the specific toxic language or call out the offender by name
+
+**Research finding:** Twitter's proactive content moderation (pre-send "Are you sure?" prompt) achieved 9% deletion rate and 22% revision rate on detected toxic content. The friction of a gentle pre-send nudge works better than post-send intervention. However, in synchronous group chat (not Twitter), pre-send friction breaks the conversation flow — post-send bot intervention is preferable.
+
+**Complexity:** MEDIUM — classifier + routing; the hardest part is calibrating the classifier to avoid false positives on heated-but-legitimate debate language
+**Dependencies:** Trigger classification layer (feature 2), moderation classifier (small model)
+
+---
+
+## Anti-Features (Explicitly Do NOT Build These)
+
+| Anti-Feature | Why It Destroys Facilitation | What to Do Instead |
 |---|---|---|
-| **Fully autonomous canvas evolution** | Removes human from the loop; violates the Human-Centric Ontology thesis. Users feel surveilled, not facilitated. | Confidence-based autonomy matrix: LLM always checks in via ghost nodes or sidebar text |
-| **LLM-controlled phase advancement** | Research shows LLM-paced sessions feel coercive. Users disengage when AI "tells them what to do next." | Human Consensus Pattern: LLM signals readiness, human advances phase |
-| **Hard DOMAIN_DRIFT blocking** | Refusing off-topic messages destroys natural conversation flow and frustrates users mid-session | Flex-Soft routing: DOMAIN_DRIFT passes to plain LLM with no canvas impact; conversation continues freely |
-| **CRDT/Yjs for canvas sync** | Massive complexity addition (Yjs + React Flow collaborative bindings + conflict resolution) for a problem that "last write wins" via Supabase Realtime solves for v1 session sizes | Supabase Realtime broadcast for canvas ops; revisit CRDT at 10+ concurrent canvas editors |
-| **Multiple active canvases per branch** | Visual complexity exceeds a single developer's ability to design coherently; UX becomes incomprehensible | Single canvas per branch; Blueprint `canvas_view_mode` switches between canvas and chart views |
-| **Automated Blueprint generation by AI** | AI-generated ontologies introduce circular dependency (LLM constraining itself); validation becomes untestable | Blueprints authored by humans (or future tooling), validated by Ajv at load time |
-| **Per-node confidence sliders** | Manual human confidence adjustment adds authoring friction incompatible with fast group conversation pace | Ghost nodes auto-promote via explicit human click; no sliders |
-| **LangGraph Cloud / LangGraph Platform** | Vendor lock-in, additional cost layer, complexity for solo dev. Hono + Vercel + Supabase is sufficient. | Self-hosted LangGraph JS graph execution within Hono endpoint |
-| **Per-agent message quotas / token caps** | Complexity of billing layer premature for v2 with BYOK model | Creator API key absorbs cost; Langfuse dashboard shows cost per session for visibility |
+| **Bots that speak after every human message** | Kills human participation. Research shows bot intervention has a negative impact on participation in open collaboration when bots are too frequent. | Intervention gate with cooldown budget (45–90s per bot, 30s global) |
+| **Bots that summarize what was just said** | Users find this condescending and redundant ("I was there, I said that"). Summarization bots become ignored within 10–15 messages. | Summarization goes to panel widgets, not chat. Chat bots ask, challenge, connect — not recap. |
+| **Identical speech patterns across personalities** | If users can't predict which bot will say what, the personality system provides no value. The Coach and Analyst become noise. | Strict persona contracts enforced at prompt level: Coach ends with "?", Analyst cites specific prior content, Devil's Advocate frames counter-argument with acknowledgment first. |
+| **Fact-check bot making confident claims about facts it cannot verify** | The LLM will hallucinate corrections. A bot that "corrects" a true statement with a confident false one is worse than no fact-checker. | Fact-check trigger frames uncertainty explicitly: "I'm not certain about that claim — can you share a source?" rather than "Actually, X is wrong." Never assert a counter-fact as certain. |
+| **Bots that compete to respond to the same message simultaneously** | Multi-bot pile-ons fragment attention and make the chat look like a bot spam wall. | Enthusiasm scoring framework: each bot evaluates its own trigger affinity score; only the highest-scoring bot speaks; others stand down. |
+| **Bots that reference "[User]'s profile" or "according to my records"** | Explicit profile references feel surveillance-like and creepy. Users disengage when they feel tracked. | Bots reference prior conversation content (not "your profile"): "Earlier you said X..." — natural conversation memory, not database lookup language. |
+| **Silence trigger firing when there's a natural pause** | A 20-second pause in a productive conversation is not a problem. Premature silence intervention interrupts natural reflection. | 45-second minimum threshold. Factor in per-user engagement pattern (if a participant typically pauses 30 seconds before deep messages, wait longer for them). |
+| **Bots that can advance the conversation phase autonomously** | Research shows LLM-controlled phase advancement feels coercive. Users disengage when AI "tells them what to do next." | Human Consensus Pattern preserved from v2: bots signal readiness, humans decide. |
+| **Bots that explain what they're doing ("As your Coach bot, I will now ask a Socratic question about...")** | Meta-commentary on bot behavior breaks the facilitation illusion. Users see the mechanism instead of the facilitation. | Bots just do the thing. No preamble about what they're about to do or why. |
+| **Global mute/snooze with no easy re-enable** | Users will mute bots if they feel overwhelmed, then forget to re-enable. The facilitation system becomes permanently off. | Instead: per-bot volume control (reduce intervention frequency), not mute. Make the "quiet mode" state visible in the UI so users know bots are still watching. |
+| **Canvas mutations announced in chat with system strings** | "[Graph updated: node 'Evidence' added with SUPPORTS edge to 'Hypothesis']" destroys natural conversation feel. | Canvas updates are silent or referenced conversationally: "Your point about X fits naturally as evidence for the hypothesis we mapped earlier." |
+
+---
+
+## Bot Personality Design Patterns (Practical Speech Guidance)
+
+### Coach — Socratic Question Rotation
+
+The Coach uses six Socratic question classes, cycling through them rather than defaulting to the same question type:
+
+1. **Clarification:** "When you say X, what exactly do you mean?"
+2. **Assumption challenge:** "What are we taking for granted when we say X?"
+3. **Evidence and reasoning:** "What makes you confident that X is true?"
+4. **Alternative viewpoints:** "How would someone who disagreed with X frame this?"
+5. **Implications:** "If X is true, what follows from that?"
+6. **Meta:** "Is that the right question to be asking right now?"
+
+**Anti-pattern:** Never ask two clarification questions in a row. Never ask leading questions that telegraph the "right" answer ("Don't you think X means Y?"). Never give the answer after asking the question ("What do you think? I think it's Y.").
+
+**Trigger-to-question mapping:**
+- Silence window → Class 1, 2, or 5 (gets the conversation moving without requiring new information)
+- Phase signal → Class 5 or 6 (reflects on progress and readiness)
+- Semantic drift → Class 6 (brings attention back to the framing)
+
+---
+
+### Devil's Advocate — The Empathetic Counter
+
+The Devil's Advocate always follows the acknowledge-then-challenge pattern:
+
+**Structure:** "[Acknowledgment of the position's strongest form] ... [Counter-question or alternative frame]"
+
+Example (good): "The case for X is clear if we assume Y holds — but what happens in the scenarios where Y doesn't?"
+
+Example (bad): "That's wrong. X doesn't work because Z."
+
+**Speech pattern rules:**
+- Never use "but" to introduce the counter — it signals dismissal. Use "and yet," "at the same time," "what gives me pause is"
+- Never repeat the same counter-argument. If it's been made, find a new angle.
+- Never concede ground unprompted — the devil's advocate must maintain its skeptical stance until humans explicitly resolve the challenge
+
+**Trigger-to-challenge mapping:**
+- Unlinked assertion → challenges the premise behind the new claim
+- Fact-check trigger → presents the alternative evidence (as a question, not an assertion)
+- Phase signal → "Before we close the book on this phase — have we really tested [X assumption]?"
+
+---
+
+### Analyst — The Argument Accountant
+
+The Analyst's primary value is tracking the logical state of the conversation and making it legible.
+
+**Speech pattern rules:**
+- Always references specific prior content: message references, node names, agreed positions
+- States logical relationships explicitly: "That supports...", "That contradicts...", "That's still open..."
+- Proposes graph edges as natural observations: "This sounds like it belongs on the canvas as support for [node]"
+- Tracks what's been agreed vs. what's still contested: "We've settled X, but Y is still unresolved"
+
+**Intervention structure:**
+1. State what's been established (the agreed ground)
+2. Identify the gap or connection
+3. Propose the resolution (edge, new node, or question to close the gap)
+
+**Trigger-to-analysis mapping:**
+- Unlinked assertion → primary responder: proposes the edge
+- Fact-check trigger → primary responder: flags the claim as unverified and frames the verification question
+- Phase signal → secondary responder: provides a structured summary of what phase objectives are satisfied vs. open
+
+---
+
+## Conversation Graph Coherence (Technical Patterns)
+
+### The Core Problem
+
+A graph of isolated nodes is not an argument — it's a list with a visual metaphor. Coherence requires that every node in the graph has at least one typed edge that explains its relationship to the rest of the structure.
+
+### Achieving Coherence in Practice
+
+**Pattern 1: Edge-First Node Creation**
+When a bot creates a new node, it must specify the edge(s) simultaneously. The node and its edges are a single atomic operation, not two separate calls. If the bot cannot identify a plausible edge, it should propose the node as a "floating hypothesis" for human placement rather than committing it.
+
+**Pattern 2: Graph State in LangGraph Context**
+The current canvas state (nodes + edges as adjacency list) is included in the LangGraph state at all times. Bot nodes that perform graph reasoning receive the full adjacency list as input context. This enables the Analyst to say "claim X relates to node Y" because it has the graph in its context window.
+
+**Pattern 3: Edge Types Mirror Argumentative Logic**
+Blueprint edge vocabulary should cover the fundamental argumentative relationships:
+- SUPPORTS — evidence/position that strengthens a claim
+- CONTRADICTS — evidence/position that weakens or negates a claim  
+- BUILDS_ON — refines, extends, or qualifies an earlier claim without contradicting it
+- QUESTIONS — raises a challenge or uncertainty without asserting a counter-claim
+- QUALIFIES — limits the scope or conditions of applicability of a claim
+- IMPLIES — logical consequence relationship
+
+**Pattern 4: "Unlinked Node" Scan**
+After each bot intervention that adds a node, a lightweight post-pass checks the graph for any nodes with zero edges (other than the one just added). If isolated nodes exist, the Analyst's unlinked assertion trigger is armed to propose a connection on the next human message that provides context for it.
+
+**Pattern 5: Graph Coherence as Analyst Responsibility**
+The Analyst bot is the designated graph gardener. The Coach and Devil's Advocate may trigger canvas mutations, but the Analyst is the one who maintains the edge structure. If Coach adds a node without an edge (it shouldn't, but if it does), the Analyst's unlinked assertion trigger will catch it.
 
 ---
 
@@ -298,97 +353,128 @@ const valid = validateBlueprint(runtimeBlueprint); // < 1ms, 90k+ validations/se
 
 | Feature | Complexity | Type | Key Dependency |
 |---|---|---|---|
-| LangGraph OrchestratorNode + Agent nodes | HIGH | New infrastructure | Supabase Postgres checkpointer, Hono streaming |
-| Universal Graph Canvas (React Flow) | HIGH | New frontend component | React Flow, Supabase Realtime broadcast |
-| Confidence-based autonomy matrix | MEDIUM | New LLM output schema + frontend rendering | Tool use structured output, CanvasNode `status` field |
-| Domain Blueprints + Ajv validation | MEDIUM | New data model | Supabase storage, Ajv (compile at boot) |
-| Flex-Soft domain guardrail router | MEDIUM | New LangGraph node | Conditional edges, Blueprint `domain_description` |
-| Prompt caching + state compression | MEDIUM | Optimization | Anthropic SDK `cache_control`, LangGraph state schema |
-| thread_id = branch_id (graph-per-branch) | MEDIUM | Architecture integration | Postgres checkpointer, existing branch system |
-| Human Consensus Pattern (phase gating) | LOW–MEDIUM | State + UX | Supabase session table, Blueprint `phases`, LangGraph read-only context |
-| Langfuse observability | LOW | Integration | `@langfuse/langchain`, Langfuse account |
-| Mic Check Pattern | LOW | UX convention + Realtime | Supabase Realtime broadcast, Zustand state |
-| Debate/Strategy Blueprint definition | LOW | Content authoring | Blueprint schema |
-| CanvasNode + CanvasEdge schema | LOW | Data model | Part of Blueprint architecture |
+| Argument-coherent graph (typed edges, no isolated nodes) | HIGH | Architecture + LLM reasoning | Graph state in LangGraph, Blueprint edge vocabulary |
+| Trigger classification pipeline (6 triggers) | MEDIUM | New LangGraph node | Small model routing, existing DOMAIN_DRIFT classifier |
+| Bot personality system (3 personas, distinct prompts) | MEDIUM | Prompt engineering + routing | Intervention gate, trigger affinity table |
+| Task-based LLM cost routing | MEDIUM | Infrastructure | Model tier selection logic, Langfuse cost attribution |
+| Per-session user profiles (in-memory) | MEDIUM | State schema + extraction | LangGraph state extension, per-message classification |
+| Blueprint phase signal detection | MEDIUM | Periodic evaluation | Blueprint phase objectives, conversation summarization |
+| Moderation trigger | MEDIUM | Classifier + routing | Moderation classifier calibration |
+| Multi-bot coordination (enthusiasm scoring) | MEDIUM | Orchestration logic | Per-bot trigger affinity table |
+| Natural bot speech (no system artifacts) | LOW | Prompt discipline | Prompt engineering, message rendering |
+| Silence window trigger | LOW | Timer + state | Supabase Realtime presence or server-side timer |
+| Intervention gating and cooldown budget | LOW-MEDIUM | State machine | Per-bot + global cooldown tracking in LangGraph state |
 
 ---
 
 ## Feature Dependencies (Build Order Constraints)
 
 ```
-Blueprint schema + Ajv meta-validator
-  → Domain Blueprints (Debate/Strategy)
-    → CanvasNode + CanvasEdge data model
-      → Confidence-based autonomy matrix (needs status field)
-      → Universal Graph Canvas (needs node/edge types)
+Intervention gate + cooldown budget
+  → All proactive triggers (gate is prerequisite for any proactive behavior)
 
-LangGraph orchestration (OrchestratorNode)
-  → Supabase Postgres checkpointer
-  → thread_id = branch_id mapping
-    → Flex-Soft domain guardrail router (runs inside graph)
-      → Prompt caching (stable prefix = Blueprint + system prompt)
-        → State compression (optimization after basic flow works)
+Trigger classification pipeline
+  → Silence window (simplest trigger — timer + state, no LLM)
+  → Moderation trigger (small model classifier)
+  → Blueprint phase signal (medium model, periodic)
+  → Semantic drift (embedding similarity, reuse DOMAIN_DRIFT classifier)
+  → Unlinked assertion (requires graph state)
+  → Fact-check trigger (heavy model)
 
-Langfuse integration → LangGraph orchestration (wraps graph invocations)
-Mic Check Pattern → Supabase Realtime broadcast (already exists in v1)
-Human Consensus Pattern → LangGraph state + Supabase session table
+Bot personality system
+  → Multi-bot coordination (enthusiasm scoring)
+    → Natural bot speech (prompt discipline enforced per-persona)
 
-Universal Graph Canvas → React Flow + Supabase Realtime broadcast
-  → Ghost node rendering (requires `status` field from autonomy matrix)
+Per-session user profiles
+  → Personalized facilitation moves ("you said earlier X...")
+    → More effective silence window response
+    → More effective phase signal nudges
+
+Argument-coherent graph
+  → Graph state in LangGraph context
+    → Unlinked assertion trigger (reads graph)
+    → Edge-first node creation (bot output schema enforces edge with node)
+
+Task-based LLM cost routing
+  → Trigger classification (must route to cheap model)
+  → All proactive response generation (route by task type)
 ```
 
-**Critical path:** Blueprint schema → LangGraph graph with Postgres checkpointer → domain guardrail router → confidence autonomy matrix → Graph Canvas frontend. Everything else (Langfuse, Mic Check, Human Consensus, caching) slots alongside this path.
+**Critical path:** Intervention gate → Trigger classification → Bot personality routing → Natural speech + profiles. Graph coherence and cost routing can be built in parallel with the trigger/personality system.
+
+---
+
+## MVP Recommendation for v3.0
+
+**Ship first (the core proactive facilitation thesis):**
+1. Intervention gate + cooldown budget — without this, everything else is dangerous
+2. Silence window trigger — simplest trigger, immediately visible value
+3. Coach personality with Socratic question rotation — most safe, lowest risk of false positives
+4. Natural bot speech constraints — zero tolerance for system artifact strings from day one
+
+**Ship in phase 2 (adds depth and coherence):**
+5. Trigger classification pipeline (moderation + phase signal + semantic drift)
+6. Devil's Advocate personality
+7. Analyst personality with unlinked assertion trigger
+8. Per-session user profiles (lightweight extraction)
+
+**Ship in phase 3 (full system integration):**
+9. Argument-coherent graph (edge-first mutations, Analyst as graph gardener)
+10. Fact-check trigger (most complex — LLM hallucination risk requires careful calibration)
+11. Task-based LLM cost routing
+12. Multi-bot enthusiasm scoring for conflict resolution
+
+**Defer:**
+- Embedding-based semantic drift scoring (requires embedding infrastructure; use small LLM for v3 drift detection)
+- Pre-session Blueprint phase objective authoring tooling (v4+)
+- Cross-session memory (long-term user profiles beyond session scope)
 
 ---
 
 ## Phase-Specific Research Flags
 
-| Phase Topic | Expected Pattern | Research Gap / Risk |
+| Phase Topic | Likely Pitfall | Mitigation |
 |---|---|---|
-| LangGraph + Hono streaming on Vercel | Use Node.js runtime, `stream()` with multi-mode | SSE keep-alive behavior under Vercel's Fluid Compute — test empirically |
-| Supabase Postgres checkpointer for LangGraph JS | `@skroyc/langgraph-supabase-checkpointer` exists on npm (v2.1) | Community package, not official LangChain. Evaluate stability vs rolling own with `@langchain/langgraph-checkpoint-postgres` |
-| Branch fork as LangGraph thread copy | Thread fork = copy last checkpoint to new thread_id | LangGraph JS has no built-in "clone thread" API — implement as: read last checkpoint, write to new thread_id |
-| Confidence calibration | Design thresholds (0.85/0.5) are design intent, not measured | Run initial sessions, measure ghost promotion vs rejection rate, tune thresholds in Phase 2 |
-| React Flow collaborative multi-user | Supabase Realtime broadcast for canvas ops is sufficient for v1 | Race conditions when 2+ users move nodes simultaneously — "last write wins" is acceptable but test the UX feel |
-| Langfuse JS/TS + LangGraph integration | `CallbackHandler` from `@langfuse/langchain`, pass to `graph.invoke()` | Verify callback handler compatibility with `graph.stream()` (not just `.invoke()`) — streaming mode may require different handler attachment |
-
----
-
-## MVP Recommendation for v2.0
-
-**Ship these first (core NSAI thesis):**
-1. Blueprint schema + Ajv validation + Debate Blueprint definition
-2. LangGraph OrchestratorNode with Postgres checkpointer (thread_id = branch_id)
-3. Flex-Soft domain guardrail router (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT)
-4. CanvasNode + CanvasEdge schema + confidence-based autonomy matrix
-5. Universal Graph Canvas (React Flow) with ghost node rendering
-6. Langfuse observability (low-effort, high operational value from day 1)
-
-**Ship in parallel (lightweight, no blockers):**
-- Mic Check Pattern (Supabase Realtime broadcast, Zustand — 1 day of work)
-- Human Consensus Pattern (phase state in Supabase, phase signal in LLM output schema — 2 days)
-
-**Defer to v2.1:**
-- Prompt caching + state compression (optimize after basic flow is proven)
-- Branch fork as LangGraph thread copy (can initially start fork from empty thread)
-- Additional Blueprints beyond Debate/Strategy
+| Silence window threshold calibration | 45 seconds may be too short for some groups, too long for others | Make configurable per Blueprint; Langfuse logs tell you actual silence distribution per session |
+| Fact-check trigger false positives | Bot challenges a correct claim because the LLM is wrong about the fact | Require explicit uncertainty framing in the prompt: "I can't verify X from my training — what's the source?" |
+| Multi-bot enthusiasm scoring | Two bots with equal scores speaking at the same time | Add tiebreaker: Analyst > Coach > Devil's Advocate for trigger type priority; add a 500ms stagger as final safety net |
+| Moderation classifier calibration | Flagging legitimate heated debate as toxic | Start with high confidence threshold (only fire on clear personal attacks); tune down as you observe false positive rate |
+| Graph coherence for Coach/Devil's Advocate | These bots were designed for conversation, not graph maintenance — they'll try to add nodes without edges | Enforce edge-first at the output schema level (CanvasOp requires edges array, not optional); bot prompt explains why |
+| Per-user profile extraction cost | Running LLM extraction on every message multiplies cost | Extract profiles lazily: only update profile when the classification result changes from the prior message |
+| Bot fatigue over long sessions | Cooldown budget that works at 15 minutes may feel stifling at 60 minutes | Adaptive cooldowns: as session length increases past 30 minutes, reduce minimum intervention frequency rather than maintaining fixed budget |
 
 ---
 
 ## Sources
 
-- LangGraph JS official docs: https://docs.langchain.com/oss/javascript/langgraph/overview
-- LangGraph streaming patterns: https://focused.io/lab/streaming-agent-state-with-langgraph
-- LangGraph 1.0 release (October 2025): https://medium.com/@romerorico.hugo/langgraph-1-0-released-no-breaking-changes-all-the-hard-won-lessons-8939d500ca7c
-- Vercel Functions limits (updated 2026-06-19): https://vercel.com/docs/functions/limitations
-- Langfuse LangGraph integration: https://langfuse.com/integrations/frameworks/langchain
-- Langfuse JS/TS cookbook: https://langfuse.com/guides/cookbook/js_integration_langchain
-- Ajv performance guide: https://ajv.js.org/guide/why-ajv.html
-- Anthropic prompt caching: https://www.anthropic.com/news/prompt-caching
-- LLM confidence calibration in production: https://tianpan.co/blog/2026-04-20-llm-calibration-production-overconfidence
-- LLM guardrails domain drift: https://medium.com/@_jaydeepkarale/llm-guardrails-explained-preventing-domain-drift-in-production-ai-systems-8ed71bb12345
-- Phase-gated LLM facilitation research: https://www.researchgate.net/publication/379476302_An_Automated_Multi-Phase_Facilitation_Agent_Based_on_LLM
-- Agent anti-patterns: https://achan2013.medium.com/ai-agent-anti-patterns-part-1-architectural-pitfalls-that-break-enterprise-agents-before-they-32d211dded43
-- React Flow production use: https://reactflow.dev/
-- Supabase LangGraph checkpointer (npm): https://www.npmjs.com/package/@skroyc/langgraph-supabase-checkpointer
-- LangGraph multi-agent orchestration guide: https://latenode.com/blog/ai-frameworks-technical-infrastructure/langgraph-multi-agent-orchestration/langgraph-multi-agent-orchestration-complete-framework-guide-architecture-analysis-2025
+**Proactive AI facilitation research:**
+- CHI 2026: Proactive generative AI agent roles in collaborative problem-solving — https://arxiv.org/html/2602.17864v1
+- CHI 2025: AI voice agents in online collaboration, proactive intervention strategies — https://dl.acm.org/doi/10.1145/3706598.3713457
+- CHI 2025: Assistance or disruption, proactive AI programming support — https://arxiv.org/html/2502.18658v3
+
+**Devil's Advocate and Socratic patterns:**
+- CHI 2025: Devil's advocate AI for minority voice amplification — https://arxiv.org/html/2502.06251v1
+- CHI 2025: Conversational agents as catalysts for critical thinking — https://arxiv.org/html/2503.14263v1
+- Socratic questioning chatbot patterns — https://arxiv.org/html/2601.14798v1
+
+**Bot facilitation in group chat (CHI 2020 GroupfeedBot):**
+- Bot in the Bunch: Facilitating Group Chat Discussion — https://dl.acm.org/doi/10.1145/3313831.3376785
+- Real-time group dynamics with LLM facilitation — https://arxiv.org/pdf/2605.14097
+
+**Multi-bot turn-taking coordination:**
+- Multiplayer AI chat and turn-taking lessons (Interconnected, 2025) — https://interconnected.org/home/2025/05/23/turntaking
+
+**Argument graph / IBIS:**
+- IBIS (Issue-Based Information System) — https://en.wikipedia.org/wiki/Issue-based_information_system
+
+**LLM cost routing:**
+- LLM cost optimization, smart routing cuts spend 75%+ — https://gateway.orq.ai/blog/llm-cost-optimization-smart-routing
+- Intelligent LLM routing, cost and quality-aware — https://www.truefoundry.com/blog/llm-routing-cost-quality-aware-model-selection
+
+**Moderation design:**
+- Proactive content moderation reducing toxicity — https://arxiv.org/html/2401.10627v1
+- Real-time toxicity detection in games — https://seanfalconer.medium.com/real-time-toxicity-detection-in-games-balancing-moderation-and-player-experience-4ef81b8f47db
+
+**Over-intervention risk:**
+- Proactive intervention rate and quality tradeoffs — https://ai2roi.substack.com/p/ai-to-roi-metric-proactive-intervention
+- Bots negative impact on participation — https://www.sciencedirect.com/science/article/abs/pii/S0167923621001111
