@@ -168,17 +168,21 @@ Plans:
 **Plans**: 5 plans
 
 **Wave 1** *(parallel — no dependencies between 08-01 and 08-02)*
+
 - [x] 08-01-PLAN.md — Extend canvasMutationTool + GraphStateAnnotation with phase_signal (HUMAN-01, HUMAN-02, CANVAS-02)
 - [x] 08-02-PLAN.md — Migration 0010: mic lock columns + try_acquire_mic / release_mic RPCs (HUMAN-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
+
 - [x] 08-03-PLAN.md — AgentNode: extract phase_signal before safeParse; MutationGateNode: verify no reset (HUMAN-02)
 - [x] 08-04-PLAN.md — /invoke route: mic lock + phase_signal SSE + canvas upserts; PATCH /sessions/:id/phase (HUMAN-01, HUMAN-02, CANVAS-02)
 
 **Wave 3** *(blocked on Wave 1 completion — depends on 08-01 types)*
+
 - [x] 08-05-PLAN.md — Frontend: session-store Phase 8 state, useAIStream phase_signal + mic_locked, useSessionChannel 4 broadcasts, CreatorControls Advance Phase button, InputBox micLocked read (HUMAN-01, HUMAN-02, CANVAS-02)
 
 **Cross-cutting constraints:**
+
 - phase_signal must be read from raw event.input BEFORE CanvasOpSchema.safeParse() (all graph node plans)
 - All httpSend broadcasts are fire-and-forget (no await, .catch only) — consistent with existing messages.ts pattern
 - Canvas upserts must occur AFTER the SSE done event; mic release must be in a finally block (always runs)
@@ -231,6 +235,7 @@ Plans:
 **Depends on**: Phase 9
 **Requirements**: BOT-01, BOT-02, BOT-03, BOT-04, BOT-05
 **Success Criteria** (what must be TRUE):
+
   1. A developer can trigger the token budget guard by simulating 200+ tokens/minute over a 5-minute window; all proactive bot invocations are suspended for 10 minutes and a notification is delivered to the session creator; the guard resets correctly after the pause window
   2. When two bots score trigger affinity simultaneously on the same branch, the arbitration lock ensures only the higher-scoring bot fires; the losing bot's invocation is suppressed for the cooldown window — observable via server logs or Langfuse trace tags
   3. A silence-based trigger with a participant actively typing (`is_typing: true` in Supabase Presence) is suppressed; the trigger fires only after both the time threshold is met AND no participant is typing
@@ -240,8 +245,13 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 10-01-PLAN.md — Bot types (@panelito/types), GraphState argGraph/triggerMetadata, dual human thread_id (BOT-04, BOT-05)
 - [ ] 10-02-PLAN.md — Migration 0012: 3 bot tables + sessions budget column + 3 atomic RPCs + schema push (BOT-01, BOT-02, BOT-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 10-03-PLAN.md — Service modules: BotArbitrator, budget guard, two-signal silence gate (BOT-01, BOT-02, BOT-03)
 
 ### Phase 11: Personality + Basic Triggers
@@ -250,6 +260,7 @@ Plans:
 **Depends on**: Phase 10
 **Requirements**: PERSONA-01, PERSONA-02, PERSONA-03, TRIGGER-01, GRAPH-01, GRAPH-02, GRAPH-04
 **Success Criteria** (what must be TRUE):
+
   1. The Coach bot's every chat output ends with a question mark — never a statement or conclusion — verified across 10 consecutive test invocations; the Analyst bot's every output cites a specific prior message by speaker name and paraphrased content
   2. The conditional START edge routes correctly: proactive invocations for facilitation triggers reach FacilitationAgentNode (Coach); analysis triggers reach AnalyticsAgentNode (Analyst); a misconfigured routing condition does not silently default to either — it errors with a clear log
   3. The silence window trigger fires at most once per cooldown window after N seconds of no human message with no participant typing; the Coach sends a facilitation question into chat; the trigger does not re-fire during the active cooldown period
@@ -264,6 +275,7 @@ Plans:
 **Depends on**: Phase 11
 **Requirements**: GRAPH-03, TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06, COST-01, COST-02
 **Success Criteria** (what must be TRUE):
+
   1. After 3 committed canvas nodes exist, a bot-proposed fourth node always includes at least one edge proposal in its CanvasOp output; when no strong connection is found, a ghost edge to the most semantically similar existing node is created — observable in the canvas_edges table
   2. The semantic drift trigger fires when cosine similarity between the last 3 messages and the Blueprint domain centroid drops below 0.6 (ONNX all-MiniLM-L6-v2, sub-30ms, zero LLM token cost during detection); the Coach redirects the conversation; the threshold is Blueprint-configurable
   3. When a new canvas node is committed with no edges after the first 3 nodes, the Analyst detects the orphan within one invocation cycle and proposes one or more typed edge connections in chat
@@ -278,6 +290,7 @@ Plans:
 **Depends on**: Phase 12
 **Requirements**: PROFILE-01, PROFILE-02, TRIGGER-02
 **Success Criteria** (what must be TRUE):
+
   1. After a participant makes 3 or more assertions in a session, the ArgGraphBuilderNode's thread state contains a profile for that participant with stated positions, key assertions made, and engagement level (messages sent, reactions used) — visible in the LangGraph checkpointer state
   2. The Coach's prompt context includes a summary of each active participant's profile; a Coach invocation references a specific prior assertion by a named participant ("Earlier you mentioned X — does this new point support or challenge that?") — verifiable in the Langfuse trace prompt payload
   3. When the Analyst evaluates the argGraph and message history as having sufficient coverage of the current Blueprint phase's required topics, a phase-readiness signal is emitted; the Coach asks the group if they want to advance; the actual phase advancement still requires a human click (the LLM cannot advance the phase autonomously)
@@ -290,6 +303,7 @@ Plans:
 **Depends on**: Phase 13
 **Requirements**: PERSONA-04, TRIGGER-07, COST-03, SPEECH-01, SPEECH-02, SPEECH-03
 **Success Criteria** (what must be TRUE):
+
   1. The TriggerEngine's `setInterval` scan loop runs on the standalone Node.js server and survives the full session lifetime without stopping; all 6 trigger types are evaluated per scan cycle per active branch; a trigger firing is dispatched to ProactiveInvoker and results in a bot message in chat — end-to-end observable in a live session
   2. A 100-turn synthetic session produces no Coach output without a trailing question mark and no Analyst output without a citation of a specific prior message; the periodic persona re-anchor fires every 15 bot invocations and is confirmed in Langfuse traces
   3. No bot chat message contains "[canvas updated]", "[graph modified]", "[node added]", or any system artifact string — verified across all 6 trigger types in the synthetic session; canvas updates are communicated exclusively through the canvas UI animations and node count badge, never through chat text
