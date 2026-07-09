@@ -1,22 +1,17 @@
 # Project Multiverse
 
-## Current Milestone: v2.0 NSAI — Neuro-Symbolic Collaborative Engine
+## Current Milestone: v3.0 — The Bots Must Help the Conversation Flow
 
-**Goal:** Evolve the passive analytics panel into an active symbolic graph orchestrated by LangGraph — disciplined by runtime-loaded Domain Blueprints — with humans retaining strict control of the conversational floor and phase progression.
+**Goal:** Make bots proactive, personality-driven facilitators that autonomously manage conversation flow, build a coherent linked graph, and render contextually useful panel content — without being invoked by humans.
 
 **Target features:**
-- LangGraph JS orchestration (OrchestratorNode + Agent nodes) replacing direct LLM calls; provider-agnostic via existing AIProvider abstraction
-- Domain Blueprints: JSON schemas in Supabase defining Human-Centric Ontologies (node types, edge types, active personas, canvas view mode), validated with Ajv at runtime
-- Universal Graph Canvas (View A): interactive node/edge graph coexisting with existing chart widgets; Blueprint determines active view mode
-- Single universal data model (CanvasNode + CanvasEdge) — domains change vocabulary and colors, not schema
-- Debate/Strategy Blueprint as first production domain (Hypothesis, Evidence, Counter-Argument, Action; edges SUPPORTS, CONTRADICTS, BUILDS_ON)
-- Confidence-based autonomy: >0.85 direct mutation, 0.5–0.85 ghost/tentative, <0.5 sidebar text only
-- Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT) before any agent receives input
-- Mic Check Pattern: human turn token — LLM cannot generate until a human releases the conversational floor
-- Human Consensus Pattern: LLM can signal phase-readiness but cannot advance `current_phase`; phase transitions require explicit human UI action
-- LangGraph thread_id = existing branch_id; checkpointer persists graph state per branch
-- Langfuse observability: auto-tracing of graph execution, costs, latency, prompts (via LangChain callbacks)
-- Prompt caching + LangGraph state compression for multi-user sessions
+- Proactive bot engine with 6 trigger types: silence window, Blueprint phase signal, semantic drift, unlinked assertion, fact-check trigger, moderation trigger
+- Three distinct bot personalities: Coach (Socratic, empathetic), Devil's Advocate (adversarial, risk-surfacing), Analyst/Fact-Checker (neutral, data-driven)
+- Coherent graph model: bots build typed edges between nodes — no more isolated hypotheses; every new node positioned in relation to existing ones
+- Task-based model cost routing: heavy model for graph reasoning and fact-check; light model for facilitation moves and classification
+- Per-session user profiles: in-memory participant model tracking stated positions, key assertions, engagement pattern
+- Natural bot speech: no "[canvas updated]" or system artifacts in chat; all bot output is conversational and persona-consistent
+- Contextual panel content: Blueprint + multi-bot logic determines widget selection dynamically
 
 ## What This Is
 
@@ -30,75 +25,66 @@ The live analytics panel stays perfectly synchronized with the active conversati
 
 ### Validated
 
-(None yet — ship to validate)
+<!-- v1.0 — phases 1–4 complete -->
+- ✓ 40/60 split-screen layout with Visual Viewport API IME resilience — Phase 1
+- ✓ OAuth session creator + QR guest entry (display name only) — Phase 1
+- ✓ Live chat via Supabase Realtime with immutable message tree — Phase 1
+- ✓ Conversation branching (fork, isolated context, color-coded timeline, branch merge) — Phase 3
+- ✓ AI analytics panel (contextual widget selection, schema-validated updates) — Phase 2
+- ✓ Scroll-spy + anchor jump between panel and chat — Phase 2
+- ✓ Power Reactions (Insight, Intensify, Pin to Panel, Simplify) — Phase 2
+- ✓ Multi-AI provider abstraction (Claude hardwired; abstraction layer for v2 swap) — Phase 4
+- ✓ Session safety (auto-freeze, finalization summary, guest credential expiry) — Phase 1
+
+<!-- v2.0 — phases 5–9 complete -->
+- ✓ LangGraph JS orchestration (OrchestratorNode + domain-scoped Agent nodes) — Phase 5–7
+- ✓ Domain Blueprints (JSON, Supabase-stored, Ajv runtime validation) — Phase 5
+- ✓ Universal CanvasNode + CanvasEdge data model — Phase 5
+- ✓ Universal Graph Canvas (xyflow/react) with committed + ghost nodes — Phase 9
+- ✓ Confidence-based autonomy (direct >0.85 / ghost 0.5–0.85 / silent <0.5) — Phase 7
+- ✓ Mic Check Pattern (human turn token) + Human Consensus Pattern — Phase 8
+- ✓ Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT) — Phase 7
+- ✓ Langfuse observability (graph tracing, costs, latency, prompts) — Phase 6
+- ✓ Debate/Strategy Blueprint (Hypothesis, Evidence, Counter-Argument, Action) — Phase 5
 
 ### Active
 
-**NSAI Engine (v2.0)**
-- [ ] LangGraph JS orchestration with OrchestratorNode + domain-scoped Agent nodes
-- [ ] Domain Blueprints (JSON, Supabase-stored) defining Human-Centric Ontologies with Ajv runtime validation
-- [ ] Universal CanvasNode + CanvasEdge data model (single schema; domains change vocabulary + colors only)
-- [ ] Universal Graph Canvas (View A) — interactive node/edge frontend component
-- [ ] Debate/Strategy Blueprint as first production domain (Hypothesis, Evidence, Counter-Argument, Action)
-- [ ] Confidence-based autonomy matrix (direct / ghost / silent thresholds)
-- [ ] Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT router)
-- [ ] Mic Check Pattern (human turn token)
-- [ ] Human Consensus Pattern (LLM signals phase readiness; human advances phase)
-- [ ] LangGraph thread_id = branch_id; checkpointer persists graph state per branch
-- [ ] Langfuse integration (graph tracing, costs, latency, prompts)
-- [ ] Prompt caching + LangGraph state compression
+**Proactive Bot Engine (v3.0)**
+- [ ] Bots speak autonomously without human invocation, triggered by 6 event types
+- [ ] Silence-window trigger: bot intervenes after N seconds of no human message
+- [ ] Blueprint phase-signal trigger: bot nudges group when conversation is ready to advance
+- [ ] Semantic drift trigger: bot redirects when conversation leaves Blueprint scope
+- [ ] Unlinked assertion trigger: bot surfaces connection between new claim and existing graph node
+- [ ] Fact-check trigger: bot challenges clearly false or unsupported claims
+- [ ] Moderation trigger: bot intervenes on rude or disruptive messages
 
-**Workspace & Layout**
-- [ ] 40/60 split-screen layout (top: analytics panel, bottom: chat stream) that survives mobile virtual keyboard (IME) without collapsing the panel
-- [ ] Layout locks `--app-height` on mount and uses Visual Viewport API to handle keyboard displacement entirely within the chat segment
-- [ ] Responsive to mobile single-thumb operation
+**Bot Personalities (v3.0)**
+- [ ] Coach bot: Socratic, empathetic — asks questions, never gives answers, guides humans to their own conclusions
+- [ ] Devil's Advocate bot: adversarial — challenges assumptions, surfaces risks, plays skeptic
+- [ ] Analyst/Fact-Checker bot: neutral, data-driven — tracks agreed vs. open, flags logical gaps, challenges false claims
+- [ ] Each personality has distinct prompt character, speech patterns, and trigger affinity
 
-**Session & Onboarding**
-- [ ] Session Creator authenticates via OAuth (social/corporate provider)
-- [ ] Creator generates a shareable QR code and session link for guest entry
-- [ ] Guests enter by scanning QR code and providing only a temporary display name — no registration, no password
-- [ ] Creator can freeze session (disable all input) and formally close session
+**Coherent Graph Model (v3.0)**
+- [ ] Every new canvas node linked via typed edges to ≥1 existing node (no isolated hypotheses)
+- [ ] Bots derive and create edge relationships (SUPPORTS, CONTRADICTS, BUILDS_ON, QUESTIONS, etc.)
+- [ ] Graph reflects actual argument structure, not a flat list of sentences
+- [ ] In-memory conversation graph used by bots for facilitation context
 
-**Real-Time Multi-User Chat**
-- [ ] Live chat stream powered by Supabase Realtime with sub-second message propagation
-- [ ] Each message carries `parent_id` and `path_id` for tree traversal
-- [ ] Historical messages are immutable — no overwrites, only forks
+**Model Cost Routing (v3.0)**
+- [ ] Task-based LLM tier selection: heavy model for graph reasoning + fact-check; light model for facilitation + classification
+- [ ] Model assignment configurable per operation type in Blueprint
 
-**Conversation Branching (Multiverse Engine)**
-- [ ] Any participant can fork from any message in the history to create a new parallel branch
-- [ ] Branching creates a color-coded isolated timeline; other users stay on their current branch
-- [ ] Branch context windows are fully isolated — AI never bleeds context across branches
-- [ ] Visual branch/timeline selector to navigate between parallel tracks
-- [ ] Administrator can merge two branches, synthesizing their conclusions into a new unified timeline
+**Per-Session User Profiles (v3.0)**
+- [ ] Bots maintain in-memory profile per participant: stated positions, key assertions, engagement pattern
+- [ ] Bots personalize facilitation using participant history ("you said earlier X — does this contradict that?")
 
-**AI Analytics Panel**
-- [ ] AI selects and renders appropriate widget type based on conversation content (bento grid, radar chart, scatter plot)
-- [ ] Panel re-renders instantly when user switches to a different branch
-- [ ] Each message node stores a `canvas_snapshot_state` for time-travel UI
-- [ ] Scroll-spy: scrolling back in chat smoothly updates panel to match that moment in time
-- [ ] Anchor jump: each panel widget has an anchor icon that jumps chat to the message that last modified it
-- [ ] Panel updates pass schema validation before rendering — corrupted payloads are silently blocked, preserving last stable state
+**Natural Bot Speech (v3.0)**
+- [ ] No "[canvas updated]" or system artifacts in chat bubbles
+- [ ] All bot output is conversational, persona-consistent, and natural
 
-**Multi-Agent AI Personas**
-- [ ] Scientific Analyst persona: rigorous, neutral, validates data consistency and flags logical fallacies
-- [ ] Devil's Advocate persona: surfaces hidden risks, optimism bias, and market failure points
-- [ ] AI response stream separates `text_stream` (chat bubbles) from `ui_mutation_block` (panel updates)
-
-**Power Reactions**
-- [ ] 🧠 Insight: marks message as key concept for session summary
-- [ ] 🔥 Intensify: commands AI to critically attack the statement and surface risks
-- [ ] 📌 Pin to Panel: promotes text content to a permanent visual card on the analytics panel
-- [ ] 🎯 Simplify: instructs AI to summarize its last response into concise bullet points
-
-**Claude Integration**
-- [ ] Hardwired to Anthropic Claude API for v1 (BYOK deferred to v2)
-- [ ] Structured output: dual-channel streaming for text and UI mutations
-- [ ] Session Creator provides their own API key via a simple UI flow (masked, not exposed to guests)
-
-**Session Safety**
-- [ ] Auto-freeze: if creator is inactive or disconnected for 15+ minutes, session enters `Frozen` state
-- [ ] Session finalization generates a basic summary of the active branch's conclusions
-- [ ] Guest credentials expire on session close; ephemeral data scrubbed after configurable grace period
+**Contextual Panel Content (v3.0)**
+- [ ] Blueprint + multi-bot logic determines widget selection dynamically
+- [ ] Panel reflects the most useful view for the current conversation moment
 
 ### Out of Scope
 
@@ -161,4 +147,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-01 after milestone v2.0 initialization*
+*Last updated: 2026-07-09 after milestone v3.0 initialization*
