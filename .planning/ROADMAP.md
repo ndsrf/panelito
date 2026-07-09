@@ -237,7 +237,12 @@ Plans:
   4. A human invocation (`branch_id:human`) and a proactive invocation (`branch_id:bot`) can run on the same branch without checkpoint write-skew; both threads produce independent checkpoints visible in the LangGraph checkpointer tables
   5. After a Vercel cold start simulation, the LangGraph PostgresSaver thread state for a branch retains its argGraph and trigger metadata — no state is held in JavaScript process memory
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Bot types (@panelito/types), GraphState argGraph/triggerMetadata, dual human thread_id (BOT-04, BOT-05)
+- [ ] 10-02-PLAN.md — Migration 0012: 3 bot tables + sessions budget column + 3 atomic RPCs + schema push (BOT-01, BOT-02, BOT-03)
+- [ ] 10-03-PLAN.md — Service modules: BotArbitrator, budget guard, two-signal silence gate (BOT-01, BOT-02, BOT-03)
 
 ### Phase 11: Personality + Basic Triggers
 
