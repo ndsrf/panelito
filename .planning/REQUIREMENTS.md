@@ -243,4 +243,4 @@
 ---
 
 *v3.0 requirements defined: 2026-07-09*
-*Last updated: 2026-07-09 — initial v3.0 requirements*
+*Last updated: 2026-07-09 — v3.0 traceability confirmed after roadmap creation (Phases 10–14)*

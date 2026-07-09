@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: The Bots Must Help the Conversation Flow
-status: planning
-last_updated: "2026-07-09T17:54:53.626Z"
+status: roadmap_ready
+last_updated: "2026-07-09T00:00:00.000Z"
 last_activity: 2026-07-09
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Current Status
 
-**Phase:** 9 of 9 (graph-canvas-frontend)
-**Phase goal:** @xyflow/react graph canvas renders committed + ghost canvas nodes in the analytics panel, synchronized with the active branch via SSE (invoking client) and Supabase Realtime (all other participants).
-**Phase status:** Complete — all 4 plans verified
+**Phase:** 10 of 14 (infrastructure-foundation) — Not started
+**Phase goal:** Safety and concurrency infrastructure (token budget guard, arbitration lock, dual thread_id, state schema) exists and is tested before any trigger or personality code is written.
+**Phase status:** Not started — roadmap ready, awaiting `/gsd:plan-phase 10`
 
 ---
 
@@ -41,10 +41,27 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 | 3 | The Multiverse | v1.0 | ✓ Complete | 4/4 |
 | 4 | Multi-AI Providers | v1.0 | ✓ Complete | 4/4 |
 | 5 | Foundation | v2.0 | ✓ Complete | 4/4 |
-| 6 | Graph Construction + Checkpointer | v2.0 | ✓ Complete | 0/? |
-| 7 | /invoke Route Modification | v2.0 | ✓ Complete | 0/? |
+| 6 | Graph Construction + Checkpointer | v2.0 | ✓ Complete | 4/4 |
+| 7 | /invoke Route Modification | v2.0 | ✓ Complete | 3/3 |
 | 8 | Human Control + Canvas Sync | v2.0 | ✓ Complete | 5/5 |
 | 9 | Graph Canvas Frontend | v2.0 | ✓ Complete | 4/4 |
+| 10 | Infrastructure Foundation | v3.0 | Not started | 0/? |
+| 11 | Personality + Basic Triggers | v3.0 | Not started | 0/? |
+| 12 | Graph Coherence + Extended Triggers | v3.0 | Not started | 0/? |
+| 13 | User Profiles + Phase Signal | v3.0 | Not started | 0/? |
+| 14 | Polish + TriggerEngine Wiring | v3.0 | Not started | 0/? |
+
+---
+
+## v3.0 Phase Map
+
+| Phase | Name | Requirements | Key Risk |
+|-------|------|--------------|----------|
+| 10 | Infrastructure Foundation | BOT-01–05 | Must precede all trigger work; dual thread_id cannot be retrofitted |
+| 11 | Personality + Basic Triggers | PERSONA-01–03, TRIGGER-01, GRAPH-01–02, GRAPH-04 | Conditional START edge is highest-risk topology change — fully isolated here |
+| 12 | Graph Coherence + Extended Triggers | GRAPH-03, TRIGGER-03–06, COST-01–02 | Three-tier escalation gate; ONNX embedding cold-start in Vercel |
+| 13 | User Profiles + Phase Signal | PROFILE-01–02, TRIGGER-02 | Phase signal must not allow LLM to advance phase autonomously |
+| 14 | Polish + TriggerEngine Wiring | PERSONA-04, TRIGGER-07, COST-03, SPEECH-01–03 | TriggerEngine requires all trigger detectors + ProactiveInvoker to exist first |
 
 ---
 
@@ -55,6 +72,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 - **2026-06-18** — Phase 4 Plan 04: adapter instantiated once before compression + streaming; compressHistory uses adapter.stream() AsyncIterable; PanelWidgetSchema.safeParse gate drops invalid payloads silently; three-provider settings UI uses grid-cols-1 md:grid-cols-3.
 - **2026-07-01** — v2.0 roadmap created. Phase 7 (/invoke modification) isolated as its own phase — highest-risk seam. Phase 6 graph construction must prove PostgresSaver checkpointer before Phase 7 begins. LangGraph interrupt() explicitly out of scope (P16 pitfall); Mic Check uses two-request pattern instead.
 - **2026-07-06** — Phase 9 approved. Key bugs fixed: LangGraph stream chunk format (node-keyed → flat merge), @xyflow/react transpilePackages, canvas hydration on mount, ghost nodes delivered via SSE (Realtime dead in WSL2). Ghost nodes correctly ephemeral on reconnect.
+- **2026-07-09** — v3.0 roadmap created (Phases 10–14). Key architectural constraints enforced: TriggerEngine (TRIGGER-07) built last in Phase 14 — requires all trigger detectors + ProactiveInvoker. Conditional START edge (route to FacilitationAgentNode vs AnalyticsAgentNode) isolated in Phase 11 — highest-risk topology change. Devil's Advocate explicitly deferred to v3.1. All bot state (argGraph, profiles, trigger metadata) in PostgresSaver — no JS process memory. One new package: @huggingface/transformers 4.2.0 for local ONNX semantic drift scoring.
 
 ---
 
@@ -77,13 +95,13 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Session
 
-**Last session:** 2026-07-06T00:00:00.000Z
-**Stopped at:** Phase 9 complete — v2.0 milestone complete
+**Last session:** 2026-07-09T00:00:00.000Z
+**Stopped at:** v3.0 roadmap created — Phases 10–14 defined
 **Resume file:** none
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 10 (infrastructure-foundation) — Not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-09 — Milestone v3.0 started
+Status: Roadmap ready
+Last activity: 2026-07-09 — v3.0 roadmap created

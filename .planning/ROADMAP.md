@@ -3,7 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–4 (shipped 2026-06-18)
-- 🚧 **v2.0 NSAI — Neuro-Symbolic Collaborative Engine** — Phases 5–9 (in progress)
+- ✅ **v2.0 NSAI — Neuro-Symbolic Collaborative Engine** — Phases 5–9 (complete 2026-07-09)
+- 🚧 **v3.0 — The Bots Must Help the Conversation Flow** — Phases 10–14 (in progress)
 
 ---
 
@@ -68,6 +69,9 @@ Plans:
 </details>
 
 ---
+
+<details>
+<summary>✅ v2.0 NSAI — Neuro-Symbolic Collaborative Engine (Phases 5–9) — COMPLETE 2026-07-09</summary>
 
 ### 🚧 v2.0 NSAI — Neuro-Symbolic Collaborative Engine
 
@@ -209,11 +213,92 @@ Plans:
 
 **UI hint**: yes
 
+</details>
+
+---
+
+### 🚧 v3.0 — The Bots Must Help the Conversation Flow
+
+**Milestone Goal:** Make bots proactive, personality-driven facilitators that autonomously manage conversation flow, build a coherent linked graph, and render contextually useful panel content — without being invoked by humans. Six trigger types, two production bot personalities (Coach + Analyst/Fact-Checker), a linked argGraph, task-based model cost routing, per-session participant profiles, and natural bot speech — all persisted in PostgresSaver with zero in-process memory.
+
+---
+
+## Phase Details (v3.0)
+
+### Phase 10: Infrastructure Foundation
+
+**Goal**: The safety and concurrency infrastructure that every proactive bot depends on exists and is tested before any trigger or personality code is written — token budget guard with circuit breaker, global bot arbitration lock, two-signal silence gate, dual LangGraph thread_id separation, and state schema extended to hold argGraph and trigger metadata in PostgresSaver. No bot fires without these in place.
+**Depends on**: Phase 9
+**Requirements**: BOT-01, BOT-02, BOT-03, BOT-04, BOT-05
+**Success Criteria** (what must be TRUE):
+  1. A developer can trigger the token budget guard by simulating 200+ tokens/minute over a 5-minute window; all proactive bot invocations are suspended for 10 minutes and a notification is delivered to the session creator; the guard resets correctly after the pause window
+  2. When two bots score trigger affinity simultaneously on the same branch, the arbitration lock ensures only the higher-scoring bot fires; the losing bot's invocation is suppressed for the cooldown window — observable via server logs or Langfuse trace tags
+  3. A silence-based trigger with a participant actively typing (`is_typing: true` in Supabase Presence) is suppressed; the trigger fires only after both the time threshold is met AND no participant is typing
+  4. A human invocation (`branch_id:human`) and a proactive invocation (`branch_id:bot`) can run on the same branch without checkpoint write-skew; both threads produce independent checkpoints visible in the LangGraph checkpointer tables
+  5. After a Vercel cold start simulation, the LangGraph PostgresSaver thread state for a branch retains its argGraph and trigger metadata — no state is held in JavaScript process memory
+
+**Plans**: TBD
+
+### Phase 11: Personality + Basic Triggers
+
+**Goal**: Coach and Analyst/Fact-Checker bot personalities are wired as FacilitationAgentNode and AnalyticsAgentNode in the LangGraph graph; the conditional START edge routing between them is isolated and fully tested here before any other trigger is built on top of it. The argGraph structure and ArgGraphBuilderNode are introduced. The silence window trigger is the first live trigger: a Coach fires into the conversation after N seconds of silence with no participant typing.
+**Depends on**: Phase 10
+**Requirements**: PERSONA-01, PERSONA-02, PERSONA-03, TRIGGER-01, GRAPH-01, GRAPH-02, GRAPH-04
+**Success Criteria** (what must be TRUE):
+  1. The Coach bot's every chat output ends with a question mark — never a statement or conclusion — verified across 10 consecutive test invocations; the Analyst bot's every output cites a specific prior message by speaker name and paraphrased content
+  2. The conditional START edge routes correctly: proactive invocations for facilitation triggers reach FacilitationAgentNode (Coach); analysis triggers reach AnalyticsAgentNode (Analyst); a misconfigured routing condition does not silently default to either — it errors with a clear log
+  3. The silence window trigger fires at most once per cooldown window after N seconds of no human message with no participant typing; the Coach sends a facilitation question into chat; the trigger does not re-fire during the active cooldown period
+  4. The ArgGraphBuilderNode runs after each LangGraph invocation (human or proactive) and updates the argGraph in PostgresSaver thread state; the argGraph summary (nodes, edges, open assertions) is correctly injected into the Analyst's prompt context before each Analyst invocation
+  5. Per-persona cooldown budgets (Coach 3/15min, Analyst 2/15min) are enforced and configurable in Blueprint or session config; a Creator can see the cooldown configuration in session settings
+
+**Plans**: TBD
+
+### Phase 12: Graph Coherence + Extended Triggers
+
+**Goal**: The graph becomes coherent — after the first 3 nodes, every new bot-proposed CanvasNode must include at least one edge proposal, with a tentative ghost edge to the most semantically similar node when no strong connection is found. Four additional triggers are wired: semantic drift (local ONNX embedding, no token cost during detection), unlinked assertion (Analyst proposes typed edges for orphan nodes), fact-check (three-tier escalation gate), and moderation (heuristic pre-filter only, no LLM cost). Task-based model routing via TASK_MODELS is validated for all trigger types.
+**Depends on**: Phase 11
+**Requirements**: GRAPH-03, TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06, COST-01, COST-02
+**Success Criteria** (what must be TRUE):
+  1. After 3 committed canvas nodes exist, a bot-proposed fourth node always includes at least one edge proposal in its CanvasOp output; when no strong connection is found, a ghost edge to the most semantically similar existing node is created — observable in the canvas_edges table
+  2. The semantic drift trigger fires when cosine similarity between the last 3 messages and the Blueprint domain centroid drops below 0.6 (ONNX all-MiniLM-L6-v2, sub-30ms, zero LLM token cost during detection); the Coach redirects the conversation; the threshold is Blueprint-configurable
+  3. When a new canvas node is committed with no edges after the first 3 nodes, the Analyst detects the orphan within one invocation cycle and proposes one or more typed edge connections in chat
+  4. A message containing a verifiable factual claim triggers the three-tier escalation (heuristic pre-filter → light-tier classifier → capable-tier for confirmed positives) before any capable-tier LLM call; a moderation trigger fires from the heuristic pre-filter alone with zero LLM calls
+  5. A Langfuse trace shows facilitation moves (Coach silence/moderation) routed to the light model tier and analysis tasks (Analyst, Fact-Checker, ArgGraphBuilder) routed to the capable model tier — model tier assignment is not hardcoded to a specific model name
+
+**Plans**: TBD
+
+### Phase 13: User Profiles + Phase Signal
+
+**Goal**: The ArgGraphBuilderNode maintains a per-participant profile in LangGraph thread state, and the Coach uses those profiles to personalize facilitation moves. The Blueprint phase signal trigger completes: when the Analyst determines the argGraph has sufficient coverage of the current phase's required topics, a phase-readiness signal is emitted and the Coach asks the group if they are ready to advance.
+**Depends on**: Phase 12
+**Requirements**: PROFILE-01, PROFILE-02, TRIGGER-02
+**Success Criteria** (what must be TRUE):
+  1. After a participant makes 3 or more assertions in a session, the ArgGraphBuilderNode's thread state contains a profile for that participant with stated positions, key assertions made, and engagement level (messages sent, reactions used) — visible in the LangGraph checkpointer state
+  2. The Coach's prompt context includes a summary of each active participant's profile; a Coach invocation references a specific prior assertion by a named participant ("Earlier you mentioned X — does this new point support or challenge that?") — verifiable in the Langfuse trace prompt payload
+  3. When the Analyst evaluates the argGraph and message history as having sufficient coverage of the current Blueprint phase's required topics, a phase-readiness signal is emitted; the Coach asks the group if they want to advance; the actual phase advancement still requires a human click (the LLM cannot advance the phase autonomously)
+
+**Plans**: TBD
+
+### Phase 14: Polish + TriggerEngine Wiring
+
+**Goal**: All proactive trigger components built in Phases 10–13 are connected to a persistent TriggerEngine — a `setInterval` scan loop running on the standalone Node.js server (`server.ts`) that evaluates all 6 trigger conditions per active branch and dispatches to ProactiveInvoker when a trigger fires. Persona consistency is hardened with a periodic re-anchor mechanism. All bot speech is audited for system artifacts. Langfuse cost attribution by trigger type is confirmed in the dashboard.
+**Depends on**: Phase 13
+**Requirements**: PERSONA-04, TRIGGER-07, COST-03, SPEECH-01, SPEECH-02, SPEECH-03
+**Success Criteria** (what must be TRUE):
+  1. The TriggerEngine's `setInterval` scan loop runs on the standalone Node.js server and survives the full session lifetime without stopping; all 6 trigger types are evaluated per scan cycle per active branch; a trigger firing is dispatched to ProactiveInvoker and results in a bot message in chat — end-to-end observable in a live session
+  2. A 100-turn synthetic session produces no Coach output without a trailing question mark and no Analyst output without a citation of a specific prior message; the periodic persona re-anchor fires every 15 bot invocations and is confirmed in Langfuse traces
+  3. No bot chat message contains "[canvas updated]", "[graph modified]", "[node added]", or any system artifact string — verified across all 6 trigger types in the synthetic session; canvas updates are communicated exclusively through the canvas UI animations and node count badge, never through chat text
+  4. A message that matches system artifact patterns is silently dropped (replaced with empty string) at the frontend rendering layer as defense-in-depth — verifiable by injecting a test message with a blocked pattern
+  5. The Langfuse dashboard shows cost attribution by trigger type for each LLM call; a developer can identify which trigger type is most expensive from the dashboard without querying the database
+
+**Plans**: TBD
+**UI hint**: yes
+
 ---
 
 ## Progress
 
-**Execution Order:** 5 → 6 → 7 → 8 → 9
+**Execution Order:** 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -226,8 +311,14 @@ Plans:
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
+| 10. Infrastructure Foundation | v3.0 | 0/? | Not started | - |
+| 11. Personality + Basic Triggers | v3.0 | 0/? | Not started | - |
+| 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
+| 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
+| 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
 ---
 
 *Roadmap created: 2026-06-08*
 *v2.0 phases added: 2026-07-01*
+*v3.0 phases added: 2026-07-09*
