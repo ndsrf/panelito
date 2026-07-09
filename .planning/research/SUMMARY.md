@@ -49,9 +49,9 @@ Gate requirements:
 
 | Bot | Core Constraint | Trigger Affinity | Model |
 |-----|----------------|-----------------|-------|
-| **Coach** | All output ends with "?" — never statements, always questions | Silence window, phase signal | Haiku (cheap, fast) |
-| **Analyst** | Always cites specific prior message by speaker+content | Unlinked assertion, drift | Sonnet |
-| **Fact-Checker** (Analyst mode) | Uses uncertainty framing ONLY — "I can't verify that, what's the source?" — NEVER confident counter-assertion | False claim | Sonnet |
+| **Coach** | All output ends with "?" — never statements, always questions | Silence window, phase signal | Fast/light tier (Haiku, GPT-4o-mini, etc.) |
+| **Analyst** | Always cites specific prior message by speaker+content | Unlinked assertion, drift | Capable tier (Sonnet, GPT-4o, etc.) |
+| **Fact-Checker** (Analyst mode) | Uses uncertainty framing ONLY — "I can't verify that, what's the source?" — NEVER confident counter-assertion | False claim | Capable tier |
 | **Devil's Advocate** | Acknowledges before challenging | Human-triggered (Power Reaction) — **v3.1, NOT v3.0** | Sonnet |
 
 **Multi-bot arbitration:** Each bot scores trigger affinity 0-9, highest wins, others stand down. Proven pattern from production multi-bot deployments.
