@@ -78,8 +78,17 @@ export async function checkSilenceGate(args: SilenceGateArgs): Promise<SilenceGa
   // Step 2: Compute elapsed and check threshold
   // -------------------------------------------------------------------------
 
-  const lastCreatedAt =
-    rows && rows.length > 0 && rows[0]?.created_at ? new Date(rows[0].created_at).getTime() : 0
+  // WR-01: Zero messages means a freshly-created branch. Treating lastCreatedAt
+  // as 0 (Unix epoch) would make elapsedMs ~1.76 trillion ms — always passing
+  // the threshold and allowing a bot to post an unsolicited first message.
+  // Instead, treat an empty branch as too_soon and return immediately.
+  if (!rows || rows.length === 0) {
+    return { passed: false, reason: 'too_soon', presence_fallback: false }
+  }
+  const lastCreatedAt = rows[0]?.created_at ? new Date(rows[0].created_at).getTime() : null
+  if (lastCreatedAt === null) {
+    return { passed: false, reason: 'too_soon', presence_fallback: false }
+  }
   const elapsedMs = Date.now() - lastCreatedAt
 
   if (elapsedMs < thresholdMs) {
