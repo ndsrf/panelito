@@ -166,10 +166,16 @@ declare
   v_window       bigint;
 begin
   -- (a) Read or initialise the circuit state row for this branch.
+  -- WR-05: FOR UPDATE serialises concurrent budget checks on the same branch.
+  -- Without it, two concurrent callers in READ COMMITTED isolation each SUM only
+  -- their own ledger insert and both return allowed:true, spending 2x the threshold
+  -- before the circuit trips. FOR UPDATE makes the second caller wait until the
+  -- first commits, so the SUM always reflects the committed window.
   SELECT cs.circuit_open, cs.reset_at
   INTO   v_circuit_open, v_reset_at
   FROM   public.bot_circuit_state cs
-  WHERE  cs.branch_id = p_branch_id;
+  WHERE  cs.branch_id = p_branch_id
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     -- First invocation on this branch — insert a default open=false row.
