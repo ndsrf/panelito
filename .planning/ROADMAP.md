@@ -252,7 +252,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-03-PLAN.md — Service modules: BotArbitrator, budget guard, two-signal silence gate (BOT-01, BOT-02, BOT-03)
+- [x] 10-03-PLAN.md — Service modules: BotArbitrator, budget guard, two-signal silence gate (BOT-01, BOT-02, BOT-03)
 
 ### Phase 11: Personality + Basic Triggers
 
@@ -330,7 +330,7 @@ Plans:
 | 7. /invoke Route Modification | v2.0 | 3/3 | Complete    | 2026-07-03 |
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
-| 10. Infrastructure Foundation | v3.0 | 2/3 | In Progress|  |
+| 10. Infrastructure Foundation | v3.0 | 3/3 | Complete   | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 0/? | Not started | - |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
