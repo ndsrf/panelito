@@ -247,3 +247,14 @@ $$;
 grant execute on function public.try_acquire_bot_lock(uuid, text, timestamptz) to service_role;
 grant execute on function public.release_bot_lock(uuid) to service_role;
 grant execute on function public.check_and_record_bot_budget(uuid, int) to service_role;
+
+-- WR-02: PostgreSQL grants EXECUTE to PUBLIC by default on CREATE FUNCTION.
+-- The GRANT above only adds service_role; it does NOT remove the PUBLIC grant.
+-- Explicitly revoke so that authenticated and anon roles cannot call these
+-- security-definer RPCs directly (e.g. via a direct pg connection or psql).
+-- Without this, an authenticated user could: inject token counts to trip the
+-- circuit breaker (DoS), acquire a far-future bot lock to permanently block
+-- bots, or release locks to bypass arbitration timing.
+revoke execute on function public.try_acquire_bot_lock(uuid, text, timestamptz) from public;
+revoke execute on function public.release_bot_lock(uuid) from public;
+revoke execute on function public.check_and_record_bot_budget(uuid, int) from public;
