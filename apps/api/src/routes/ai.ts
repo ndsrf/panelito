@@ -388,6 +388,14 @@ aiRouter.post('/:id/invoke', async (c) => {
         // per node. Object.assign(finalState, chunk) would store node-keyed wrappers, making
         // finalState.canvasOps always undefined. Instead we merge the node's return value directly
         // so finalState holds field-level values (canvasOps, phase_signal, agentConfidence, etc).
+        // WR-04: INVARIANT — Only MutationGateNode emits canvasOps. Object.assign merges
+        // node output deltas sequentially; if two nodes both emitted canvasOps the second
+        // would overwrite the first (the LangGraph checkpoint accumulates via concat reducer,
+        // but finalState is assembled from raw deltas, not from the checkpoint).
+        // If a future Phase adds a second node that emits canvasOps, switch to reading from
+        // the graph checkpoint after the stream completes:
+        //   const cp = await graph.getState({ configurable: { thread_id: graphConfig.configurable.thread_id } })
+        //   const allCanvasOps = cp.values?.canvasOps ?? []
         const graphStream = await graph.stream(initialState, graphConfig)
         for await (const chunk of graphStream) {
           // chunk = { nodeName: { field: value, ... } } — merge the inner value, not the wrapper
