@@ -91,7 +91,14 @@ export async function runArbitration(
   let highScore = -Infinity
 
   for (const [botId, scorer] of _registry) {
-    const score = scorer(context)
+    let score: number
+    try {
+      score = scorer(context)
+    } catch (err) {
+      // CR-02: Isolate faulty scorers — one bad scorer must not crash arbitration for all bots
+      console.warn('[bot-arbitrator] scorer threw for bot:', botId, (err as Error).message)
+      continue
+    }
     if (score > highScore) {
       highScore = score
       winnerId = botId
@@ -118,4 +125,29 @@ export async function runArbitration(
   }
 
   return winnerId
+}
+
+/**
+ * releaseBotLock — explicitly releases the arbitration lock for a branch.
+ *
+ * MUST be called in a finally block after bot execution completes or fails.
+ * Mirrors the release_mic pattern used in ai.ts for the human invoke path.
+ * Failure to call this leaves the lock held until locked_until expires
+ * (up to blueprint.bot_cooldowns seconds, default 30s per DEFAULT_COOLDOWN_SECONDS).
+ *
+ * CR-03: This function ensures Phase 11 bot callers have a documented contract
+ * and a concrete finally-block pattern to copy. Without it, bot arbitration
+ * locks leak until the cooldown expires on every invocation.
+ *
+ * @param branchId - Branch UUID whose lock should be released.
+ * @param supabase - Supabase client (service role).
+ */
+export async function releaseBotLock(
+  branchId: string,
+  supabase: SupabaseClient
+): Promise<void> {
+  const { error } = await supabase.rpc('release_bot_lock', { p_branch_id: branchId })
+  if (error) {
+    console.warn('[bot-arbitrator] release_bot_lock error (non-fatal):', error.message)
+  }
 }
