@@ -45,9 +45,12 @@ Source: `apps/web/app/globals.css`, `apps/web/components/workspace/MessageBubble
 - **Theme:** Zinc dark ("war room aesthetic"). `--color-background` zinc-950, `--color-card` zinc-900, `--color-muted` zinc-800, `--color-border` zinc-700.
 - **Single accent hue:** Indigo (`--color-primary` / `--color-accent`, `#6366f1` family) is the project's one reserved accent color, already used exclusively for: AI/bot message left-border + avatar ring, the AI persona badge, the "Advance Phase" primary button, and branch-navigator gradient start color.
 - **Existing AI-message pattern (`MessageBubble.tsx`, `isAI` variant):** 32px circular avatar (Indigo-tinted `rgba(99,102,241,0.20)` bg, `1px solid #6366f1` border, `Bot` lucide icon in `#818cf8`), author name row + a small `Badge` (indigo-tinted, `rgba(99,102,241,0.12)` bg, `1px solid rgba(99,102,241,0.30)` border, `#a5b4fc` text) containing a persona icon + short label, bubble body with `bg-card`, `rounded-lg rounded-tl-none`, `2px solid #818cf8` left border, `max-w-[90%]`.
-- **Existing settings-drawer pattern (`CreatorControls.tsx` "Analistas activos" Sheet, `personaCard`):** a `flex items-center justify-between p-4 rounded-lg border bg-card` row containing a 40×40px icon box (indigo-tinted bg/border, opacity 60% when off / 100% when on) + title (`text-[15px] font-medium`) + description (`text-[13px] text-muted-foreground line-clamp-2`) + a shadcn `Switch` on the right, wired to a POST toggle route with optimistic local state and a `toast.error` revert on failure.
+- **Existing settings-drawer pattern (`CreatorControls.tsx` "Analistas activos" Sheet, `personaCard`):** a `flex items-center justify-between p-4 rounded-lg border bg-card` row containing a 40×40px icon box (indigo-tinted bg/border, opacity 60% when off / 100% when on) + title + description (`text-[13px] text-muted-foreground line-clamp-2`) + a shadcn `Switch` on the right, wired to a POST toggle route with optimistic local state and a `toast.error` revert on failure.
+- **Persona differentiation anchor:** across both surfaces (chat bubble, "Analistas activos" Sheet), the **icon + badge/title label pairing is the sole visual anchor distinguishing the three personas** — color intentionally stays uniform (single indigo accent, all personas) to keep the project's 10%-accent budget at one reserved hue. Do not introduce a second accent hue to differentiate personas.
 
 **Phase 11 reuses both patterns verbatim** — it does not introduce a new visual system. The net-new work is (a) generalizing the hardcoded "Analista Científico" values in `MessageBubble.tsx` into a persona-keyed lookup, and (b) adding two more `personaCard`-shaped rows + a read-only cooldown caption to the existing Sheet.
+
+**Typography weight-cap adjustment (this phase):** the existing author-name span (`MessageBubble.tsx`, shared across all three personas) and the existing persona-card title (`CreatorControls.tsx`) both currently render at `font-medium` (weight 500). To bring this phase's typography contract to the required 2-weight maximum (400 regular / 600 semibold — see Typography below), the executor changes both from `font-medium` to `font-semibold` (600) as part of the edits already required for persona-keyed generalization / new toggle rows. This is a shared-styling change (applies uniformly across all three personas via the same className, not a per-persona override) — it does not alter the "render exactly as today" guarantee for the Analista Científico persona's icon, badge label, or name text content, only the shared font-weight utility class.
 
 ---
 
@@ -71,14 +74,18 @@ Exceptions: none. Message bubble touch target keeps its existing `minHeight: 44p
 
 ## Typography
 
-Unchanged from existing project convention — no new sizes/weights introduced by this phase.
+Exactly 2 weights declared for this phase's surface: **400 (regular)** and **600 (semibold)**. The pre-existing intermediate weight (500 / `font-medium`, previously used on the author-name row and persona-card title) is retired for this phase's touched components per the weight-cap adjustment noted above.
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body | 15px | 400 (message content) / 500 (author name) | 1.5 |
-| Label | 13px | 400 | 1.4 (badge text, timestamps, cooldown caption, card descriptions) |
-| Heading | 16px (browser default, `SheetTitle` sets no explicit size) | 600 (`font-semibold`) | 1.2 ("Analistas activos" Sheet title — unchanged, not introduced by this phase) |
+| Body | 15px | 400 — message bubble content, persona-card description | 1.5 |
+| Label | 13px | 400 — badge text, timestamps, cooldown caption, card descriptions | 1.4 |
+| Heading | 15–16px | 600 (`font-semibold`) — author name (message bubble, 15px), persona-card title (15px), `SheetTitle` (16px, browser default size, unchanged) | 1.2 |
 | Display | n/a | n/a | n/a — not used anywhere in this phase's UI surface |
+
+Hierarchy note: Body (15px/400) and the author-name / persona-card-title instances of Heading (15px/600) share the same 15px size but carry a full 400→600 weight jump, so hierarchy reads through weight contrast, not size, at that pairing — consistent with the two declared weights above. The `SheetTitle` instance (16px/600) additionally carries a 1px size step over Body for the drawer-title case. No third weight is introduced anywhere in this phase's surface.
+
+**Executor note:** change `font-medium` → `font-semibold` on the author-name span in `MessageBubble.tsx` (`isAI` variant, shared across all three personas) and on the persona-card title in `CreatorControls.tsx` (existing Analista Científico row + the two new Facilitador / Analista-Verificador rows), so the entire phase surface uses only 400 and 600.
 
 ---
 
@@ -128,11 +135,13 @@ Accent reserved for: the bot-message avatar/border/badge treatment (all three pe
 
 | Persona (message.display_name) | Icon (lucide-react) | Badge label | Author name shown | Notes |
 |---|---|---|---|---|
-| `Analista Científico` | `FlaskConical` (unchanged) | `Analista` (unchanged) | `Analista Científico` | Existing reactive persona (D-06) — untouched, must keep rendering exactly as today |
+| `Analista Científico` | `FlaskConical` (unchanged) | `Analista` (unchanged) | `Analista Científico` | Existing reactive persona (D-06) — untouched, must keep rendering exactly as today (icon/label/name content); only the shared author-name font-weight utility changes project-wide per the Typography weight-cap adjustment above |
 | `Facilitador` | `MessageCircleQuestion` | `Facilitador` | `Facilitador` | New — Coach role (FacilitationAgentNode); icon chosen to echo the "always ends in a question" behavioral contract (PERSONA-01) |
 | `Analista/Verificador` | `SearchCheck` | `Verificador` | `Analista/Verificador` | New — Analyst/Fact-Checker role (AnalyticsAgentNode); icon chosen to echo the citation + verification behavioral contract (PERSONA-02) |
 
 Fallback: if `message.display_name` matches none of the above (future persona not yet in this table), default to the existing `Bot` icon and a badge label equal to `message.display_name` truncated to 12 characters — never crash, never render an empty badge.
+
+**Author-name weight:** the author-name span's font weight changes from `font-medium` (500) to `font-semibold` (600) — see Typography above. This is a single shared className edit, applied identically regardless of which persona authored the message.
 
 **Streaming indicator (`isStreaming`, no `streamingText` yet):** the existing three-bounce-dot indicator's `aria-label` currently hardcodes `"Analista está escribiendo..."`. Generalize to `` `${authorName} está escribiendo...` `` using the same lookup's `authorName`.
 
@@ -145,7 +154,7 @@ Fallback: if `message.display_name` matches none of the above (future persona no
 **Location:** the existing "Analistas activos" `Sheet` (both desktop `Sheet side="right"` and mobile bottom-sheet variants — the `personaCard` block is already duplicated between the two, per existing code structure).
 
 **Contract:**
-1. Add two new `personaCard`-shaped rows, one for Facilitador and one for Analista/Verificador, directly below the existing Analista Científico `personaCard`. Same exact JSX shape (icon box + title + description + `Switch`), same indigo accent styling, only icon/title/description differ per the table above. Checked-state and toggle handler follow the exact same optimistic-update + revert-on-error pattern as `handlePersonaToggle`, generalized to accept a persona id (`facilitador` / `analista_verificador`) instead of being hardcoded to `analista_cientifico`.
+1. Add two new `personaCard`-shaped rows, one for Facilitador and one for Analista/Verificador, directly below the existing Analista Científico `personaCard`. Same exact JSX shape (icon box + title + description + `Switch`), same indigo accent styling, only icon/title/description differ per the table above. Checked-state and toggle handler follow the exact same optimistic-update + revert-on-error pattern as `handlePersonaToggle`, generalized to accept a persona id (`facilitador` / `analista_verificador`) instead of being hardcoded to `analista_cientifico`. Title font weight changes from `font-medium` (500) to `font-semibold` (600) on all three cards (existing + 2 new) — see Typography above.
 2. Below the three toggle cards (and below the existing "Los cambios se aplican de inmediato a los mensajes siguientes." caption), add one new read-only caption line rendering the cooldown copy from the Copywriting Contract table above. This is plain text — `text-[13px] text-muted-foreground` — no input, no edit affordance, no icon. This satisfies D-12 and ROADMAP Phase 11 success criterion 5 ("a Creator can see the cooldown configuration in session settings") at the minimum UI cost the decision calls for.
 3. Do not add any control that writes a new cooldown value anywhere in the UI this phase — the values displayed come from the Blueprint/session config read path (`bot_defaults`/`bot_cooldowns`-equivalent per `11-RESEARCH.md` Finding 5), not from a form.
 
@@ -170,3 +179,4 @@ Fallback: if `message.display_name` matches none of the above (future persona no
 - [ ] Dimension 6 Registry Safety: PASS
 
 **Approval:** pending
+</content>
