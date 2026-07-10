@@ -59,7 +59,14 @@ export async function checkBotBudget(
   const row = data[0] as Record<string, unknown>
   const allowed = typeof row.allowed === 'boolean' ? row.allowed : false
   const circuit_open = typeof row.circuit_open === 'boolean' ? row.circuit_open : false
-  const tokens_used_window = typeof row.tokens_used_window === 'number' ? row.tokens_used_window : 0
+  // CR-01: Supabase-js serialises PostgreSQL bigint as string when > 2^53.
+  // Handle both number (small values) and string (large bigint) serializations.
+  const tokens_used_window =
+    typeof row.tokens_used_window === 'number'
+      ? row.tokens_used_window
+      : typeof row.tokens_used_window === 'string'
+      ? Number(row.tokens_used_window)
+      : 0
 
   return { allowed, circuit_open, tokens_used_window }
 }
