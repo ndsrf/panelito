@@ -132,11 +132,11 @@
 
 ### Proactive Bot Infrastructure (BOT)
 
-- [ ] **BOT-01**: A session token budget guard with circuit breaker exists per branch; hard ceiling (configurable, default 200 tokens/minute averaged over 5-minute window) prevents cost explosion on creator's BYOK key; when circuit trips, all proactive bot invocations are paused for 10 minutes and the session creator is notified
-- [ ] **BOT-02**: A global bot arbitration lock prevents multiple bots from firing simultaneously on the same branch; each bot scores its trigger affinity (0–9) and the highest scorer wins; other bots stand down for that N-second window
-- [ ] **BOT-03**: A two-signal silence gate checks both elapsed time since last human message AND Supabase Presence `is_typing` state before any silence-based trigger fires; if any participant is typing, the trigger is suppressed
-- [ ] **BOT-04**: LangGraph thread state uses dual thread_id separation: `branch_id:human` (existing path) and `branch_id:bot` (new proactive path); concurrent write-skew between human and proactive invocations is prevented by construction
-- [ ] **BOT-05**: All bot state (argGraph, user profiles, trigger metadata) persists in LangGraph PostgresSaver thread state — no JavaScript process memory; survives Vercel cold starts and serverless function recycling
+- [x] **BOT-01**: A session token budget guard with circuit breaker exists per branch; hard ceiling (configurable, default 200 tokens/minute averaged over 5-minute window) prevents cost explosion on creator's BYOK key; when circuit trips, all proactive bot invocations are paused for 10 minutes and the session creator is notified
+- [x] **BOT-02**: A global bot arbitration lock prevents multiple bots from firing simultaneously on the same branch; each bot scores its trigger affinity (0–9) and the highest scorer wins; other bots stand down for that N-second window
+- [x] **BOT-03**: A two-signal silence gate checks both elapsed time since last human message AND Supabase Presence `is_typing` state before any silence-based trigger fires; if any participant is typing, the trigger is suppressed
+- [x] **BOT-04**: LangGraph thread state uses dual thread_id separation: `branch_id:human` (existing path) and `branch_id:bot` (new proactive path); concurrent write-skew between human and proactive invocations is prevented by construction
+- [x] **BOT-05**: All bot state (argGraph, user profiles, trigger metadata) persists in LangGraph PostgresSaver thread state — no JavaScript process memory; survives Vercel cold starts and serverless function recycling
 
 ### Bot Personalities (PERSONA)
 
@@ -206,11 +206,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOT-01 | Phase 10 | Pending |
-| BOT-02 | Phase 10 | Pending |
-| BOT-03 | Phase 10 | Pending |
-| BOT-04 | Phase 10 | Pending |
-| BOT-05 | Phase 10 | Pending |
+| BOT-01 | Phase 10 | Complete |
+| BOT-02 | Phase 10 | Complete |
+| BOT-03 | Phase 10 | Complete |
+| BOT-04 | Phase 10 | Complete |
+| BOT-05 | Phase 10 | Complete |
 | PERSONA-01 | Phase 11 | Pending |
 | PERSONA-02 | Phase 11 | Pending |
 | PERSONA-03 | Phase 11 | Pending |
