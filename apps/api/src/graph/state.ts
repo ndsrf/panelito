@@ -11,7 +11,7 @@
  */
 
 import { Annotation } from '@langchain/langgraph'
-import type { ProviderMessage, CanvasOp } from '@panelito/types'
+import type { ProviderMessage, CanvasOp, ArgNode, ArgEdge, TriggerMetadata } from '@panelito/types'
 
 export const GraphStateAnnotation = Annotation.Root({
   // -------------------------------------------------------------------------
@@ -82,6 +82,26 @@ export const GraphStateAnnotation = Annotation.Root({
   phase_signal: Annotation<boolean | null>({
     reducer: (_: boolean | null, v: boolean | null) => v,
     default: () => null,
+  }),
+
+  // -------------------------------------------------------------------------
+  // Bot infrastructure fields (Phase 10 — BOT-05)
+  // -------------------------------------------------------------------------
+
+  /** Argument graph accumulated by ArgGraphBuilderNode (Phase 11).
+   *  Overwrite-style: each invocation replaces the full graph.
+   *  Default: empty graph — safe for human thread invocations that never populate it. */
+  argGraph: Annotation<{ nodes: ArgNode[]; edges: ArgEdge[] }>({
+    reducer: (_: { nodes: ArgNode[]; edges: ArgEdge[] }, v: { nodes: ArgNode[]; edges: ArgEdge[] }) => v,
+    default: () => ({ nodes: [], edges: [] }),
+  }),
+
+  /** Trigger metadata map keyed by trigger type (e.g. 'silence_gate').
+   *  Overwrite-style: trigger implementations replace specific keys in Phase 11+.
+   *  Default: empty record — safe for human thread invocations. */
+  triggerMetadata: Annotation<TriggerMetadata>({
+    reducer: (_: TriggerMetadata, v: TriggerMetadata) => v,
+    default: () => ({}),
   }),
 })
 
