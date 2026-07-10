@@ -65,3 +65,7 @@ export { CanvasNodeSchema, CanvasEdgeSchema, CanvasOpSchema, CanvasNodeStatusSch
 // Blueprint types + schemas (Blueprint, sub-schemas — BLUE-01, INFRA-03)
 export type { Blueprint, NodeTypeConfig, EdgeTypeConfig, PhaseSequence } from "./blueprint";
 export { BlueprintSchema, NodeTypeConfigSchema, EdgeTypeConfigSchema, PhaseSequenceSchema } from "./blueprint";
+
+// Bot infrastructure types + schemas (ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata — BOT-01, BOT-02, BOT-05)
+export type { ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata, TriggerMetadataEntry } from "./bot";
+export { ArgNodeSchema, ArgEdgeSchema, BotBudgetResultSchema, TriggerMetadataSchema, TriggerMetadataEntrySchema } from "./bot";
