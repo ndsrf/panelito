@@ -112,7 +112,10 @@ aiRouter.post('/:id/invoke', async (c) => {
 
   // D-17: Return 429 typing_hold BEFORE any AI call when a human is typing
   // Cap is NOT incremented on this path (T-02-07)
-  if (body.anyoneTyping) {
+  // WR-03: Use strict boolean check (=== true) to reject truthy non-boolean values
+  // such as the string "false" (a common client serialisation mistake), which would
+  // silently block all AI responses under a plain `if (body.anyoneTyping)` check.
+  if (body.anyoneTyping === true) {
     return c.json({ error: 'typing_hold' }, 429)
   }
 
