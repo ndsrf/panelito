@@ -341,7 +341,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
     const graphConfig = {
       configurable: {
-        thread_id: activeBranchId ?? sessionId,  // ORCH-05: thread_id = branch_id (RESEARCH Pitfall 5)
+        thread_id: `${activeBranchId ?? sessionId}:human`,  // BOT-04: dual thread_id — human thread
         blueprint,
         providerName,
         plaintextKey,
