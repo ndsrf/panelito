@@ -41,6 +41,7 @@ The live analytics panel stays perfectly synchronized with the active conversati
 - ✓ Domain Blueprints (JSON, Supabase-stored, Ajv runtime validation) — Phase 5
 - ✓ Universal CanvasNode + CanvasEdge data model — Phase 5
 - ✓ Universal Graph Canvas (xyflow/react) with committed + ghost nodes — Phase 9
+- ✓ Bot safety infrastructure: token budget guard + circuit breaker, arbitration lock, dual thread_id (:human/:bot), ArgNode/ArgEdge/TriggerMetadata types, 3 atomic Postgres RPCs, silence gate with WSL2 fallback — Phase 10
 - ✓ Confidence-based autonomy (direct >0.85 / ghost 0.5–0.85 / silent <0.5) — Phase 7
 - ✓ Mic Check Pattern (human turn token) + Human Consensus Pattern — Phase 8
 - ✓ Flex-Soft domain guardrails (DOMAIN_MATCH / DOMAIN_BRIDGE / DOMAIN_DRIFT) — Phase 7
@@ -147,4 +148,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-09 after milestone v3.0 initialization*
+*Last updated: 2026-07-10 after Phase 10 (infrastructure-foundation) complete*
