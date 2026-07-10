@@ -109,9 +109,9 @@ describe('silence-gate', () => {
     warnSpy.mockRestore()
   })
 
-  it('Test 4b: WSL2 fallback with elapsed < threshold — gate still blocks (reason: too_soon)', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    // Elapsed is LESS than threshold — even with fallback, too_soon wins
+  it('Test 4b: WSL2 fallback with elapsed < threshold — gate still blocks (reason: too_soon, presence_fallback: false)', async () => {
+    // Elapsed is LESS than threshold — too_soon short-circuits before presence check
+    // Per plan step 2: too_soon return has presence_fallback:false (presence never called)
     const mockSupabase = buildMessagesMock(msAgo(2_000))
     const getPresenceTyping = vi.fn().mockRejectedValue(new Error('WebSocket closed'))
 
@@ -124,8 +124,10 @@ describe('silence-gate', () => {
 
     expect(result.passed).toBe(false)
     expect(result.reason).toBe('too_soon')
-    expect(result.presence_fallback).toBe(true)
-    vi.restoreAllMocks()
+    // too_soon fires before presence is checked, so presence_fallback is false
+    expect(result.presence_fallback).toBe(false)
+    // Presence fn should not have been called since we short-circuited
+    expect(getPresenceTyping).not.toHaveBeenCalled()
   })
 
   it('Test 5: messages table error — gate blocks (fail-safe) and logs error', async () => {
