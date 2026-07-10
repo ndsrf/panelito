@@ -99,6 +99,7 @@ describe('bot-arbitrator', () => {
     expect(result).toBeNull()
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[bot-arbitrator]'),
+      expect.any(String),
       expect.anything()
     )
     warnSpy.mockRestore()
