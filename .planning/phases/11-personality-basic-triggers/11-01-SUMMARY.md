@@ -155,3 +155,7 @@ None - no external service configuration required. (The `.env` gap noted above i
 ---
 *Phase: 11-personality-basic-triggers*
 *Completed: 2026-07-13*
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk; all 5 commits (15bb4da, 102e978, c62be5d, 4da9a81, 3384173) verified in git log.
