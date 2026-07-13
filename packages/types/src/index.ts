@@ -66,6 +66,9 @@ export { CanvasNodeSchema, CanvasEdgeSchema, CanvasOpSchema, CanvasNodeStatusSch
 export type { Blueprint, NodeTypeConfig, EdgeTypeConfig, PhaseSequence } from "./blueprint";
 export { BlueprintSchema, NodeTypeConfigSchema, EdgeTypeConfigSchema, PhaseSequenceSchema } from "./blueprint";
 
-// Bot infrastructure types + schemas (ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata — BOT-01, BOT-02, BOT-05)
-export type { ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata, TriggerMetadataEntry } from "./bot";
-export { ArgNodeSchema, ArgEdgeSchema, BotBudgetResultSchema, TriggerMetadataSchema, TriggerMetadataEntrySchema } from "./bot";
+// Bot infrastructure types + schemas (ArgNode, ArgEdge, ArgGraph, BotBudgetResult, TriggerMetadata — BOT-01, BOT-02, BOT-05, GRAPH-01)
+export type { ArgNode, ArgEdge, ArgGraph, BotBudgetResult, TriggerMetadata, TriggerMetadataEntry } from "./bot";
+export { ArgNodeSchema, ArgEdgeSchema, ArgGraphSchema, BotBudgetResultSchema, TriggerMetadataSchema, TriggerMetadataEntrySchema } from "./bot";
+
+// Argument graph extraction tool (Phase 11 Task 1, GRAPH-01)
+export { argGraphExtractionTool } from "./arg-graph-tool";
