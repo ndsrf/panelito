@@ -20,7 +20,7 @@
 
 import type { ProviderName } from '@panelito/types'
 
-export type TaskType = 'analysis' | 'compression' | 'categorization' | 'classification'
+export type TaskType = 'analysis' | 'compression' | 'categorization' | 'classification' | 'facilitation'
 
 export const TASK_MODELS: Record<ProviderName, Record<TaskType, string>> = {
   anthropic: {
@@ -28,17 +28,20 @@ export const TASK_MODELS: Record<ProviderName, Record<TaskType, string>> = {
     compression: 'claude-haiku-4-5-20251001',
     categorization: 'claude-haiku-4-5-20251001',
     classification: 'claude-haiku-4-5-20251001',
+    facilitation: 'claude-haiku-4-5-20251001',
   },
   openai: {
     analysis: 'gpt-5.4',
     compression: 'gpt-5.4-mini',
     categorization: 'gpt-5.4-mini',
     classification: 'gpt-5.4-mini',
+    facilitation: 'gpt-5.4-mini',
   },
   gemini: {
     analysis: 'gemini-2.5-flash',
     compression: 'gemini-2.5-flash',
     categorization: 'gemini-2.5-flash',
     classification: 'gemini-2.5-flash',
+    facilitation: 'gemini-2.5-flash',
   },
 } as const
