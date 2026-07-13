@@ -1,19 +1,23 @@
 /**
- * bot.test.ts — Tests for bot infrastructure types (10-01-PLAN.md Task 1 behavior).
+ * bot.test.ts — Tests for bot infrastructure types (10-01-PLAN.md Task 1 behavior;
+ * extended in 11-01-PLAN.md Task 1 for PERSONA-02 citation fields + ArgGraphSchema).
  *
  * Behavior assertions:
- *   - ArgNodeSchema parses a valid node with id, type, label, branch_id
+ *   - ArgNodeSchema parses a valid node with id, type, label, branch_id, message_id, speaker
  *   - ArgNodeSchema rejects a node with a missing label
+ *   - ArgNodeSchema rejects a node with a missing message_id (PERSONA-02 citation requirement)
  *   - ArgEdgeSchema parses a valid edge with id, source_id, target_id, relation
  *   - BotBudgetResultSchema parses { allowed, circuit_open, tokens_used_window }
  *   - TriggerMetadataEntrySchema accepts last_fired_at/cooldown_until as string or null
  *   - TriggerMetadataSchema parses a keyed record and an empty object
+ *   - ArgGraphSchema parses { nodes: [...], edges: [...] }
  */
 
 import { describe, it, expect } from 'vitest'
 import {
   ArgNodeSchema,
   ArgEdgeSchema,
+  ArgGraphSchema,
   BotBudgetResultSchema,
   TriggerMetadataEntrySchema,
   TriggerMetadataSchema,
@@ -29,11 +33,15 @@ describe('ArgNodeSchema', () => {
       type: 'claim',
       label: 'AI will replace jobs',
       branch_id: OTHER_UUID,
+      message_id: OTHER_UUID,
+      speaker: 'Alice',
     })
     expect(result.id).toBe(VALID_UUID)
     expect(result.type).toBe('claim')
     expect(result.label).toBe('AI will replace jobs')
     expect(result.branch_id).toBe(OTHER_UUID)
+    expect(result.message_id).toBe(OTHER_UUID)
+    expect(result.speaker).toBe('Alice')
   })
 
   it('rejects a node with missing label', () => {
@@ -42,6 +50,8 @@ describe('ArgNodeSchema', () => {
         id: VALID_UUID,
         type: 'claim',
         branch_id: OTHER_UUID,
+        message_id: OTHER_UUID,
+        speaker: 'Alice',
         // label intentionally omitted
       })
     ).toThrow()
@@ -54,6 +64,21 @@ describe('ArgNodeSchema', () => {
         type: 'claim',
         label: 'Some claim',
         branch_id: OTHER_UUID,
+        message_id: OTHER_UUID,
+        speaker: 'Alice',
+      })
+    ).toThrow()
+  })
+
+  it('rejects a node with missing message_id (PERSONA-02 citation requirement)', () => {
+    expect(() =>
+      ArgNodeSchema.parse({
+        id: VALID_UUID,
+        type: 'claim',
+        label: 'AI will replace jobs',
+        branch_id: OTHER_UUID,
+        speaker: 'Alice',
+        // message_id intentionally omitted
       })
     ).toThrow()
   })
@@ -118,5 +143,43 @@ describe('TriggerMetadataSchema', () => {
   it('accepts an empty object', () => {
     const result = TriggerMetadataSchema.parse({})
     expect(result).toEqual({})
+  })
+})
+
+describe('ArgGraphSchema', () => {
+  it('parses a valid graph with one node and one edge', () => {
+    const result = ArgGraphSchema.safeParse({
+      nodes: [
+        {
+          id: VALID_UUID,
+          type: 'claim',
+          label: 'AI will replace jobs',
+          branch_id: OTHER_UUID,
+          message_id: OTHER_UUID,
+          speaker: 'Alice',
+        },
+      ],
+      edges: [
+        {
+          id: OTHER_UUID,
+          source_id: VALID_UUID,
+          target_id: VALID_UUID,
+          relation: 'SUPPORTS',
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.nodes).toHaveLength(1)
+      expect(result.data.edges).toHaveLength(1)
+    }
+  })
+
+  it('rejects a graph with an invalid node', () => {
+    const result = ArgGraphSchema.safeParse({
+      nodes: [{ id: 'not-a-uuid', type: 'claim', label: 'x', branch_id: OTHER_UUID }],
+      edges: [],
+    })
+    expect(result.success).toBe(false)
   })
 })

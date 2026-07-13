@@ -58,6 +58,10 @@ export { ReactionSchema, ReactionCountSchema } from "./reaction";
 export type { PersonaConfig, PersonaId } from "./persona";
 export { PersonaConfigSchema, PERSONA_LIBRARY, PERSONA_IDS } from "./persona";
 
+// Personality types + schema (voice/tone data for bot Roles — D-04, distinct from Persona per D-06)
+export type { Personality } from "./personality";
+export { PersonalitySchema } from "./personality";
+
 // Canvas types + schemas (CanvasNode, CanvasEdge, CanvasOp — CANVAS-01, INFRA-03)
 export type { CanvasNode, CanvasEdge, CanvasOp, CanvasNodeStatus } from "./canvas";
 export { CanvasNodeSchema, CanvasEdgeSchema, CanvasOpSchema, CanvasNodeStatusSchema } from "./canvas";
@@ -66,6 +70,9 @@ export { CanvasNodeSchema, CanvasEdgeSchema, CanvasOpSchema, CanvasNodeStatusSch
 export type { Blueprint, NodeTypeConfig, EdgeTypeConfig, PhaseSequence } from "./blueprint";
 export { BlueprintSchema, NodeTypeConfigSchema, EdgeTypeConfigSchema, PhaseSequenceSchema } from "./blueprint";
 
-// Bot infrastructure types + schemas (ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata — BOT-01, BOT-02, BOT-05)
-export type { ArgNode, ArgEdge, BotBudgetResult, TriggerMetadata, TriggerMetadataEntry } from "./bot";
-export { ArgNodeSchema, ArgEdgeSchema, BotBudgetResultSchema, TriggerMetadataSchema, TriggerMetadataEntrySchema } from "./bot";
+// Bot infrastructure types + schemas (ArgNode, ArgEdge, ArgGraph, BotBudgetResult, TriggerMetadata — BOT-01, BOT-02, BOT-05, GRAPH-01)
+export type { ArgNode, ArgEdge, ArgGraph, BotBudgetResult, TriggerMetadata, TriggerMetadataEntry } from "./bot";
+export { ArgNodeSchema, ArgEdgeSchema, ArgGraphSchema, BotBudgetResultSchema, TriggerMetadataSchema, TriggerMetadataEntrySchema } from "./bot";
+
+// Argument graph extraction tool (Phase 11 Task 1, GRAPH-01)
+export { argGraphExtractionTool } from "./arg-graph-tool";

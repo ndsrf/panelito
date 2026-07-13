@@ -166,6 +166,8 @@ const debateBlueprint: Blueprint = {
   ],
   active_persona_ids: ['analista_cientifico'],
   drift_reply_probability: 0.8,
+  bot_defaults: {},
+  role_personalities: {},
 }
 
 // ---------------------------------------------------------------------------

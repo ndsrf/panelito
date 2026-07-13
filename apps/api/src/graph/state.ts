@@ -103,6 +103,19 @@ export const GraphStateAnnotation = Annotation.Root({
     reducer: (_: TriggerMetadata, v: TriggerMetadata) => v,
     default: () => ({}),
   }),
+
+  /** Routing carrier read by the conditional START edge (Plan 05) BEFORE any node runs
+   *  (Phase 11 Task 3). NOT the same as triggerMetadata (a per-trigger cooldown record
+   *  with no trigger_type key) — this is a single overwrite-style field set by the
+   *  invoker (silence-scan.ts or the /invoke route) prior to graph.invoke().
+   *  null = human /invoke path — routes to 'orchestrator' (existing behavior unchanged).
+   *  Any other value is a trigger-type string the router must recognize explicitly;
+   *  an unrecognized-but-defined value is a bug and must be console.error'd, not
+   *  silently routed to 'orchestrator' (Finding 6). */
+  triggerType: Annotation<string | null>({
+    reducer: (_: string | null, v: string | null) => v,
+    default: () => null,
+  }),
 })
 
 /** Full state type derived from the annotation root. */
