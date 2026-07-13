@@ -267,7 +267,27 @@ Plans:
   4. The ArgGraphBuilderNode runs after each LangGraph invocation (human or proactive) and updates the argGraph in PostgresSaver thread state; the argGraph summary (nodes, edges, open assertions) is correctly injected into the Analyst's prompt context before each Analyst invocation
   5. Per-persona cooldown budgets (Coach 3/15min, Analyst 2/15min) are enforced and configurable in Blueprint or session config; a Creator can see the cooldown configuration in session settings
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Types, schemas & config contracts: argGraph extension + extraction tool, Personality model, Blueprint bot_defaults/role_personalities/cooldowns, facilitation model tier, triggerType state field, argGraph summary helper (PERSONA-01/02/03, GRAPH-01, GRAPH-04)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 11-02-PLAN.md — Migration 0014: personalities table + 3 seeds (incl. D-06 voice migration) + blueprint defaults + sessions.bot_overrides + [BLOCKING] schema push (PERSONA-01/02/03)
+- [ ] 11-03-PLAN.md — ArgGraphBuilderNode: extraction, UUID substitution, merge into argGraph (GRAPH-01, GRAPH-02)
+- [ ] 11-04-PLAN.md — Coach (FacilitationAgentNode) + Analyst (AnalyticsAgentNode) persona nodes; Role-dominant composition, argGraph injection, fact-check framing (PERSONA-01/02, GRAPH-04)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 11-05-PLAN.md — Conditional START edge + routeFromStart + router error spike + graph tests (PERSONA-01/02)
+- [ ] 11-07-PLAN.md — UI: persona-keyed MessageBubble, CreatorControls toggles + read-only cooldown, creator-only bots toggle route (PERSONA-01/02/03)
+
+**Wave 4** *(blocked on Wave 2 + Wave 3)*
+
+- [ ] 11-06-PLAN.md — Interim silence-scan loop + server registration + Coach/Analyst registerBot + direct-insert Coach delivery (TRIGGER-01, PERSONA-01)
 
 ### Phase 12: Graph Coherence + Extended Triggers
 
@@ -331,7 +351,7 @@ Plans:
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
-| 11. Personality + Basic Triggers | v3.0 | 0/? | Not started | - |
+| 11. Personality + Basic Triggers | v3.0 | 0/7 | Not started | - |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
