@@ -68,27 +68,11 @@ function getValidatedEnv(): EnvType {
   return cachedEnv;
 }
 
-// Export individual getters for each env var to maintain type safety
-export const env = {
-  get SUPABASE_URL() {
-    return getValidatedEnv().SUPABASE_URL;
+// Create proxy to auto-derive getters from EnvSchema — no manual updates needed
+// when adding new vars. Just add to EnvSchema above and it works automatically.
+export const env = new Proxy({} as EnvType, {
+  get(_, prop: string | symbol) {
+    if (typeof prop !== "string") return undefined;
+    return getValidatedEnv()[prop as keyof EnvType];
   },
-  get SUPABASE_SERVICE_ROLE_KEY() {
-    return getValidatedEnv().SUPABASE_SERVICE_ROLE_KEY;
-  },
-  get SUPABASE_DIRECT_URL() {
-    return getValidatedEnv().SUPABASE_DIRECT_URL;
-  },
-  get KEY_ENCRYPTION_SECRET() {
-    return getValidatedEnv().KEY_ENCRYPTION_SECRET;
-  },
-  get API_PORT() {
-    return getValidatedEnv().API_PORT;
-  },
-  get ALLOWED_ORIGINS() {
-    return getValidatedEnv().ALLOWED_ORIGINS;
-  },
-  get LANGFUSE_TRACE_LEVEL() {
-    return getValidatedEnv().LANGFUSE_TRACE_LEVEL;
-  },
-} as const satisfies EnvType;
+});
