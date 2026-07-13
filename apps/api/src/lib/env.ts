@@ -3,9 +3,9 @@ import { z } from "zod";
 /**
  * env — validated environment variables for the Hono API.
  *
- * Validates all required env vars at startup and throws if any are missing.
- * Fail loud: a missing env var at startup is better than a silent failure
- * at request time.
+ * Lazy validation: env vars are validated on first access, not at module import time.
+ * This allows the module to be imported during build (where env vars may not be
+ * available) while still validating at runtime on Vercel.
  *
  * T-01-08: The service role key is read once into memory here; it is never
  * logged and never returned in any response body.
@@ -45,17 +45,50 @@ const EnvSchema = z.object({
     .default('graph'),
 });
 
-export const env = (() => {
-  const result = EnvSchema.safeParse(process.env);
+type EnvType = z.infer<typeof EnvSchema>;
 
-  if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-      .join("\n");
-    throw new Error(
-      `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
-    );
+let cachedEnv: EnvType | null = null;
+
+function getValidatedEnv(): EnvType {
+  if (cachedEnv === null) {
+    const result = EnvSchema.safeParse(process.env);
+
+    if (!result.success) {
+      const issues = result.error.issues
+        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+        .join("\n");
+      throw new Error(
+        `[panelito/api] Missing or invalid environment variables:\n${issues}\n\nCopy .env.example to apps/api/.env and fill in the values.`
+      );
+    }
+
+    cachedEnv = result.data;
   }
 
-  return result.data;
-})();
+  return cachedEnv;
+}
+
+// Export individual getters for each env var to maintain type safety
+export const env = {
+  get SUPABASE_URL() {
+    return getValidatedEnv().SUPABASE_URL;
+  },
+  get SUPABASE_SERVICE_ROLE_KEY() {
+    return getValidatedEnv().SUPABASE_SERVICE_ROLE_KEY;
+  },
+  get SUPABASE_DIRECT_URL() {
+    return getValidatedEnv().SUPABASE_DIRECT_URL;
+  },
+  get KEY_ENCRYPTION_SECRET() {
+    return getValidatedEnv().KEY_ENCRYPTION_SECRET;
+  },
+  get API_PORT() {
+    return getValidatedEnv().API_PORT;
+  },
+  get ALLOWED_ORIGINS() {
+    return getValidatedEnv().ALLOWED_ORIGINS;
+  },
+  get LANGFUSE_TRACE_LEVEL() {
+    return getValidatedEnv().LANGFUSE_TRACE_LEVEL;
+  },
+} as const satisfies EnvType;
