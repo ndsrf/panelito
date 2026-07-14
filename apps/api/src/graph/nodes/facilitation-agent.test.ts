@@ -1,0 +1,219 @@
+/**
+ * facilitation-agent.test.ts — FacilitationAgentNode (Coach) unit tests (Phase 11 Plan 04, Task 1)
+ *
+ * Covers:
+ *   - buildCoachSystemPrompt: Role rules structurally BEFORE Personality voice (D-03, Pitfall 4)
+ *   - buildCoachSystemPrompt: >=2 Spanish BAD/GOOD few-shot pairs present
+ *   - buildCoachSystemPrompt: summarizeArgGraph(argGraph) content injected (D-13/D-14)
+ *   - facilitationAgentNode: fail-silent on missing blueprint / adapter error (never throws)
+ *   - facilitationAgentNode: routes model through TASK_MODELS[...].facilitation
+ *   - facilitationAgentNode: triggerMetadata.silence_gate.last_fired_at updated on success
+ */
+
+import { describe, it, expect, vi } from 'vitest'
+import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
+import { TASK_MODELS } from '../../lib/model-config'
+import { buildCoachSystemPrompt, facilitationAgentNode } from './facilitation-agent'
+import type { GraphState } from '../state'
+
+function createMockAdapter(
+  events: AIStreamEvent[],
+  captureOptions?: (options: { model: string; maxTokens: number; system?: string }) => void
+): AIProvider {
+  return {
+    capabilities: () => ({
+      streaming: true,
+      toolUse: false,
+      contextCaching: false,
+      semanticCaching: false,
+      imageInput: false,
+      voiceInput: false,
+      compression: false,
+    }),
+    async *stream(_messages, _tools, options): AsyncIterable<AIStreamEvent> {
+      captureOptions?.(options)
+      for (const event of events) {
+        yield event
+      }
+    },
+  }
+}
+
+function createThrowingAdapter(): AIProvider {
+  return {
+    capabilities: () => ({
+      streaming: true,
+      toolUse: false,
+      contextCaching: false,
+      semanticCaching: false,
+      imageInput: false,
+      voiceInput: false,
+      compression: false,
+    }),
+    async *stream(): AsyncIterable<AIStreamEvent> {
+      throw new Error('adapter boom')
+    },
+  }
+}
+
+const debateBlueprint: Blueprint = {
+  id: 'debate-strategy-v1',
+  name: 'Debate & Strategy',
+  canvas_view_mode: 'graph',
+  node_types: [
+    { id: 'hypothesis', label: 'Hypothesis', color: '#6366f1', description: 'A testable claim.' },
+  ],
+  edge_types: [{ id: 'SUPPORTS', label: 'Supports', color: '#10b981' }],
+  phase_sequence: [
+    { id: 'opening', label: 'Opening', llm_instructions: 'Establish hypotheses.', allowed_node_types: ['hypothesis'] },
+  ],
+  active_persona_ids: [],
+  drift_reply_probability: 0.8,
+  bot_defaults: {},
+  role_personalities: {},
+}
+
+const casualPersonality: Personality = {
+  id: 'coach-casual',
+  name: 'Casual Coach',
+  definition: {
+    language: 'es',
+    formality: 'informal',
+    voice_instructions: 'Habla en tono cercano y motivador, usando "tío" ocasionalmente.',
+    catchphrases: ['¡Vamos allá!'],
+  },
+}
+
+const populatedArgGraph = {
+  nodes: [
+    {
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      type: 'claim',
+      label: 'El agua es esencial para la vida',
+      branch_id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+      message_id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+      speaker: 'Miguel',
+    },
+  ],
+  edges: [],
+}
+
+const emptyArgGraph = { nodes: [], edges: [] }
+
+function makeState(overrides: Partial<GraphState> = {}): GraphState {
+  return {
+    blueprintId: 'debate-strategy-v1',
+    currentPhaseId: 'opening',
+    messages: [{ role: 'user', content: 'El agua es esencial para la vida.' }],
+    canvasOps: [],
+    guardrailResult: null,
+    agentConfidence: null,
+    driftAction: null,
+    agentOutput: null,
+    steeringTextEnabled: null,
+    phase_signal: null,
+    argGraph: emptyArgGraph,
+    triggerMetadata: {},
+    triggerType: null,
+    ...overrides,
+  }
+}
+
+describe('buildCoachSystemPrompt — D-03 Role-dominant composition', () => {
+  it('places the Role behavioral contract BEFORE the Personality voice block (source order)', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, casualPersonality, emptyArgGraph)
+    const roleIdx = system.indexOf('question mark')
+    const voiceIdx = system.indexOf(casualPersonality.definition.voice_instructions)
+    expect(roleIdx).toBeGreaterThanOrEqual(0)
+    expect(voiceIdx).toBeGreaterThan(roleIdx)
+  })
+
+  it('contains at least 2 BAD/GOOD Spanish few-shot pairs', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, undefined, emptyArgGraph)
+    const badCount = (system.match(/BAD:/g) ?? []).length
+    const goodCount = (system.match(/GOOD:/g) ?? []).length
+    expect(badCount).toBeGreaterThanOrEqual(2)
+    expect(goodCount).toBeGreaterThanOrEqual(2)
+  })
+
+  it('injects summarizeArgGraph(argGraph) content-aware output', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, undefined, populatedArgGraph)
+    expect(system).toContain('Miguel')
+    expect(system).toContain('El agua es esencial para la vida')
+  })
+
+  it('omits the Personality voice block entirely when no Personality is provided', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, undefined, emptyArgGraph)
+    expect(system).not.toContain('does not override')
+  })
+})
+
+describe('facilitationAgentNode — fail-silent + routing', () => {
+  it('returns {} when blueprint is missing from config.configurable', async () => {
+    const result = await facilitationAgentNode(makeState(), { configurable: {} })
+    expect(result).toEqual({})
+  })
+
+  it('returns {} when no adapter can be constructed', async () => {
+    const result = await facilitationAgentNode(makeState(), {
+      configurable: { blueprint: debateBlueprint },
+    })
+    expect(result).toEqual({})
+  })
+
+  it('never throws on adapter.stream error — returns {}', async () => {
+    const result = await facilitationAgentNode(makeState(), {
+      configurable: { blueprint: debateBlueprint, facilitationAdapter: createThrowingAdapter() },
+    })
+    expect(result).toEqual({})
+  })
+
+  it('routes the model through TASK_MODELS[...].facilitation (never a hardcoded string)', async () => {
+    const captured: { model?: string; maxTokens?: number } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Qué opinan?' }, { type: 'done' }],
+      (options) => {
+        captured.model = options.model
+        captured.maxTokens = options.maxTokens
+      }
+    )
+    await facilitationAgentNode(makeState(), {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(captured.model).toBe(TASK_MODELS.anthropic.facilitation)
+    expect(captured.maxTokens).toBe(256)
+  })
+
+  it('forwards streamed tokens via config.configurable.streamWriter', async () => {
+    const chunks: string[] = []
+    const adapter = createMockAdapter([
+      { type: 'text_delta', text: '¿Qué piensan de esto?' },
+      { type: 'done' },
+    ])
+    await facilitationAgentNode(makeState(), {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        facilitationAdapter: adapter,
+        streamWriter: (text: string) => chunks.push(text),
+      },
+    })
+    expect(chunks.join('')).toBe('¿Qué piensan de esto?')
+  })
+
+  it('updates triggerMetadata.silence_gate.last_fired_at on success, preserving other keys', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }])
+    const state = makeState({
+      triggerMetadata: { unlinked_assertion: { last_fired_at: '2026-01-01T00:00:00.000Z', cooldown_until: null } },
+    })
+    const result = await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(result.triggerMetadata?.unlinked_assertion).toEqual({
+      last_fired_at: '2026-01-01T00:00:00.000Z',
+      cooldown_until: null,
+    })
+    expect(result.triggerMetadata?.silence_gate?.last_fired_at).toBeTruthy()
+    expect(new Date(result.triggerMetadata!.silence_gate!.last_fired_at as string).getTime()).not.toBeNaN()
+  })
+})

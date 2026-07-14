@@ -67,13 +67,24 @@ function detectWorktree(): { typesPath: string | undefined; mainRepoNodeModules:
   // main repo. The worktree's vitest.config.ts adds the main repo's node_modules
   // to the vite resolve.modules list so imports like @langchain/langgraph-checkpoint-postgres
   // can be found when running vitest with --root pointing to the worktree.
+  //
+  // Nesting depth from __dirname (this file's apps/api dir) to the main repo root varies:
+  //   - top-level worktree sibling (e.g. panelito-worktree/apps/api) → 3 levels up
+  //   - Claude Code linked worktree (panelito/.claude/worktrees/<id>/apps/api) → 5 levels up
+  // Rather than hardcode one depth (which silently breaks test resolution for the other
+  // layout — #deviation, Phase 11 Plan 04), try a range of ancestor depths and use the
+  // first one that actually contains apps/api/node_modules.
   let mainRepoNodeModules: string | undefined
-  const candidates = [
-    path.resolve(__dirname, '../../../apps/api/node_modules'),
-  ]
+  const candidates: string[] = []
+  for (let levels = 2; levels <= 8; levels++) {
+    candidates.push(path.resolve(__dirname, '../'.repeat(levels), 'apps/api/node_modules'))
+  }
   for (const candidate of candidates) {
     try {
-      statSync(candidate)
+      // Validate it's a real, populated node_modules (not e.g. a stray node_modules/.vite
+      // cache directory vitest itself creates in the worktree on a prior run) by requiring
+      // a known dependency subdirectory to exist inside it.
+      statSync(path.join(candidate, '@anthropic-ai'))
       mainRepoNodeModules = candidate
       break
     } catch {
