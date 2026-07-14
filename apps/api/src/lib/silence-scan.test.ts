@@ -363,7 +363,7 @@ describe('silence-scan', () => {
     expect(invokeConfig.configurable.thread_id).toBe('branch-1:bot')
 
     expect(insertSpy).toHaveBeenCalledTimes(1)
-    const insertArg = insertSpy.mock.calls[0][0] as Record<string, unknown>
+    const insertArg = insertSpy.mock.calls[0]![0] as Record<string, unknown>
     expect(insertArg.role).toBe('assistant')
     expect(insertArg.display_name).toBe('Facilitador')
     expect(insertArg.branch_id).toBe('branch-1')
