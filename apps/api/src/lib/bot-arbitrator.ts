@@ -29,14 +29,6 @@ export interface ArbContext {
 
 type ScorerFn = (context: ArbContext) => number
 
-/**
- * Blueprint extended with optional bot_cooldowns map (Phase 11+ feature).
- * Accessed via optional chaining to remain backward-compatible with current Blueprint type.
- */
-type BlueprintWithCooldowns = Blueprint & {
-  bot_cooldowns?: Record<string, number>
-}
-
 // ---------------------------------------------------------------------------
 // Module-level plugin registry
 // ---------------------------------------------------------------------------
@@ -107,9 +99,21 @@ export async function runArbitration(
 
   if (!winnerId) return null
 
-  // D-02: resolve cooldown from blueprint.bot_cooldowns?.[winnerId]
-  const bp = blueprint as BlueprintWithCooldowns
-  const cooldownSeconds = bp.bot_cooldowns?.[winnerId] ?? DEFAULT_COOLDOWN_SECONDS
+  // D-02: resolve cooldown from blueprint.bot_cooldowns?.[winnerId].window_minutes.
+  // Phase 11 Plan 02 bug fix: this used to read blueprint.bot_cooldowns?.[winnerId] as a
+  // raw Record<string, number> (seconds) via a local BlueprintWithCooldowns intersection
+  // type — a Phase 10 assumption written before Plan 02 added the REAL bot_cooldowns field
+  // to BlueprintSchema (packages/types/src/blueprint.ts), which is shaped
+  // Record<string, { max: number; window_minutes: number }>, not Record<string, number>.
+  // The old code silently produced `{max,window_minutes} * 1000` = NaN, and
+  // `new Date(Date.now() + NaN).toISOString()` throws "RangeError: Invalid time value" —
+  // reproduced and confirmed against the real seeded debate-strategy-v1 Blueprint shape.
+  // window_minutes (PERSONA-03: Coach 3/15, Analyst 2/15) is converted to seconds here;
+  // this is also the correct semantic for Phase 11's interim silence-scan loop, which
+  // treats the arbitration lock window as "fire at most once per cooldown window"
+  // (TRIGGER-01 success criterion 3), not a fine-grained N-per-window rate limiter.
+  const windowMinutes = blueprint.bot_cooldowns?.[winnerId]?.window_minutes
+  const cooldownSeconds = typeof windowMinutes === 'number' ? windowMinutes * 60 : DEFAULT_COOLDOWN_SECONDS
   const lockedUntil = new Date(Date.now() + cooldownSeconds * 1000).toISOString()
 
   // T-10-09: acquire the atomic lock — only the DB compare-and-set grants permission

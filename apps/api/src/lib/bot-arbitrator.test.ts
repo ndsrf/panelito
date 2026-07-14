@@ -107,14 +107,16 @@ describe('bot-arbitrator', () => {
     warnSpy.mockRestore()
   })
 
-  it('Test 5: locked_until derived from blueprint.bot_cooldowns for winner (or default if absent)', async () => {
+  it('Test 5: locked_until derived from blueprint.bot_cooldowns[winner].window_minutes (or default if absent)', async () => {
     const { registerBot, runArbitration } = await importFresh()
     const mockSupabase = buildRpcMock({ data: [{ acquired: true }], error: null })
 
-    // Blueprint with bot_cooldowns map
+    // Blueprint with bot_cooldowns map — REAL shape (Plan 02): Record<string, {max, window_minutes}>,
+    // not the stale Record<string, number> (seconds) shape this test used to encode.
+    // 1 minute window_minutes -> 60s cooldown, matching the original test's ~60s assertion.
     const blueprintWithCooldown = {
       ...blueprintStub,
-      bot_cooldowns: { botA: 60 }, // 60-second cooldown for botA
+      bot_cooldowns: { botA: { max: 3, window_minutes: 1 } },
     }
 
     registerBot('botA', () => 5)
