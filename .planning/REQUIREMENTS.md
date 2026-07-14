@@ -140,14 +140,14 @@
 
 ### Bot Personalities (PERSONA)
 
-- [ ] **PERSONA-01**: Coach bot is wired into the LangGraph graph as a new FacilitationAgentNode; its prompt enforces Socratic discipline — every output ends with a question, never a statement or answer; it never gives conclusions, only surfaces them
+- [x] **PERSONA-01**: Coach bot is wired into the LangGraph graph as a new FacilitationAgentNode; its prompt enforces Socratic discipline — every output ends with a question, never a statement or answer; it never gives conclusions, only surfaces them
 - [ ] **PERSONA-02**: Analyst/Fact-Checker bot is wired as a new AnalyticsAgentNode; its output always cites the specific prior message (speaker name + paraphrased content) it is responding to; when operating as Fact-Checker it uses uncertainty framing exclusively ("I can't verify that — what's the source?") and never makes confident counter-assertions
 - [ ] **PERSONA-03**: Each personality has configurable per-session cooldown budgets (default: Coach 3/15min, Analyst 2/15min, Fact-check 1/30min) stored in the Blueprint or session config; Creator can adjust in session settings
 - [ ] **PERSONA-04**: Persona consistency is maintained across long sessions via a periodic re-anchor mechanism that refreshes the persona context window every 15 bot invocations; tested against a 100-turn synthetic session before release
 
 ### Trigger Types (TRIGGER)
 
-- [ ] **TRIGGER-01**: Silence window trigger — Coach fires when no human message arrives within N seconds (default 45s, Blueprint-configurable) AND no participant has `is_typing: true`; fires at most once per cooldown window
+- [x] **TRIGGER-01**: Silence window trigger — Coach fires when no human message arrives within N seconds (default 45s, Blueprint-configurable) AND no participant has `is_typing: true`; fires at most once per cooldown window
 - [ ] **TRIGGER-02**: Blueprint phase signal trigger — when the in-context argGraph and message history contain sufficient coverage of the current phase's required topics (evaluated by the Analyst bot), a phase-readiness signal is emitted; the Coach asks the group if they are ready to advance
 - [ ] **TRIGGER-03**: Semantic drift trigger — when the cosine similarity between the last 3 messages (embedded locally via all-MiniLM-L6-v2 ONNX) and the Blueprint's domain centroid drops below threshold (default 0.6), the Coach gently redirects the conversation; threshold is Blueprint-configurable
 - [ ] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
@@ -211,11 +211,11 @@
 | BOT-03 | Phase 10 | Complete |
 | BOT-04 | Phase 10 | Complete |
 | BOT-05 | Phase 10 | Complete |
-| PERSONA-01 | Phase 11 | Pending |
+| PERSONA-01 | Phase 11 | Complete |
 | PERSONA-02 | Phase 11 | Pending |
 | PERSONA-03 | Phase 11 | Pending |
 | PERSONA-04 | Phase 14 | Pending |
-| TRIGGER-01 | Phase 11 | Pending |
+| TRIGGER-01 | Phase 11 | Complete |
 | TRIGGER-02 | Phase 13 | Pending |
 | TRIGGER-03 | Phase 12 | Pending |
 | TRIGGER-04 | Phase 12 | Pending |

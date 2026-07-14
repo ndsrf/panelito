@@ -287,7 +287,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 2 + Wave 3)*
 
-- [ ] 11-06-PLAN.md — Interim silence-scan loop + server registration + Coach/Analyst registerBot + direct-insert Coach delivery (TRIGGER-01, PERSONA-01)
+- [x] 11-06-PLAN.md — Interim silence-scan loop + server registration + Coach/Analyst registerBot + direct-insert Coach delivery (TRIGGER-01, PERSONA-01)
 
 ### Phase 12: Graph Coherence + Extended Triggers
 
@@ -351,7 +351,7 @@ Plans:
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
-| 11. Personality + Basic Triggers | v3.0 | 6/7 | In Progress|  |
+| 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
