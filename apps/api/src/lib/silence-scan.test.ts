@@ -1,0 +1,397 @@
+/**
+ * silence-scan.test.ts — Unit tests for the interim silence-scan trigger loop (D-15, TRIGGER-01).
+ *
+ * Tests runSilenceScan's orchestration logic in isolation: mocks the Phase 10 chain
+ * (checkSilenceGate/runArbitration/checkBotBudget/releaseBotLock), blueprint-loader, crypto,
+ * and a fake compiled graph (invoke/getState/updateState) — mirrors ai.test.ts's mocking
+ * pattern (loadBlueprint, crypto, createGraph all mocked; no real DB/LLM). Covers the six
+ * behaviors from the plan:
+ *   1. frozen-session skip (status !== 'active')
+ *   2. typing/gate-not-passed skip
+ *   3. cooldown-active skip
+ *   4. arbitration-loss / budget-open skip
+ *   5. single-insert-on-success + release-in-finally
+ *   6. async setInterval callback awaits runSilenceScan (no overlapping ticks)
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Blueprint } from '@panelito/types'
+
+// ---------------------------------------------------------------------------
+// Mocks — declared before any import that transitively uses them (hoisting)
+// ---------------------------------------------------------------------------
+
+vi.mock('./blueprint-loader', () => ({
+  loadBlueprint: vi.fn(),
+}))
+
+vi.mock('./crypto', () => ({
+  decryptKey: vi.fn().mockReturnValue('sk-test-plaintext-key'),
+}))
+
+vi.mock('./silence-gate', () => ({
+  checkSilenceGate: vi.fn(),
+}))
+
+vi.mock('./bot-arbitrator', () => ({
+  runArbitration: vi.fn(),
+  releaseBotLock: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('./bot-budget', () => ({
+  checkBotBudget: vi.fn(),
+}))
+
+vi.mock('./bot-registration', () => ({
+  registerBots: vi.fn(),
+}))
+
+import { runSilenceScan, startSilenceScanLoop, COACH_AUTHOR_ID } from './silence-scan'
+import { loadBlueprint } from './blueprint-loader'
+import { checkSilenceGate } from './silence-gate'
+import { runArbitration, releaseBotLock } from './bot-arbitrator'
+import { checkBotBudget } from './bot-budget'
+import { registerBots } from './bot-registration'
+
+const mockLoadBlueprint = vi.mocked(loadBlueprint)
+const mockCheckSilenceGate = vi.mocked(checkSilenceGate)
+const mockRunArbitration = vi.mocked(runArbitration)
+const mockReleaseBotLock = vi.mocked(releaseBotLock)
+const mockCheckBotBudget = vi.mocked(checkBotBudget)
+const mockRegisterBots = vi.mocked(registerBots)
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const debateBlueprint: Blueprint = {
+  id: 'debate-strategy-v1',
+  name: 'Debate & Strategy',
+  canvas_view_mode: 'graph',
+  node_types: [{ id: 'claim', label: 'Claim', color: '#fff', description: 'A claim' }],
+  edge_types: [{ id: 'supports', label: 'Supports', color: '#000' }],
+  phase_sequence: [{ id: 'opening', label: 'Opening', llm_instructions: '...', allowed_node_types: ['claim'] }],
+  active_persona_ids: [],
+  drift_reply_probability: 0.8,
+  bot_defaults: { coach: true, analyst: true },
+  role_personalities: { coach: 'coach_default', analyst: 'analyst_default' },
+  bot_cooldowns: { coach: { max: 3, window_minutes: 15 }, analyst: { max: 2, window_minutes: 15 } },
+}
+
+function makeSessionRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'session-1',
+    status: 'active',
+    creator_id: 'creator-1',
+    blueprint_id: 'debate-strategy-v1',
+    bot_overrides: {},
+    current_phase: 'opening',
+    ...overrides,
+  }
+}
+
+function makeBranchRow(overrides: Record<string, unknown> = {}) {
+  return { id: 'branch-1', path_id: 'main', ...overrides }
+}
+
+/** Fake compiled graph — invoke/getState/updateState, no real LangGraph/LLM. */
+function buildFakeGraph(options: {
+  invokeImpl?: (input: unknown, config: unknown) => Promise<unknown>
+  cooldownUntil?: string | null
+} = {}) {
+  const invoke = vi.fn().mockImplementation(
+    options.invokeImpl ??
+      (async (_input: unknown, config: unknown) => {
+        const cfg = config as { configurable?: { streamWriter?: (t: string) => void } }
+        cfg?.configurable?.streamWriter?.('Miguel mencionó la evidencia — ¿qué opinan los demás?')
+        return {}
+      })
+  )
+  const getState = vi.fn().mockResolvedValue({
+    values: {
+      triggerMetadata: {
+        silence_gate: {
+          last_fired_at: null,
+          cooldown_until: options.cooldownUntil ?? null,
+        },
+      },
+    },
+  })
+  const updateState = vi.fn().mockResolvedValue(undefined)
+  return { invoke, getState, updateState }
+}
+
+/** Minimal chainable Supabase mock — dispatches by table name. */
+function buildSupabaseMock(config: {
+  sessions?: unknown[]
+  sessionsError?: unknown
+  branches?: unknown[]
+  creatorSettings?: Record<string, unknown> | null
+  personalityRow?: Record<string, unknown> | null
+  recentMessages?: Array<{ role: string; content: string }>
+  insertResult?: { data: unknown; error: unknown }
+}) {
+  const insertResult = config.insertResult ?? {
+    data: { id: 'msg-1', content: 'x', role: 'assistant' },
+    error: null,
+  }
+
+  const httpSend = vi.fn().mockResolvedValue(undefined)
+  const channel = vi.fn().mockReturnValue({ httpSend })
+
+  const from = vi.fn().mockImplementation((table: string) => {
+    if (table === 'sessions') {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: config.sessions ?? [], error: config.sessionsError ?? null }),
+        }),
+      }
+    }
+    if (table === 'branches') {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: config.branches ?? [], error: null }),
+          }),
+        }),
+      }
+    }
+    if (table === 'messages') {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: config.recentMessages ?? [], error: null }),
+            }),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue(insertResult),
+          }),
+        }),
+      }
+    }
+    if (table === 'creator_settings') {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: config.creatorSettings ?? null, error: null }),
+          }),
+        }),
+      }
+    }
+    if (table === 'personalities') {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: config.personalityRow ?? null, error: null }),
+          }),
+        }),
+      }
+    }
+    throw new Error(`buildSupabaseMock: unexpected table "${table}"`)
+  })
+
+  return { from, channel } as never
+}
+
+const defaultCreatorSettings = {
+  anthropic_api_key: 'encrypted-blob',
+  openai_api_key: null,
+  gemini_api_key: null,
+  active_provider: 'anthropic',
+}
+
+describe('silence-scan', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockLoadBlueprint.mockResolvedValue(debateBlueprint)
+    mockCheckSilenceGate.mockResolvedValue({ passed: true, presence_fallback: false })
+    mockRunArbitration.mockResolvedValue('coach')
+    mockCheckBotBudget.mockResolvedValue({ allowed: true, circuit_open: false, tokens_used_window: 0 })
+  })
+
+  it('Behavior 1: frozen session (status !== active) is skipped — no gate/arbitration/invoke call', async () => {
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow({ status: 'frozen' })],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockCheckSilenceGate).not.toHaveBeenCalled()
+    expect(mockRunArbitration).not.toHaveBeenCalled()
+    expect(graph.invoke).not.toHaveBeenCalled()
+  })
+
+  it('Behavior 2: silence gate not passed (typing / too_soon) — skip, no arbitration/invoke', async () => {
+    mockCheckSilenceGate.mockResolvedValue({ passed: false, reason: 'typing', presence_fallback: false })
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockCheckSilenceGate).toHaveBeenCalledTimes(1)
+    expect(mockRunArbitration).not.toHaveBeenCalled()
+    expect(graph.invoke).not.toHaveBeenCalled()
+  })
+
+  it('Behavior 3: cooldown still active on the bot thread — skip, no arbitration/invoke', async () => {
+    const future = new Date(Date.now() + 60_000).toISOString()
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph({ cooldownUntil: future })
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(graph.getState).toHaveBeenCalledWith({ configurable: { thread_id: 'branch-1:bot' } })
+    expect(mockRunArbitration).not.toHaveBeenCalled()
+    expect(graph.invoke).not.toHaveBeenCalled()
+  })
+
+  it('Behavior 4a: Coach loses arbitration — no invoke, no message insert', async () => {
+    mockRunArbitration.mockResolvedValue('analyst')
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockRunArbitration).toHaveBeenCalledTimes(1)
+    expect(mockCheckBotBudget).not.toHaveBeenCalled()
+    expect(graph.invoke).not.toHaveBeenCalled()
+  })
+
+  it('Behavior 4b: budget circuit open — no invoke, no message insert, lock still released', async () => {
+    mockCheckBotBudget.mockResolvedValue({ allowed: false, circuit_open: true, tokens_used_window: 5000 })
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockCheckBotBudget).toHaveBeenCalledTimes(1)
+    expect(graph.invoke).not.toHaveBeenCalled()
+    expect(mockReleaseBotLock).toHaveBeenCalledWith('branch-1', supabase)
+  })
+
+  it('Behavior 5: success path — exactly one message insert (assistant/Facilitador), bot thread_id, cooldown recorded, lock released in finally', async () => {
+    const insertSpy = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: 'msg-1' }, error: null }),
+      }),
+    })
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+      personalityRow: { id: 'coach_default', name: 'Facilitador', definition: { language: 'es', formality: 'informal', voice_instructions: 'x', catchphrases: [] } },
+    })
+    // Override messages.insert to a dedicated spy so we can assert call shape precisely.
+    const originalFrom = (supabase as { from: (t: string) => unknown }).from as ReturnType<typeof vi.fn>
+    originalFrom.mockImplementation((table: string) => {
+      if (table === 'messages') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          }),
+          insert: insertSpy,
+        }
+      }
+      if (table === 'sessions') {
+        return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [makeSessionRow()], error: null }) }) }
+      }
+      if (table === 'branches') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [makeBranchRow()], error: null }) }),
+          }),
+        }
+      }
+      if (table === 'creator_settings') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: defaultCreatorSettings, error: null }) }),
+          }),
+        }
+      }
+      if (table === 'personalities') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 'coach_default', name: 'Facilitador', definition: { language: 'es', formality: 'informal', voice_instructions: 'x', catchphrases: [] } },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      throw new Error(`unexpected table ${table}`)
+    })
+
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(graph.invoke).toHaveBeenCalledTimes(1)
+    const [invokeInput, invokeConfig] = graph.invoke.mock.calls[0] as [
+      { triggerType: string },
+      { configurable: { thread_id: string; personality?: unknown } }
+    ]
+    expect(invokeInput.triggerType).toBe('silence_gate')
+    expect(invokeConfig.configurable.thread_id).toBe('branch-1:bot')
+
+    expect(insertSpy).toHaveBeenCalledTimes(1)
+    const insertArg = insertSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(insertArg.role).toBe('assistant')
+    expect(insertArg.display_name).toBe('Facilitador')
+    expect(insertArg.branch_id).toBe('branch-1')
+    expect(insertArg.author_id).toBe(COACH_AUTHOR_ID)
+    expect(insertArg.author_id).not.toBe('creator-1')
+
+    // Cooldown recorded via graph.updateState (next tick honors TRIGGER-01)
+    expect(graph.updateState).toHaveBeenCalledTimes(1)
+    const [, updateValues] = graph.updateState.mock.calls[0] as [unknown, { triggerMetadata: { silence_gate: { cooldown_until: string } } }]
+    expect(updateValues.triggerMetadata.silence_gate.cooldown_until).toBeTruthy()
+
+    // Lock released in finally regardless of success
+    expect(mockReleaseBotLock).toHaveBeenCalledWith('branch-1', supabase)
+  })
+
+  it('Behavior 6: startSilenceScanLoop registers bots once and schedules an async setInterval that awaits runSilenceScan', async () => {
+    vi.useFakeTimers()
+    const supabase = buildSupabaseMock({ sessions: [], branches: [] })
+    const graph = buildFakeGraph()
+
+    await startSilenceScanLoop(supabase, graph as never)
+
+    expect(mockRegisterBots).toHaveBeenCalledTimes(1)
+
+    // Advance past one scan interval — the callback must run without throwing
+    // (i.e. it is a real async function that awaits runSilenceScan, not fire-and-forget).
+    await vi.advanceTimersByTimeAsync(20_000)
+
+    vi.useRealTimers()
+  })
+})
