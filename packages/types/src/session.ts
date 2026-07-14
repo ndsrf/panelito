@@ -24,6 +24,10 @@ export const SessionSchema = z.object({
   ai_response_count: z.number().int().nonnegative(),
   ai_response_cap: z.number().int().positive(),
   active_personas: z.array(z.string()),
+  /** Phase 11 (D-09): per-session Coach/Analyst on/off override, keyed by Role id.
+   *  Structurally distinct from active_personas (D-06) — resolution order is
+   *  bot_overrides[role] ?? blueprint.bot_defaults[role] ?? false. */
+  bot_overrides: z.record(z.string(), z.boolean()).default({}),
   blueprint_id: z.string(),
   created_at: z.string(),
   updated_at: z.string(),

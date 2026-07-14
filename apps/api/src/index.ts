@@ -9,6 +9,7 @@ import settingsRouter from "./routes/settings";
 import aiRouter from "./routes/ai";
 import reactionsRouter from "./routes/reactions";
 import personasRouter from "./routes/personas";
+import botsRouter from "./routes/bots";
 import { canvasSessionRouter, canvasNodesRouter } from "./routes/canvas";
 import { createServiceClient } from "./lib/supabase";
 import { setupLangfuseOtel } from "./lib/langfuse-otel";
@@ -89,6 +90,13 @@ app.route("/sessions/:id/reactions", reactionsRouter);
 // POST /api/sessions/:id/personas
 // -------------------------------------------------------
 app.route("/sessions/:id/personas", personasRouter);
+
+// -------------------------------------------------------
+// Bots route (PERSONA-01/02/03, D-09)
+// POST /api/sessions/:id/bots — creator-only Coach/Analyst on/off toggle,
+// writes sessions.bot_overrides (distinct from the legacy personas system)
+// -------------------------------------------------------
+app.route("/sessions/:id/bots", botsRouter);
 
 // -------------------------------------------------------
 // Canvas routes (CANVAS-03, Phase 9)
