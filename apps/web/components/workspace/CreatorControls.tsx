@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical, GitFork, ChevronRight, Loader2 } from 'lucide-react'
+import { MoreHorizontal, Snowflake, X, PlayCircle, Users, FlaskConical, GitFork, ChevronRight, Loader2, MessageCircleQuestion, SearchCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -21,7 +21,7 @@ import {
 import { apiFetch, ApiError } from '@/lib/api'
 import { ShareButton } from '@/app/(protected)/sessions/[id]/share-button'
 import { useSessionStore } from '@/store/session-store'
-import type { Session } from '@panelito/types'
+import type { Session, Blueprint } from '@panelito/types'
 import { cn } from '@/lib/utils'
 
 interface CreatorControlsProps {
@@ -34,6 +34,8 @@ interface CreatorControlsProps {
   pendingPhaseId?: string | null
   /** Called after PATCH success or error to reset the signal in the parent. */
   onPhaseConsumed?: () => void
+  /** Phase 11 (D-09/D-12): Blueprint carrying bot_defaults/bot_cooldowns for the Coach/Analyst toggles. Null when no Blueprint configured. */
+  blueprint?: Blueprint | null
 }
 
 interface ActionButtonsProps {
@@ -289,7 +291,7 @@ function AdvancePhaseButton({ sessionId, phaseSignal, pendingPhaseId, onConsumed
 /**
  * CreatorControls — renders Freeze / Unfreeze / Close buttons + active branch management.
  */
-export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal = false, pendingPhaseId = null, onPhaseConsumed }: CreatorControlsProps): ReactNode {
+export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal = false, pendingPhaseId = null, onPhaseConsumed, blueprint = null }: CreatorControlsProps): ReactNode {
   const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [analystasOpen, setAnalystasOpen] = useState(false)
@@ -329,6 +331,50 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
       toast.error('No se pudo cambiar el analista. Inténtalo de nuevo.')
     } finally {
       setToggling(false)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Phase 11 (D-09/D-12): Coach/Analyst per-session bot toggles.
+  // Structurally distinct from the legacy active_personas toggle above —
+  // writes sessions.bot_overrides via POST /api/sessions/:id/bots.
+  // Resolution order: bot_overrides[role] ?? blueprint.bot_defaults[role] ?? false.
+  // -----------------------------------------------------------------------
+  const botOverrides = session.bot_overrides || {}
+  const botDefaults = blueprint?.bot_defaults || {}
+
+  const [localBotOverrides, setLocalBotOverrides] = useState<Record<string, boolean>>({})
+  const [prevBotOverrides, setPrevBotOverrides] = useState(session.bot_overrides)
+  const [botToggling, setBotToggling] = useState<Record<string, boolean>>({})
+
+  if (session.bot_overrides !== prevBotOverrides) {
+    setPrevBotOverrides(session.bot_overrides)
+    setLocalBotOverrides({})
+  }
+
+  const isBotChecked = (botId: 'coach' | 'analyst'): boolean => {
+    if (botId in localBotOverrides) return localBotOverrides[botId] ?? false
+    return botOverrides[botId] ?? botDefaults[botId] ?? false
+  }
+
+  const handleBotToggle = async (botId: 'coach' | 'analyst', checked: boolean) => {
+    setLocalBotOverrides((prev) => ({ ...prev, [botId]: checked }))
+    setBotToggling((prev) => ({ ...prev, [botId]: true }))
+    try {
+      await apiFetch(`/api/sessions/${session.id}/bots`, {
+        method: 'POST',
+        body: JSON.stringify({ botId, active: checked }),
+      })
+      router.refresh()
+    } catch {
+      setLocalBotOverrides((prev) => ({ ...prev, [botId]: !checked }))
+      toast.error(
+        botId === 'coach'
+          ? 'No se pudo cambiar el Facilitador. Inténtalo de nuevo.'
+          : 'No se pudo cambiar el Analista/Verificador. Inténtalo de nuevo.'
+      )
+    } finally {
+      setBotToggling((prev) => ({ ...prev, [botId]: false }))
     }
   }
 
@@ -385,7 +431,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
           <FlaskConical size={20} className={isChecked ? "text-indigo-400" : "text-zinc-400"} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-medium text-foreground">Analista Científico</div>
+          <div className="text-[15px] font-semibold text-foreground">Analista Científico</div>
           <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-tight">
             Analiza datos, detecta falacias y estructura la información cuantitativa.
           </div>
@@ -398,6 +444,79 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
         aria-label={isChecked ? 'Desactivar Analista Científico' : 'Activar Analista Científico'}
       />
     </div>
+  )
+
+  // Facilitador (Coach) toggle card — same personaCard JSX shape, same indigo accent (D-09)
+  const isFacilitadorChecked = isBotChecked('coach')
+  const facilitadorCard = (
+    <div className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3 text-left">
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 transition-opacity",
+            isFacilitadorChecked ? "opacity-100" : "opacity-60"
+          )}
+          style={{
+            background: 'rgba(99,102,241,0.15)',
+            border: isFacilitadorChecked ? '1px solid rgba(99,102,241,0.50)' : '1px solid rgba(161,161,170,0.30)'
+          }}
+        >
+          <MessageCircleQuestion size={20} className={isFacilitadorChecked ? "text-indigo-400" : "text-zinc-400"} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold text-foreground">Facilitador</div>
+          <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-tight">
+            Guía la conversación con preguntas abiertas cuando el grupo queda en silencio.
+          </div>
+        </div>
+      </div>
+      <Switch
+        checked={isFacilitadorChecked}
+        disabled={botToggling.coach ?? false}
+        onCheckedChange={(checked) => handleBotToggle('coach', checked)}
+        aria-label={isFacilitadorChecked ? 'Desactivar Facilitador' : 'Activar Facilitador'}
+      />
+    </div>
+  )
+
+  // Analista/Verificador (Analyst/Fact-Checker) toggle card — same personaCard JSX shape (D-09)
+  const isVerificadorChecked = isBotChecked('analyst')
+  const analistaVerificadorCard = (
+    <div className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3 text-left">
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 transition-opacity",
+            isVerificadorChecked ? "opacity-100" : "opacity-60"
+          )}
+          style={{
+            background: 'rgba(99,102,241,0.15)',
+            border: isVerificadorChecked ? '1px solid rgba(99,102,241,0.50)' : '1px solid rgba(161,161,170,0.30)'
+          }}
+        >
+          <SearchCheck size={20} className={isVerificadorChecked ? "text-indigo-400" : "text-zinc-400"} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold text-foreground">Analista/Verificador</div>
+          <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-tight">
+            Cita mensajes concretos del grupo y señala afirmaciones que conviene verificar.
+          </div>
+        </div>
+      </div>
+      <Switch
+        checked={isVerificadorChecked}
+        disabled={botToggling.analyst ?? false}
+        onCheckedChange={(checked) => handleBotToggle('analyst', checked)}
+        aria-label={isVerificadorChecked ? 'Desactivar Analista/Verificador' : 'Activar Analista/Verificador'}
+      />
+    </div>
+  )
+
+  // Read-only cooldown caption (D-12, ROADMAP Phase 11 success criterion 5) — plain text, no edit affordance
+  const cooldownCaption = (
+    <p className="text-[13px] text-muted-foreground">
+      Facilitador: máx. 3 mensajes cada 15 min · Analista/Verificador: máx. 2 mensajes cada 15 min
+    </p>
   )
 
   // Ensure Principal is present for list rendering
@@ -493,9 +612,12 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
           </SheetHeader>
           <div className="pt-6 space-y-4">
             {personaCard}
+            {facilitadorCard}
+            {analistaVerificadorCard}
             <p className="text-[13px] text-muted-foreground">
               Los cambios se aplican de inmediato a los mensajes siguientes.
             </p>
+            {cooldownCaption}
           </div>
         </SheetContent>
       </Sheet>
@@ -536,6 +658,9 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
               <div className="border-t border-border pt-4 mt-2 space-y-3">
                 <div className="text-[13px] text-muted-foreground font-medium uppercase tracking-wider text-left">Analistas activos</div>
                 {personaCard}
+                {facilitadorCard}
+                {analistaVerificadorCard}
+                {cooldownCaption}
               </div>
 
               <div className="border-t border-border pt-4 mt-2 space-y-3">

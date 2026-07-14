@@ -24,7 +24,7 @@
  */
 
 import { useState, useRef, type ReactNode } from 'react'
-import { Bot, FlaskConical, BarChart2 } from 'lucide-react'
+import { Bot, FlaskConical, BarChart2, MessageCircleQuestion, SearchCheck, type LucideIcon } from 'lucide-react'
 import { getAvatarColor, cn } from '@/lib/utils'
 import { useLongPress, useDoubleTap } from '@/hooks/use-long-press'
 import { Badge } from '@/components/ui/badge'
@@ -57,6 +57,32 @@ interface MessageBubbleProps {
   onPostReaction?: (emoji: string) => Promise<boolean>
   /** Phase 2: called when reaction triggersAI — opens the AI invoke SSE stream */
   onTriggerAI?: () => void
+}
+
+/**
+ * BOT_PERSONA_DISPLAY — persona-keyed lookup (Phase 11, PERSONA-01/02/03).
+ *
+ * Keyed by message.display_name — the field ArgGraphBuilderNode /
+ * facilitationAgentNode / analyticsAgentNode write to the inserted message
+ * row. All three entries share the exact same indigo accent styling
+ * (avatar ring, left border, badge bg/border/text) — only icon/label/name
+ * differ per persona (11-UI-SPEC.md Component Contract).
+ */
+const BOT_PERSONA_DISPLAY: Record<string, { icon: LucideIcon; badgeLabel: string; authorName: string }> = {
+  'Analista Científico': { icon: FlaskConical, badgeLabel: 'Analista', authorName: 'Analista Científico' },
+  Facilitador: { icon: MessageCircleQuestion, badgeLabel: 'Facilitador', authorName: 'Facilitador' },
+  'Analista/Verificador': { icon: SearchCheck, badgeLabel: 'Verificador', authorName: 'Analista/Verificador' },
+}
+
+/** Fallback for an unknown display_name: Bot icon + badge label truncated to 12 chars. Never crashes, never empty. */
+function getPersonaDisplay(displayName: string): { icon: LucideIcon; badgeLabel: string; authorName: string } {
+  return (
+    BOT_PERSONA_DISPLAY[displayName] ?? {
+      icon: Bot,
+      badgeLabel: displayName ? displayName.slice(0, 12) : 'Bot',
+      authorName: displayName || 'Bot',
+    }
+  )
 }
 
 function formatTime(iso: string): string {
@@ -95,6 +121,12 @@ export function MessageBubble({
   // Human avatar — only used when isAI is false
   const avatarColor = getAvatarColor(message.author_id)
   const initials = message.display_name.charAt(0).toUpperCase()
+
+  // AI persona lookup — only used when isAI is true (Phase 11 PERSONA-01/02/03).
+  // Avatar stays the generic Bot icon (unchanged); only the badge icon/label
+  // and author name differ per persona.
+  const persona = isAI ? getPersonaDisplay(message.display_name) : null
+  const PersonaBadgeIcon = persona?.icon ?? FlaskConical
 
   const longPressHandlers = useLongPress(() => setActionOpen(true), 500)
   const doubleTapHandlers = useDoubleTap(() => setReactionOpen(true))
@@ -143,10 +175,10 @@ export function MessageBubble({
         {/* Author + timestamp (+ persona badge for AI) */}
         <div className={cn('flex items-baseline gap-2 mb-0.5 flex-wrap', isOwn && !isAI && 'flex-row-reverse')}>
           <span
-            className="text-[15px] font-medium text-foreground"
+            className="text-[15px] font-semibold text-foreground"
             data-testid="message-author"
           >
-            {isAI ? 'Analista Científico' : (message.display_name || 'Invitado')}
+            {isAI ? persona!.authorName : (message.display_name || 'Invitado')}
           </span>
 
           {/* Persona badge — shown next to author name when isAI (PERSONA-03 / UI-SPEC Surface 2) */}
@@ -158,10 +190,10 @@ export function MessageBubble({
                 border: '1px solid rgba(99, 102, 241, 0.30)',
                 color: '#a5b4fc',
               }}
-              aria-label="Analista Científico — AI persona"
+              aria-label={`${persona!.authorName} — AI persona`}
             >
-              <FlaskConical size={10} style={{ color: '#a5b4fc' }} />
-              Analista
+              <PersonaBadgeIcon size={10} style={{ color: '#a5b4fc' }} />
+              {persona!.badgeLabel}
             </Badge>
           )}
 
@@ -183,13 +215,13 @@ export function MessageBubble({
               {...longPressHandlers}
               {...doubleTapHandlers}
               role="article"
-              aria-label="Message from Analista Científico"
+              aria-label={`Message from ${persona!.authorName}`}
             >
               {/* Pre-first-token streaming indicator: three bounce dots */}
               {isStreaming && !streamingText && (
                 <span
                   role="status"
-                  aria-label="Analista está escribiendo..."
+                  aria-label={`${persona!.authorName} está escribiendo...`}
                   className="flex gap-1 items-center"
                 >
                   {([0, 150, 300] as const).map((delay) => (
