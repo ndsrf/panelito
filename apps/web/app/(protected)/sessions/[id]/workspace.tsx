@@ -324,6 +324,7 @@ export function Workspace({
               phaseSignal={phaseSignal}
               pendingPhaseId={pendingPhaseId}
               onPhaseConsumed={resetStream}
+              blueprint={blueprint}
             />
           </div>
         )}
