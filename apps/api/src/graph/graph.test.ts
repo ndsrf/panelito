@@ -16,9 +16,88 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { MemorySaver } from '@langchain/langgraph'
+import { StateGraph, START, END, MemorySaver, Annotation } from '@langchain/langgraph'
 import type { AIProvider, AIStreamEvent, Blueprint } from '@panelito/types'
 import { createGraph } from './graph'
+
+// ---------------------------------------------------------------------------
+// SPIKE: LangGraph conditional-edge router error propagation (Task 1, Plan 05)
+//
+// Open Question 3 / Assumption A2 (11-RESEARCH.md): does a thrown error inside
+// a conditional-edge router function (the addConditionalEdges callback) surface
+// to graph.invoke()'s caller the same way a thrown node error would, or is it
+// swallowed? Separately: what happens if the router returns a string that is
+// NOT a key in the pathsMap (Pitfall 3)?
+//
+// This is a minimal, throwaway StateGraph (not the real Project Multiverse
+// graph) built solely to observe LangGraph 1.4.7's actual runtime behavior —
+// promoted to a permanent regression test per the task instruction ("keep the
+// spike block or convert it into a permanent regression test — do not leave
+// dead code") since the two behaviors it documents are exactly the two
+// failure modes routeFromStart (Task 2) must handle correctly.
+// ---------------------------------------------------------------------------
+describe('SPIKE: router error propagation (LangGraph 1.4.7 conditional START edge)', () => {
+  const SpikeAnnotation = Annotation.Root({
+    value: Annotation<string>({
+      reducer: (_: string, v: string) => v,
+      default: () => 'init',
+    }),
+  })
+
+  it('OBSERVED: a router function that throws surfaces the error to graph.invoke() (rejects, not swallowed)', async () => {
+    const throwingRouter = (): string => {
+      throw new Error('spike: router threw')
+    }
+
+    const graph = new StateGraph(SpikeAnnotation)
+      .addNode('a', async () => ({ value: 'a-ran' }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .addConditionalEdges(START, throwingRouter as any, { a: 'a' })
+      .addEdge('a', END)
+      .compile({ checkpointer: new MemorySaver() })
+
+    await expect(
+      graph.invoke({ value: 'init' }, { configurable: { thread_id: 'spike-throw' } })
+    ).rejects.toThrow('spike: router threw')
+  })
+
+  it('OBSERVED: a router return value absent from the pathsMap ALSO throws to graph.invoke() (contradicts 11-RESEARCH.md Pitfall 3\'s assumed "silent drop" — empirically corrected here)', async () => {
+    const unmappedRouter = (): string => 'nonexistent-key'
+
+    const graph = new StateGraph(SpikeAnnotation)
+      .addNode('a', async () => ({ value: 'a-ran' }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .addConditionalEdges(START, unmappedRouter as any, { a: 'a' })
+      .addEdge('a', END)
+      .compile({ checkpointer: new MemorySaver() })
+
+    // LangGraph JS 1.4.7's Branch._route throws "Branch condition returned unknown
+    // or null destination" for an unmapped key — it does NOT silently drop the
+    // invocation as 11-RESEARCH.md Pitfall 3 assumed (that assumption predates
+    // this empirical check and is superseded by this observation for this
+    // installed version). Still, routeFromStart's pathsMap is kept exhaustive
+    // for every value it can normally return — this spike documents what
+    // happens on the *bug* path (a return value never intentionally produced).
+    await expect(
+      graph.invoke({ value: 'init' }, { configurable: { thread_id: 'spike-unmapped' } })
+    ).rejects.toThrow('Branch condition returned unknown or null destination')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CHOSEN STRATEGY (Task 1 conclusion, applied in Task 2's routeFromStart):
+// Both failure modes surface as a THROWN error to graph.invoke()'s caller in
+// this installed LangGraph version (1.4.7) — a router that throws explicitly,
+// and a router that returns a pathsMap-unmapped key, both reject the invoke()
+// promise rather than being swallowed or silently dropped. This means the
+// "log + safe fallback to a dead-end path" alternative from 11-RESEARCH.md
+// Finding 6 is unnecessary: routeFromStart can (and does) simply
+// console.error() a distinguishable message and then throw an explicit Error
+// for a defined-but-unrecognized triggerType — this is loud (satisfies ROADMAP
+// success criterion 2, testable via a console.error spy) AND never silently
+// takes the human orchestrator path. The pathsMap remains exhaustive for every
+// value routeFromStart can normally return (facilitation/analysis/orchestrator).
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Mock AIProvider factory (RESEARCH Pattern 7)
