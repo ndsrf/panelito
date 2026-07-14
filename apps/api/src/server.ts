@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import app from "./index";
 import { env } from "./lib/env";
 import { startAutoFreezeTracker } from "./lib/auto-freeze";
+import { startSilenceScanLoop } from "./lib/silence-scan";
 import { createServiceClient } from "./lib/supabase";
 import { setupLangfuseOtel } from "./lib/langfuse-otel";
 
@@ -20,6 +21,13 @@ serve(
 
     startAutoFreezeTracker(createServiceClient()).catch((err) =>
       console.error("[panelito/api] auto-freeze tracker startup error:", err)
+    );
+
+    // Phase 11 (D-15): interim silence-scan trigger loop, alongside auto-freeze. No graph arg
+    // passed — startSilenceScanLoop resolves its own default via createGraph(await
+    // getCheckpointer()) when omitted, keeping server-boot wiring minimal.
+    startSilenceScanLoop(createServiceClient()).catch((err) =>
+      console.error("[panelito/api] silence-scan startup error:", err)
     );
   }
 );
