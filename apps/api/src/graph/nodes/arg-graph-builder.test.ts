@@ -27,7 +27,7 @@ function createMockAdapter(eventsPerCall: AIStreamEvent[][]): AIProvider {
       compression: false,
     }),
     async *stream(): AsyncIterable<AIStreamEvent> {
-      const events = eventsPerCall[Math.min(call, eventsPerCall.length - 1)]
+      const events = eventsPerCall[Math.min(call, eventsPerCall.length - 1)] ?? []
       call += 1
       for (const event of events) {
         yield event
@@ -105,7 +105,7 @@ describe('argGraphBuilderNode', () => {
       expect(node.id).toMatch(uuidRe)
       expect(node.branch_id).toBe('11111111-1111-4111-8111-111111111111')
     }
-    const edge = result.argGraph!.edges[0]
+    const edge = result.argGraph!.edges[0]!
     expect(edge.id).toMatch(uuidRe)
     expect(edge.source_id).toMatch(uuidRe)
     expect(edge.target_id).toMatch(uuidRe)
