@@ -272,7 +272,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Types, schemas & config contracts: argGraph extension + extraction tool, Personality model, Blueprint bot_defaults/role_personalities/cooldowns, facilitation model tier, triggerType state field, argGraph summary helper (PERSONA-01/02/03, GRAPH-01, GRAPH-04)
+- [x] 11-01-PLAN.md — Types, schemas & config contracts: argGraph extension + extraction tool, Personality model, Blueprint bot_defaults/role_personalities/cooldowns, facilitation model tier, triggerType state field, argGraph summary helper (PERSONA-01/02/03, GRAPH-01, GRAPH-04)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -351,7 +351,7 @@ Plans:
 | 8. Human Control + Canvas Sync | v2.0 | 5/5 | Complete | 2026-07-03 |
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
-| 11. Personality + Basic Triggers | v3.0 | 0/7 | Not started | - |
+| 11. Personality + Basic Triggers | v3.0 | 1/7 | In Progress|  |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |

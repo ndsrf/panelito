@@ -4,8 +4,8 @@ milestone: v3.0
 milestone_name: The Bots Must Help the Conversation Flow
 status: executing
 stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-07-13T15:46:03.854Z"
-last_activity: 2026-07-13 -- Phase 11 planning complete
+last_updated: "2026-07-13T15:50:51.430Z"
+last_activity: 2026-07-13 -- Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 1
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09)
 
 **Core value:** The live analytics panel stays perfectly synchronized with the active conversation branch — transforming passive group chat into structured, visual collective thinking.
-**Current focus:** Phase 11 — personality + basic triggers
+**Current focus:** Phase 11 — personality-basic-triggers
 
 ---
 
@@ -102,7 +102,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Current Position
 
-Phase: 10 (infrastructure-foundation) — EXECUTING
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-13 -- Phase 11 planning complete
+Phase: 11 (personality-basic-triggers) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 11
+Last activity: 2026-07-13 -- Phase 11 execution started
