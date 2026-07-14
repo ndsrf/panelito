@@ -118,3 +118,7 @@ None — no external service configuration required.
 ---
 *Phase: 11-personality-basic-triggers*
 *Completed: 2026-07-14*
+
+## Self-Check: PASSED
+
+All modified files verified present on disk (`apps/api/src/graph/graph.ts`, `apps/api/src/graph/graph.test.ts`, this SUMMARY.md); all 4 commits (4f0ea0e, 883e34b, f1a6e16, 43400e4) verified in git log.
