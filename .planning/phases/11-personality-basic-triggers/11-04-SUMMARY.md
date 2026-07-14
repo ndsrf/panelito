@@ -136,3 +136,7 @@ None - no external service configuration required.
 ---
 *Phase: 11-personality-basic-triggers*
 *Completed: 2026-07-14*
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk; all 5 commits (c736338, ce901cf, 847171c, 3b589b2, f711591) verified in git log.
