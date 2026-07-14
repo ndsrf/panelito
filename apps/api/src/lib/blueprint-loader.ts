@@ -84,6 +84,31 @@ const BLUEPRINT_JSON_SCHEMA = {
     // MUST be declared in `properties` (even though optional) because `additionalProperties: false`
     // would reject any blueprint that does include the field without this declaration (T-06-01).
     drift_reply_probability: { type: "number", minimum: 0, maximum: 1 },
+    // Phase 11 (Plan 01/02): bot_defaults + role_personalities + bot_cooldowns.
+    // Optional in the schema (Zod supplies .default({})/.optional()) but MUST be
+    // declared here — additionalProperties: false at top level rejects any
+    // blueprint carrying these fields without this declaration (same pattern as
+    // drift_reply_probability above).
+    bot_defaults: {
+      type: "object",
+      additionalProperties: { type: "boolean" },
+    },
+    role_personalities: {
+      type: "object",
+      additionalProperties: { type: "string" },
+    },
+    bot_cooldowns: {
+      type: "object",
+      additionalProperties: {
+        type: "object",
+        required: ["max", "window_minutes"],
+        properties: {
+          max: { type: "number" },
+          window_minutes: { type: "number" },
+        },
+        additionalProperties: false,
+      },
+    },
   },
   additionalProperties: false,
 } as const;
