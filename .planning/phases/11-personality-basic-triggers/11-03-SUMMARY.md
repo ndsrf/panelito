@@ -121,3 +121,7 @@ None — no external service configuration required.
 ---
 *Phase: 11-personality-basic-triggers*
 *Completed: 2026-07-14*
+
+## Self-Check: PASSED
+
+All created files verified present on disk (`arg-graph-builder.ts`, `arg-graph-builder.test.ts`, this SUMMARY.md); all 3 commits (edaedbe, ac55277, 908cf29) verified in git log.
