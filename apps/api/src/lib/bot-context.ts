@@ -17,11 +17,15 @@ import type { ArgNode, ArgEdge } from '@panelito/types'
  * facilitation: Coach — short-term context for question formulation.
  * analytics:    Analyst — needs more context for accurate citation.
  * argBuild:     ArgGraphBuilderNode — truncate at 100 messages max.
+ * driftCheck:   drift-redirect Skill (Phase 12, D-08) — last 3 messages only; drift
+ *               detection is about recent trajectory, not full history
+ *               (12-AI-SPEC.md Section 4b.5).
  */
 export const CONTEXT_WINDOWS = {
   facilitation: 10,
   analytics: 20,
   argBuild: 100,
+  driftCheck: 3,
 } as const
 
 /**
@@ -32,8 +36,12 @@ export const CONTEXT_WINDOWS = {
  * claim/label and have it delivered as if it were part of the Role's own behavioral
  * contract on every subsequent turn. Escaping embedded quotes/newlines/delimiter
  * sequences prevents a crafted label from breaking out of its quoted "data" framing.
+ *
+ * Exported (Phase 12, Plan 03): drift-redirect.ts and moderation.ts's buildPromptGuidance()
+ * reuse this exact helper for any interpolated message content (WR-06, Dimension 7
+ * Critical, T-12-06) rather than reimplementing their own escaping logic.
  */
-function escapeUntrustedText(value: string): string {
+export function escapeUntrustedText(value: string): string {
   return value.replace(/["\n\r]/g, ' ').replace(/<<<|>>>/g, '')
 }
 
