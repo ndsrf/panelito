@@ -7,7 +7,7 @@
  *   agent → mutationGate → END
  *   driftReply → END
  *   facilitation → END
- *   argGraphBuilder → analysis → END
+ *   argGraphBuilder → analysis → mutationGate → END
  *
  * checkpointer parameter enables the MemorySaver/PostgresSaver swap:
  *   - No arg (or undefined): defaults to MemorySaver (unit tests, D-11)
@@ -138,7 +138,12 @@ export function createGraph(checkpointer?: BaseCheckpointSaver) {
     // Phase 11 new edges
     .addEdge('argGraphBuilder', 'analysis')
     .addEdge('facilitation', END)
-    .addEdge('analysis', END)
+    // 'analysis' routes through mutationGate (same as 'agent') so that any
+    // canvas mutation the Analyst proposes actually reaches state.canvasOps —
+    // mutationGateNode already returns {} when state.agentOutput is null/
+    // NO_ACTION, so this is a no-op for the common no-mutation case
+    // (CR-01 fix — REVIEW.md).
+    .addEdge('analysis', 'mutationGate')
 
   return graph.compile({ checkpointer: checkpointer ?? new MemorySaver() })
 }
