@@ -12,36 +12,41 @@
  * centralized here and invoked explicitly by the caller (silence-scan.ts's
  * startSilenceScanLoop) instead.
  *
- * Scoring model (deliberately minimal, D-15): Phase 11's silence-scan loop is the only caller
- * of runArbitration() this phase, and silence-gate is exclusively the Coach's domain — the
- * Analyst has no live trigger yet (TRIGGER-05 / fact-check trigger ships in Phase 12). So
- * coachScorer returns a fixed positive affinity and analystScorer returns 0, guaranteeing
- * Coach always wins whenever arbitration actually runs in this phase. Analyst is still
- * registered (not omitted) so the registry-non-empty path stays exercised end-to-end and so
- * Phase 12 only needs to change analystScorer's logic (e.g. score higher when a fact-check
- * trigger context is present), not add a new registration call site.
+ * Scoring model (Phase 11 D-15, extended Phase 12 D-06): Phase 11's silence-scan loop is the
+ * only caller of runArbitration() that never sets ArbContext.firingSkillRole — coachScorer's
+ * fixed affinity (7) guarantees Coach always wins that call site, exactly as before.
+ *
+ * Phase 12 (D-06) extends analystScorer: it now scores based on which Skill's context is
+ * present — a positive affinity (10, deliberately > coachScorer's fixed 7) when
+ * context.firingSkillRole === 'analyst' (i.e. TriggerGateNode's orphan-edge or fact-check
+ * Analyst Skill fired), 0 otherwise. This is the first mechanism by which the Analyst can
+ * actually outscore the Coach in arbitration — but only when an Analyst Skill's own context
+ * is threaded in; the existing silence-scan.ts call site never sets firingSkillRole, so its
+ * behavior is byte-for-byte unchanged (analystScorer still returns 0 there).
  *
  * Phase 14's TriggerEngine will generalize this into a richer, trigger-type-aware scoring
- * model once ArbContext carries trigger-type/content signals beyond { branchId, blueprint,
- * supabase }.
+ * model once every runArbitration() call site threads ArbContext.firingSkillRole (or a
+ * successor field) consistently.
  */
 
 import { registerBot } from './bot-arbitrator'
 import type { ArbContext } from './bot-arbitrator'
 
-/** Coach affinity — silence-gate is exclusively the Coach's domain in Phase 11. */
+/** Coach affinity — silence-gate is exclusively the Coach's domain in Phase 11; unchanged
+ *  by Phase 12 — context-aware Coach scoring is not required by D-06. */
 function coachScorer(_context: ArbContext): number {
   return 7
 }
 
 /**
- * Analyst affinity — always 0 in Phase 11: no live trigger reaches the Analyst via the
- * arbitrator yet (fact-check trigger, TRIGGER-05, ships in Phase 12). Registered so the
- * arbitrator's registry is non-empty and multi-bot scoring is exercised, without ever
- * actually winning arbitration this phase.
+ * Analyst affinity (Phase 12, D-06) — returns a positive affinity (10) when the arbitration
+ * context indicates a firing Analyst Skill (context.firingSkillRole === 'analyst' — set by a
+ * caller in response to TriggerGateNode's orphan-edge/fact-check Skill firing), 0 otherwise.
+ * 10 is deliberately greater than coachScorer's fixed 7 so the Analyst can actually win
+ * arbitration for the first time when its own Skill context is present.
  */
-function analystScorer(_context: ArbContext): number {
-  return 0
+function analystScorer(context: ArbContext): number {
+  return context.firingSkillRole === 'analyst' ? 10 : 0
 }
 
 let _registered = false
@@ -59,3 +64,8 @@ export function registerBots(): void {
   registerBot('analyst', analystScorer)
   _registered = true
 }
+
+// Exported for direct unit testing (mirrors orphan-edge.ts's "Exported for direct unit
+// testing" convention) — bot-registration.test.ts asserts analystScorer's D-06 behavior
+// directly rather than only indirectly through registerBots()/runArbitration().
+export { coachScorer, analystScorer }

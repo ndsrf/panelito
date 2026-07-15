@@ -25,6 +25,15 @@ export interface ArbContext {
   branchId: string
   blueprint: Blueprint
   supabase: SupabaseClient
+  /** Phase 12 (D-06) additive extension point: role of the Skill that fired via
+   *  TriggerGateNode, when arbitration is invoked in response to a live Skill firing rather
+   *  than the Phase 11 silence-scan loop (which never sets this field — runArbitration's own
+   *  context construction below omits it, so every EXISTING call site's behavior is
+   *  unchanged). Optional and additive: bot-registration.ts's analystScorer is the only
+   *  reader in this phase; a future Phase 14 TriggerEngine caller can thread a real value in
+   *  by passing an ArbContext-shaped object directly to a scorer, without any signature
+   *  change to runArbitration itself. */
+  firingSkillRole?: 'coach' | 'analyst' | null
 }
 
 type ScorerFn = (context: ArbContext) => number
