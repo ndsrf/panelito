@@ -152,3 +152,9 @@ None - no external service configuration required.
 ---
 *Phase: 12-graph-coherence-extended-triggers*
 *Completed: 2026-07-15*
+
+## Self-Check: PASSED
+
+- All 5 created/modified files confirmed present on disk (`orphan-edge.ts`, `orphan-edge.test.ts`, `fact-check.ts`, `fact-check.test.ts`, this SUMMARY.md).
+- All 7 referenced commit hashes confirmed present in `git log` (`586d926`, `a9e2a37`, `e84186e`, `01bd07d`, `1568070`, `9498320`, `dbb4a10`).
+- `orphan-edge.test.ts` (9/9) and `fact-check.test.ts` (16/16) re-verified passing at time of self-check.
