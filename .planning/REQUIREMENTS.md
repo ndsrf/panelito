@@ -149,10 +149,10 @@
 
 - [x] **TRIGGER-01**: Silence window trigger — Coach fires when no human message arrives within N seconds (default 45s, Blueprint-configurable) AND no participant has `is_typing: true`; fires at most once per cooldown window
 - [ ] **TRIGGER-02**: Blueprint phase signal trigger — when the in-context argGraph and message history contain sufficient coverage of the current phase's required topics (evaluated by the Analyst bot), a phase-readiness signal is emitted; the Coach asks the group if they are ready to advance
-- [ ] **TRIGGER-03**: Semantic drift trigger — when the cosine similarity between the last 3 messages (embedded locally via all-MiniLM-L6-v2 ONNX) and the Blueprint's domain centroid drops below threshold (default 0.6), the Coach gently redirects the conversation; threshold is Blueprint-configurable
+- [x] **TRIGGER-03**: Semantic drift trigger — when the cosine similarity between the last 3 messages (embedded locally via all-MiniLM-L6-v2 ONNX) and the Blueprint's domain centroid drops below threshold (default 0.6), the Coach gently redirects the conversation; threshold is Blueprint-configurable
 - [x] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
 - [x] **TRIGGER-05**: Fact-check trigger — when the classifier detects a message containing a verifiable factual claim with low self-consistency (heuristic pre-filter → Haiku → Sonnet three-tier escalation), the Analyst/Fact-Checker responds with uncertainty framing; never operates without the pre-filter
-- [ ] **TRIGGER-06**: Moderation trigger — when a message is classified as rude, disruptive, or off-topic by the heuristic pre-filter (no LLM cost), the Coach intervenes with a neutral, non-accusatory facilitation move
+- [x] **TRIGGER-06**: Moderation trigger — when a message is classified as rude, disruptive, or off-topic by the heuristic pre-filter (no LLM cost), the Coach intervenes with a neutral, non-accusatory facilitation move
 - [ ] **TRIGGER-07**: A TriggerEngine module runs on the standalone Node.js server (`server.ts`) as a persistent `setInterval` scan loop (not Vercel serverless); it evaluates all 6 trigger conditions per active branch and dispatches to a ProactiveInvoker when a trigger fires
 
 ### Coherent Graph Model (GRAPH)
@@ -217,10 +217,10 @@
 | PERSONA-04 | Phase 14 | Pending |
 | TRIGGER-01 | Phase 11 | Complete |
 | TRIGGER-02 | Phase 13 | Pending |
-| TRIGGER-03 | Phase 12 | Pending |
+| TRIGGER-03 | Phase 12 | Complete |
 | TRIGGER-04 | Phase 12 | Complete |
 | TRIGGER-05 | Phase 12 | Complete |
-| TRIGGER-06 | Phase 12 | Pending |
+| TRIGGER-06 | Phase 12 | Complete |
 | TRIGGER-07 | Phase 14 | Pending |
 | GRAPH-01 | Phase 11 | Pending |
 | GRAPH-02 | Phase 11 | Pending |
