@@ -76,3 +76,10 @@ export { ArgNodeSchema, ArgEdgeSchema, ArgGraphSchema, BotBudgetResultSchema, Tr
 
 // Argument graph extraction tool (Phase 11 Task 1, GRAPH-01)
 export { argGraphExtractionTool } from "./arg-graph-tool";
+
+// Skill detection result types + schema (Phase 12 Task 1, D-01, TRIGGER-03/05, GRAPH-03)
+export type { SkillDetectionResult } from "./skill";
+export { SkillDetectionResultSchema } from "./skill";
+
+// Fact-check tier-2 classifier tool (Phase 12 Task 1, TRIGGER-05, COST-02)
+export { factCheckClassificationTool } from "./fact-check-tool";

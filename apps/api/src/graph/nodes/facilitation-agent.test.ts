@@ -69,6 +69,7 @@ const debateBlueprint: Blueprint = {
   ],
   active_persona_ids: [],
   drift_reply_probability: 0.8,
+  drift_detection_enabled: true,
   bot_defaults: {},
   role_personalities: {},
 }
@@ -115,6 +116,10 @@ function makeState(overrides: Partial<GraphState> = {}): GraphState {
     argGraph: emptyArgGraph,
     triggerMetadata: {},
     triggerType: null,
+    firingSkillId: null,
+    firingSkillRole: null,
+    skillMeta: null,
+    triggerGateComplete: null,
     ...overrides,
   }
 }

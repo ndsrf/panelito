@@ -116,6 +116,41 @@ export const GraphStateAnnotation = Annotation.Root({
     reducer: (_: string | null, v: string | null) => v,
     default: () => null,
   }),
+
+  // -------------------------------------------------------------------------
+  // Skill / TriggerGateNode fields (Phase 12 Task 2 — D-01, D-05, D-06, GRAPH-03)
+  // Set by TriggerGateNode (Plan 06) when one of the four new synchronous Skills
+  // (drift-redirect, orphan-edge, fact-check, moderation) fires. Consumed by the
+  // conditional edge routing into FacilitationAgentNode (Coach) / AnalyticsAgentNode
+  // (Analyst) and by those nodes' buildPromptGuidance() injection slot.
+  // All overwrite-style, all default to null — safe for the human /invoke path and
+  // for any Skill that does not fire.
+  // -------------------------------------------------------------------------
+
+  /** id of the firing Skill (e.g. 'drift-redirect', 'orphan-edge'), or null if none fired. */
+  firingSkillId: Annotation<string | null>({
+    reducer: (_: string | null, v: string | null) => v,
+    default: () => null,
+  }),
+
+  /** Role that owns the firing Skill — routes the conditional edge to the matching Role node. */
+  firingSkillRole: Annotation<'coach' | 'analyst' | null>({
+    reducer: (_: 'coach' | 'analyst' | null, v: 'coach' | 'analyst' | null) => v,
+    default: () => null,
+  }),
+
+  /** meta payload from the firing Skill's detect() result (e.g. { claimMessageId }). */
+  skillMeta: Annotation<Record<string, unknown> | null>({
+    reducer: (_: Record<string, unknown> | null, v: Record<string, unknown> | null) => v,
+    default: () => null,
+  }),
+
+  /** Loop-guard read by TriggerGateNode's human-path wiring (Plan 06) — prevents the
+   *  trigger gate from re-evaluating Skills more than once per invocation. */
+  triggerGateComplete: Annotation<boolean | null>({
+    reducer: (_: boolean | null, v: boolean | null) => v,
+    default: () => null,
+  }),
 })
 
 /** Full state type derived from the annotation root. */
