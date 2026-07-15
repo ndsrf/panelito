@@ -27,16 +27,23 @@ setupLangfuseOtel();
 const app = new Hono().basePath("/api");
 
 // -------------------------------------------------------
-// CORS middleware
+// CORS middleware (lazy origins parsing for Vercel build compatibility)
 // -------------------------------------------------------
-const allowedOrigins = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim());
+let cachedAllowedOrigins: string[] | null = null;
+
+const getAllowedOrigins = () => {
+  if (cachedAllowedOrigins === null) {
+    cachedAllowedOrigins = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim());
+  }
+  return cachedAllowedOrigins;
+};
 
 app.use(
   "*",
   cors({
     origin: (origin) => {
       if (!origin) return null;
-      return allowedOrigins.includes(origin) ? origin : null;
+      return getAllowedOrigins().includes(origin) ? origin : null;
     },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
