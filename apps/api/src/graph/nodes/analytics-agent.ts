@@ -178,13 +178,17 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
 
   // Step 4: return partial state — node does NOT write to DB (D-16: caller inserts message).
   // Update triggerMetadata to record firing time (cooldown enforcement reads this).
-  const previous = state.triggerMetadata?.fact_check
+  // Key by the actual triggerType that invoked this node (WR-01 fix — REVIEW.md): writing
+  // unconditionally to the 'fact_check' key would let an unrelated 'analysis_request' run
+  // clobber the cooldown timestamp that Phase 12's real 'fact_check' trigger will read.
+  const metaKey = state.triggerType ?? 'analysis_request'
+  const previous = state.triggerMetadata?.[metaKey]
   return {
     agentOutput,
     agentConfidence,
     triggerMetadata: {
       ...state.triggerMetadata,
-      fact_check: {
+      [metaKey]: {
         last_fired_at: new Date().toISOString(),
         cooldown_until: previous?.cooldown_until ?? null,
       },
