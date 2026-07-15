@@ -195,6 +195,17 @@ describe.skipIf(!HAS_SUPABASE)('Test A: PostgresSaver resume (D-12)', () => {
 
     // Assert canvasOps accumulated from both invocations
     expect(secondResult.canvasOps.length).toBeGreaterThanOrEqual(2)
+
+    // Phase 12 Plan 06 Task 3 (T-12-16): PostgresSaver-backed termination proof — both
+    // invocations above traversed the human path's NEW mutationGate -> triggerGate wiring
+    // (the seeded debate-strategy-v1 blueprint has bot_defaults: { coach: true, analyst: true }
+    // — migration 0014_personalities.sql — so TriggerGateNode's role-gate does NOT
+    // short-circuit here; the real Skills evaluate and fail-closed on missing
+    // branchId/supabase context, exactly as already observed in Test B below). Neither
+    // invocation's graph.invoke() promise rejected (the awaits above already prove this),
+    // and triggerGateComplete is set on every invocation, confirming the loop guard fires
+    // under the SAME checkpointer/thread_id resume path this test exists to validate.
+    expect(secondResult.triggerGateComplete).toBe(true)
   })
 })
 
