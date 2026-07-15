@@ -302,7 +302,26 @@ Plans:
   4. A message containing a verifiable factual claim triggers the three-tier escalation (heuristic pre-filter → light-tier classifier → capable-tier for confirmed positives) before any capable-tier LLM call; a moderation trigger fires from the heuristic pre-filter alone with zero LLM calls
   5. A Langfuse trace shows facilitation moves (Coach silence/moderation) routed to the light model tier and analysis tasks (Analyst, Fact-Checker, ArgGraphBuilder) routed to the capable model tier — model tier assignment is not hardcoded to a specific model name
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1** *(parallel — no file overlap)*
+
+- [ ] 12-01-PLAN.md — Shared contracts: SkillDetectionResult schema, factCheckClassificationTool, drift_detection_enabled Blueprint field, 4 new GraphState fields + Skill/SkillContext interfaces (TRIGGER-03, TRIGGER-05, GRAPH-03, COST-02)
+- [ ] 12-02-PLAN.md — Local infra: @huggingface/transformers ONNX embeddings singleton, moderation-count Postgres counter, migration 0015 + [BLOCKING] schema push (TRIGGER-03, GRAPH-03, TRIGGER-06, COST-01)
+
+**Wave 2** *(parallel — depends on Wave 1)*
+
+- [ ] 12-03-PLAN.md — Coach Skills (TDD): silence-break retrofit, drift-redirect (ONNX cosine), moderation (heuristic + escalation tone) (TRIGGER-03, TRIGGER-06)
+- [ ] 12-04-PLAN.md — Analyst Skills (TDD): orphan-edge (committed-orphan + ghost fallback), fact-check (three-tier gate + cross-provider routing assertion) (GRAPH-03, TRIGGER-04, TRIGGER-05, COST-01, COST-02)
+
+**Wave 3** *(depends on Wave 2)*
+
+- [ ] 12-05-PLAN.md — Skill registries + Role-node guidance injection (FacilitationAgentNode, AnalyticsAgentNode) + live factCheckFraming (TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06)
+
+**Wave 4** *(depends on Wave 3)*
+
+- [ ] 12-06-PLAN.md — TriggerGateNode + graph topology wiring (human-path reachability + loop guard) + analystScorer extension + integration tests (GRAPH-03, TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06, COST-01)
 
 ### Phase 13: User Profiles + Phase Signal
 
