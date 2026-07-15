@@ -10,9 +10,9 @@
  *
  * CRITICAL (RESEARCH.md Pitfall 1): orphan detection reads Supabase `canvas_nodes` /
  * `canvas_edges` (CanvasNode/CanvasEdge — HAVE a `status` field: committed/ghost/silent).
- * It NEVER reads `state.argGraph` (ArgNode/ArgEdge — LangGraph state, no `status` field
- * at all). Conflating the two is the single most likely implementation bug this Skill
- * risks.
+ * It NEVER reads the LangGraph argument-graph state field (ArgNode/ArgEdge — no `status`
+ * field at all). Conflating the two is the single most likely implementation bug this
+ * Skill risks.
  *
  * D-14: only `status='committed'` nodes are eligible ghost-edge targets — ghost/silent
  * nodes are themselves unconfirmed and are never a target.
