@@ -317,7 +317,7 @@ Plans:
 
 **Wave 3** *(depends on Wave 2)*
 
-- [ ] 12-05-PLAN.md — Skill registries + Role-node guidance injection (FacilitationAgentNode, AnalyticsAgentNode) + live factCheckFraming (TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06)
+- [x] 12-05-PLAN.md — Skill registries + Role-node guidance injection (FacilitationAgentNode, AnalyticsAgentNode) + live factCheckFraming (TRIGGER-03, TRIGGER-04, TRIGGER-05, TRIGGER-06)
 
 **Wave 4** *(depends on Wave 3)*
 
@@ -371,7 +371,7 @@ Plans:
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
-| 12. Graph Coherence + Extended Triggers | v3.0 | 4/6 | In Progress|  |
+| 12. Graph Coherence + Extended Triggers | v3.0 | 5/6 | In Progress|  |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
