@@ -136,7 +136,7 @@ describe('bot-arbitrator', () => {
     )
 
     // Verify p_locked_until is approximately now + 60s
-    const call = mockSupabase.rpc.mock.calls[0][1] as { p_locked_until: string }
+    const call = mockSupabase.rpc.mock.calls[0]![1] as { p_locked_until: string }
     const lockedUntil = new Date(call.p_locked_until).getTime()
     expect(lockedUntil).toBeGreaterThanOrEqual(beforeTime + 59_000)
     expect(lockedUntil).toBeLessThanOrEqual(afterTime + 61_000)

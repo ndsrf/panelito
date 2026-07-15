@@ -4,8 +4,8 @@ milestone: v3.0
 milestone_name: The Bots Must Help the Conversation Flow
 status: executing
 stopped_at: Phase 12 context gathered
-last_updated: "2026-07-15T11:11:10.630Z"
-last_activity: 2026-07-15 -- Phase 12 planning complete
+last_updated: "2026-07-15T11:13:02.346Z"
+last_activity: 2026-07-15 -- Phase 12 execution started
 progress:
   total_phases: 5
   completed_phases: 2
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09)
 
 **Core value:** The live analytics panel stays perfectly synchronized with the active conversation branch — transforming passive group chat into structured, visual collective thinking.
-**Current focus:** Phase 11 — personality-basic-triggers
+**Current focus:** Phase 12 — graph-coherence-extended-triggers
 
 ---
 
@@ -103,7 +103,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Current Position
 
-Phase: 11 (personality-basic-triggers) — EXECUTING
-Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-07-15 -- Phase 12 planning complete
+Phase: 12 (graph-coherence-extended-triggers) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 12
+Last activity: 2026-07-15 -- Phase 12 execution started

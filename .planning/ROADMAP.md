@@ -307,8 +307,8 @@ Plans:
 Plans:
 **Wave 1** *(parallel — no file overlap)*
 
-- [ ] 12-01-PLAN.md — Shared contracts: SkillDetectionResult schema, factCheckClassificationTool, drift_detection_enabled Blueprint field, 4 new GraphState fields + Skill/SkillContext interfaces (TRIGGER-03, TRIGGER-05, GRAPH-03, COST-02)
-- [ ] 12-02-PLAN.md — Local infra: @huggingface/transformers ONNX embeddings singleton, moderation-count Postgres counter, migration 0015 + [BLOCKING] schema push (TRIGGER-03, GRAPH-03, TRIGGER-06, COST-01)
+- [x] 12-01-PLAN.md — Shared contracts: SkillDetectionResult schema, factCheckClassificationTool, drift_detection_enabled Blueprint field, 4 new GraphState fields + Skill/SkillContext interfaces (TRIGGER-03, TRIGGER-05, GRAPH-03, COST-02)
+- [x] 12-02-PLAN.md — Local infra: @huggingface/transformers ONNX embeddings singleton, moderation-count Postgres counter, migration 0015 + [BLOCKING] schema push (TRIGGER-03, GRAPH-03, TRIGGER-06, COST-01)
 
 **Wave 2** *(parallel — depends on Wave 1)*
 
@@ -371,7 +371,7 @@ Plans:
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
-| 12. Graph Coherence + Extended Triggers | v3.0 | 0/? | Not started | - |
+| 12. Graph Coherence + Extended Triggers | v3.0 | 2/6 | In Progress|  |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 

@@ -32,3 +32,19 @@ Issues discovered during execution that are out of scope for the current task
   is a pre-existing environment/module-resolution flake in this test file, not caused by this
   plan's one-line `drift_detection_enabled: true` fixture addition.
 - **Action:** Not fixed (SCOPE BOUNDARY).
+
+## Post-merge gate (Wave 1)
+
+- **File:** `apps/api/src/routes/keys.test.ts`
+- **Error:** Suite setup fails — `Failed to create session: null value in column "blueprint_id" of relation "sessions" violates not-null constraint`.
+- **Confirmed pre-existing:** identical failure already logged in Phase 11's
+  `.planning/phases/11-personality-basic-triggers/deferred-items.md` (and `11-06-SUMMARY.md`),
+  unrelated to that phase's files too. The `blueprint_id NOT NULL` FK constraint originates in
+  migration `0008_nsai_foundation.sql`, long before Phase 12. Not caused by Wave 1 changes.
+- **Action:** Not fixed (SCOPE BOUNDARY — pre-existing, unrelated to Phase 12). Recommend a
+  future cleanup task update this test's session fixture to supply a `blueprint_id`.
+
+- **File:** `apps/api/src/routes/ai.test.ts`
+- **Error:** SC-2 and SC-3 tests expect 200, get 404.
+- **Confirmed pre-existing:** same root cause already flagged by the 12-01 executor (module-resolution/environment flake, reproduced independently of this plan's changes) and by Phase 11's deferred-items.md.
+- **Action:** Not fixed (SCOPE BOUNDARY).
