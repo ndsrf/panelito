@@ -33,6 +33,15 @@ Issues discovered during execution that are out of scope for the current task
   plan's one-line `drift_detection_enabled: true` fixture addition.
 - **Action:** Not fixed (SCOPE BOUNDARY).
 
+## 12-04 (re-confirmation)
+
+- **File:** `apps/api/src/lib/silence-scan.test.ts` (Behaviors 3, 4a, 4b, 5).
+- **Re-confirmed pre-existing** while executing Plan 04 (already logged under 12-01 Task 2
+  above, same 5 failures, same root cause) — Plan 04 added only new files under
+  `apps/api/src/lib/skills/` and never touched `silence-scan.ts`/`silence-scan.test.ts`;
+  `git diff` against this worktree's base commit confirms zero changes to either file.
+- **Action:** Not fixed (SCOPE BOUNDARY).
+
 ## Post-merge gate (Wave 1)
 
 - **File:** `apps/api/src/routes/keys.test.ts`
