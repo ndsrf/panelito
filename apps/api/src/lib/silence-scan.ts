@@ -368,12 +368,20 @@ async function resolveCoachPersonality(
 }
 
 async function fetchRecentMessages(supabase: SupabaseClient, branchId: string): Promise<ProviderMessage[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('messages')
     .select('role, content')
     .eq('branch_id', branchId)
     .order('created_at', { ascending: false })
     .limit(CONTEXT_WINDOWS.facilitation)
+
+  // WR-05 fix (REVIEW.md): every other Supabase call in this file logs on failure; this one
+  // silently degraded to an empty message list, letting the Coach run with zero conversational
+  // context with no log line to diagnose why.
+  if (error) {
+    console.error('[silence-scan] fetchRecentMessages error for branch', branchId, error.message)
+    return []
+  }
 
   return ((data ?? []) as Array<{ role: string | null; content: string }>)
     .reverse()
