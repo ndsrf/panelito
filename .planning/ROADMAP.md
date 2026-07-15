@@ -312,8 +312,8 @@ Plans:
 
 **Wave 2** *(parallel — depends on Wave 1)*
 
-- [ ] 12-03-PLAN.md — Coach Skills (TDD): silence-break retrofit, drift-redirect (ONNX cosine), moderation (heuristic + escalation tone) (TRIGGER-03, TRIGGER-06)
-- [ ] 12-04-PLAN.md — Analyst Skills (TDD): orphan-edge (committed-orphan + ghost fallback), fact-check (three-tier gate + cross-provider routing assertion) (GRAPH-03, TRIGGER-04, TRIGGER-05, COST-01, COST-02)
+- [x] 12-03-PLAN.md — Coach Skills (TDD): silence-break retrofit, drift-redirect (ONNX cosine), moderation (heuristic + escalation tone) (TRIGGER-03, TRIGGER-06)
+- [x] 12-04-PLAN.md — Analyst Skills (TDD): orphan-edge (committed-orphan + ghost fallback), fact-check (three-tier gate + cross-provider routing assertion) (GRAPH-03, TRIGGER-04, TRIGGER-05, COST-01, COST-02)
 
 **Wave 3** *(depends on Wave 2)*
 
@@ -371,7 +371,7 @@ Plans:
 | 9. Graph Canvas Frontend | v2.0 | 3/4 | In Progress|  |
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
-| 12. Graph Coherence + Extended Triggers | v3.0 | 2/6 | In Progress|  |
+| 12. Graph Coherence + Extended Triggers | v3.0 | 4/6 | In Progress|  |
 | 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 

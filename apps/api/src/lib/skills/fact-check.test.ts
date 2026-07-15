@@ -271,8 +271,9 @@ describe('fact-check Skill', () => {
   })
 
   it('detect() never invokes tier-3/analyticsAgentNode directly (detection-only, D-06)', async () => {
+    const path = await import('node:path')
     const fileSource = await import('node:fs/promises').then((fs) =>
-      fs.readFile(new URL('./fact-check.ts', import.meta.url), 'utf-8')
+      fs.readFile(path.join(__dirname, './fact-check.ts'), 'utf-8')
     )
     // No import of the analytics-agent module and no direct function call — comment-only
     // references (documenting the D-06 hand-off to Plan 06) are fine and expected.
