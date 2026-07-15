@@ -134,6 +134,24 @@ function substituteRefs(raw: RawArgGraph, branchId: string): unknown {
 }
 
 /**
+ * WR-03 fix (REVIEW.md): find edge refs that don't match any node id present in the
+ * same raw extraction batch. Previously `substituteRefs`'s `uuidFor()` would silently
+ * mint a fabricated random UUID for such a ref, producing an edge that passes
+ * ArgGraphSchema (both ids are valid UUID strings) but points to a node that will
+ * never exist in state.argGraph.nodes. Returns the list of unresolved ref strings
+ * (empty = no orphans).
+ */
+function findOrphanEdgeRefs(raw: RawArgGraph): string[] {
+  const nodeRefs = new Set(raw.nodes.map((n) => n.id))
+  const orphans: string[] = []
+  for (const e of raw.edges) {
+    if (!nodeRefs.has(e.source_ref)) orphans.push(e.source_ref)
+    if (!nodeRefs.has(e.target_ref)) orphans.push(e.target_ref)
+  }
+  return orphans
+}
+
+/**
  * Single extraction attempt: stream + capture tool_use → raw-shape validate → ID substitution →
  * domain-schema validate. Retries (max MAX_RETRIES) with a correction message on validation
  * failure at either stage. Returns null (never throws) on exhaustion or a stream error.
@@ -189,6 +207,31 @@ async function attemptExtraction(
     return null
   }
 
+  // WR-03 (REVIEW.md): reject orphan edge refs BEFORE substitution — otherwise uuidFor()
+  // silently fabricates a UUID for the dangling ref instead of failing validation.
+  const orphanRefs = findOrphanEdgeRefs(rawParsed.data)
+  if (orphanRefs.length > 0) {
+    console.error('[arg-graph-builder] edge(s) reference unknown node ref(s) — orphan edge', {
+      attempt,
+      orphanRefs,
+    })
+    if (attempt < MAX_RETRIES) {
+      return attemptExtraction(
+        adapter,
+        appendCorrection(
+          messages,
+          `edge(s) referenced unknown node ref(s) not present in this extraction's nodes: ${orphanRefs.join(', ')}`,
+        ),
+        system,
+        model,
+        branchId,
+        attempt + 1,
+      )
+    }
+    console.error('[arg-graph-builder] MAX_RETRIES exhausted — dropping arg graph extraction')
+    return null
+  }
+
   const substituted = substituteRefs(rawParsed.data, branchId)
   const parsed = ArgGraphSchema.safeParse(substituted)
   if (parsed.success) {
@@ -221,6 +264,40 @@ function mergeById<T extends { id: string }>(prior: T[], next: T[]): T[] {
   for (const item of prior) map.set(item.id, item)
   for (const item of next) map.set(item.id, item)
   return Array.from(map.values())
+}
+
+/**
+ * WR-02 fix (REVIEW.md): mergeById alone cannot recognize that a re-extraction of the
+ * same real-world claim minted a brand-new random UUID (substituteRefs has no
+ * cross-call ref stability). Union-merge by id, then additionally collapse nodes that
+ * share a content key (speaker + message_id + type) — the same speaker citing the same
+ * message with the same node type is almost certainly the same underlying claim
+ * re-extracted on a later turn. The first-seen id for a content key wins; later
+ * duplicates (by content, not by id) are dropped rather than accumulated.
+ */
+function nodeContentKey(n: ArgNode): string {
+  return `${n.speaker}::${n.message_id}::${n.type}`
+}
+
+function mergeArgNodes(prior: ArgNode[], next: ArgNode[]): ArgNode[] {
+  const byId = new Map<string, ArgNode>()
+  const idByContentKey = new Map<string, string>()
+
+  function upsert(n: ArgNode): void {
+    const key = nodeContentKey(n)
+    const existingId = idByContentKey.get(key)
+    if (existingId !== undefined && existingId !== n.id) {
+      // Same underlying claim already recorded under a different id — keep the
+      // earlier one, drop this duplicate instead of accumulating a redundant node.
+      return
+    }
+    byId.set(n.id, n)
+    idByContentKey.set(key, n.id)
+  }
+
+  for (const n of prior) upsert(n)
+  for (const n of next) upsert(n)
+  return Array.from(byId.values())
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -261,7 +338,7 @@ export async function argGraphBuilderNode(state: GraphState, config?: any): Prom
 
     return {
       argGraph: {
-        nodes: mergeById(state.argGraph.nodes, extracted.nodes),
+        nodes: mergeArgNodes(state.argGraph.nodes, extracted.nodes),
         edges: mergeById(state.argGraph.edges, extracted.edges),
       },
     }
