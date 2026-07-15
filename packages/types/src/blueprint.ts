@@ -65,6 +65,10 @@ export const BlueprintSchema = z.object({
   // on DOMAIN_DRIFT classification. Default 0.8 per research A5 / D-05 discretion.
   // Optional in DB (seeded debate-strategy-v1 Blueprint lacks this field); Zod supplies default.
   drift_reply_probability: z.number().min(0).max(1).default(0.8),
+  // D-09 (Phase 12): explicit opt-out for domains where an "on-topic scope" doesn't
+  // meaningfully apply. Follows the drift_reply_probability precedent — optional in DB,
+  // Zod supplies the default so existing seeded Blueprints (which lack this field) still parse.
+  drift_detection_enabled: z.boolean().default(true),
   // Phase 11 (Finding 5): bot_defaults + role_personalities are REAL Blueprint fields
   // (not the bot_cooldowns TS-only-intersection anti-pattern) — Blueprint is the actual
   // DB source of truth for which bots run by default and which Personality each Role uses.
