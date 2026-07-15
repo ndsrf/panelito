@@ -150,8 +150,8 @@
 - [x] **TRIGGER-01**: Silence window trigger — Coach fires when no human message arrives within N seconds (default 45s, Blueprint-configurable) AND no participant has `is_typing: true`; fires at most once per cooldown window
 - [ ] **TRIGGER-02**: Blueprint phase signal trigger — when the in-context argGraph and message history contain sufficient coverage of the current phase's required topics (evaluated by the Analyst bot), a phase-readiness signal is emitted; the Coach asks the group if they are ready to advance
 - [ ] **TRIGGER-03**: Semantic drift trigger — when the cosine similarity between the last 3 messages (embedded locally via all-MiniLM-L6-v2 ONNX) and the Blueprint's domain centroid drops below threshold (default 0.6), the Coach gently redirects the conversation; threshold is Blueprint-configurable
-- [ ] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
-- [ ] **TRIGGER-05**: Fact-check trigger — when the classifier detects a message containing a verifiable factual claim with low self-consistency (heuristic pre-filter → Haiku → Sonnet three-tier escalation), the Analyst/Fact-Checker responds with uncertainty framing; never operates without the pre-filter
+- [x] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
+- [x] **TRIGGER-05**: Fact-check trigger — when the classifier detects a message containing a verifiable factual claim with low self-consistency (heuristic pre-filter → Haiku → Sonnet three-tier escalation), the Analyst/Fact-Checker responds with uncertainty framing; never operates without the pre-filter
 - [ ] **TRIGGER-06**: Moderation trigger — when a message is classified as rude, disruptive, or off-topic by the heuristic pre-filter (no LLM cost), the Coach intervenes with a neutral, non-accusatory facilitation move
 - [ ] **TRIGGER-07**: A TriggerEngine module runs on the standalone Node.js server (`server.ts`) as a persistent `setInterval` scan loop (not Vercel serverless); it evaluates all 6 trigger conditions per active branch and dispatches to a ProactiveInvoker when a trigger fires
 
@@ -159,7 +159,7 @@
 
 - [ ] **GRAPH-01**: The in-memory conversation graph (argGraph) is stored as a custom reducer field in LangGraph thread state; it persists across all invocations on a branch (human and proactive) via PostgresSaver; each branch has its own isolated argGraph
 - [ ] **GRAPH-02**: An ArgGraphBuilderNode updates the argGraph after each LangGraph run (human or proactive); it classifies the new content against existing nodes and proposes typed edges using the Blueprint's edge vocabulary
-- [ ] **GRAPH-03**: After the first 3 nodes in a session, every new CanvasNode proposed by a bot must include at least one edge proposal in its CanvasOp output; if no strong connection is found, a tentative ghost edge is created to the most semantically similar existing node
+- [x] **GRAPH-03**: After the first 3 nodes in a session, every new CanvasNode proposed by a bot must include at least one edge proposal in its CanvasOp output; if no strong connection is found, a tentative ghost edge is created to the most semantically similar existing node
 - [ ] **GRAPH-04**: The argGraph drives the Analyst's facilitation context — before any Analyst invocation, the argGraph summary (nodes, edges, open assertions) is injected into the prompt so the Analyst can reference specific prior content by name
 
 ### Per-Session User Profiles (PROFILE)
@@ -169,8 +169,8 @@
 
 ### Model Cost Routing (COST)
 
-- [ ] **COST-01**: All proactive bot invocations use task-based model routing via the existing TASK_MODELS registry; facilitation moves (Coach silence/phase triggers, moderation) route to the provider's **fast/light tier** (Claude Haiku, GPT-4o-mini, or equivalent); analysis and graph reasoning (Analyst, Fact-Checker, ArgGraphBuilder) route to the provider's **capable tier** (Claude Sonnet, GPT-4o, or equivalent); tier-to-model mapping is resolved per provider at runtime, never hardcoded
-- [ ] **COST-02**: Trigger classification uses a three-tier escalation gate (heuristic regex/rule → light-tier classifier → capable-tier for confirmed positives) to minimize LLM calls during the detection phase; raw trigger evaluation never calls the capable-tier model directly
+- [x] **COST-01**: All proactive bot invocations use task-based model routing via the existing TASK_MODELS registry; facilitation moves (Coach silence/phase triggers, moderation) route to the provider's **fast/light tier** (Claude Haiku, GPT-4o-mini, or equivalent); analysis and graph reasoning (Analyst, Fact-Checker, ArgGraphBuilder) route to the provider's **capable tier** (Claude Sonnet, GPT-4o, or equivalent); tier-to-model mapping is resolved per provider at runtime, never hardcoded
+- [x] **COST-02**: Trigger classification uses a three-tier escalation gate (heuristic regex/rule → light-tier classifier → capable-tier for confirmed positives) to minimize LLM calls during the detection phase; raw trigger evaluation never calls the capable-tier model directly
 - [ ] **COST-03**: Langfuse traces tag each LLM call with its trigger type and model tier; cost attribution by trigger type is visible in the Langfuse dashboard
 
 ### Natural Bot Speech (SPEECH)
@@ -218,18 +218,18 @@
 | TRIGGER-01 | Phase 11 | Complete |
 | TRIGGER-02 | Phase 13 | Pending |
 | TRIGGER-03 | Phase 12 | Pending |
-| TRIGGER-04 | Phase 12 | Pending |
-| TRIGGER-05 | Phase 12 | Pending |
+| TRIGGER-04 | Phase 12 | Complete |
+| TRIGGER-05 | Phase 12 | Complete |
 | TRIGGER-06 | Phase 12 | Pending |
 | TRIGGER-07 | Phase 14 | Pending |
 | GRAPH-01 | Phase 11 | Pending |
 | GRAPH-02 | Phase 11 | Pending |
-| GRAPH-03 | Phase 12 | Pending |
+| GRAPH-03 | Phase 12 | Complete |
 | GRAPH-04 | Phase 11 | Pending |
 | PROFILE-01 | Phase 13 | Pending |
 | PROFILE-02 | Phase 13 | Pending |
-| COST-01 | Phase 12 | Pending |
-| COST-02 | Phase 12 | Pending |
+| COST-01 | Phase 12 | Complete |
+| COST-02 | Phase 12 | Complete |
 | COST-03 | Phase 14 | Pending |
 | SPEECH-01 | Phase 14 | Pending |
 | SPEECH-02 | Phase 14 | Pending |
