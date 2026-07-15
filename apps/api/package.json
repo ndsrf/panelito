@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "0.102.0",
     "@google/genai": "^2.8.0",
     "@hono/node-server": "2.0.4",
+    "@huggingface/transformers": "^4.2.0",
     "@langchain/langgraph": "1.4.7",
     "@langchain/langgraph-checkpoint-postgres": "1.0.4",
     "@langfuse/langchain": "5.9.1",
