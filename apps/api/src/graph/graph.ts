@@ -1,20 +1,22 @@
 /**
  * graph.ts — createGraph factory + routeFromStart / routeAfterOrchestrator conditional edges
  *
- * Creates a StateGraph with seven nodes:
- *   START → (conditional: routeFromStart) → facilitation | argGraphBuilder→analysis | orchestrator
+ * Creates a StateGraph with eight nodes (Phase 12 Plan 06 adds triggerGate):
+ *   START → (conditional: routeFromStart) → facilitation | argGraphBuilder | orchestrator
  *   orchestrator → (conditional: routeAfterOrchestrator) → agent | driftReply | END
- *   agent → mutationGate → END
+ *   agent → mutationGate → (conditional: routeAfterMutationGate) → triggerGate | END
  *   driftReply → END
  *   facilitation → END
- *   argGraphBuilder → analysis → mutationGate → END
+ *   argGraphBuilder → (conditional: routeAfterArgGraphBuilder) → analysis | triggerGate
+ *   analysis → mutationGate → (conditional: routeAfterMutationGate) → triggerGate | END
+ *   triggerGate → (conditional: routeAfterTriggerGate) → facilitation | analysis | END
  *
  * checkpointer parameter enables the MemorySaver/PostgresSaver swap:
  *   - No arg (or undefined): defaults to MemorySaver (unit tests, D-11)
  *   - PostgresSaver: production (ORCH-05) and integration tests (D-12)
  *
  * routeFromStart implements Phase 11's conditional START edge (highest-risk topology
- * change of the phase — STATE.md). Reads state.triggerType (Plan 01):
+ * change of that phase — STATE.md). Reads state.triggerType (Plan 01):
  *   'silence_gate'      → 'facilitation' (FacilitationAgentNode / Coach)
  *   'analysis_request'  → 'analysis' (routes through argGraphBuilder first, populates
  *                          state.argGraph before AnalyticsAgentNode runs)
@@ -34,6 +36,37 @@
  *   DOMAIN_DRIFT + driftAction 'ignored' → 'end'
  *   DOMAIN_MATCH | DOMAIN_BRIDGE (or null fallback) → 'agent'
  *
+ * Phase 12 Plan 06 — TriggerGateNode wiring (locked human-path reachability decision,
+ * 12-CONTEXT.md/12-06-PLAN.md). TriggerGateNode (trigger-gate.ts) is now reachable from
+ * BOTH the primary human-message path (agent → mutationGate → triggerGate) AND the
+ * proactive analysis_request path (argGraphBuilder → triggerGate, for any OTHER
+ * triggerType than analysis_request — analysis_request itself still routes straight to
+ * 'analysis', preserving Phase 11 behavior unchanged).
+ *
+ * routeAfterMutationGate REPLACES the fixed .addEdge('mutationGate', END) (Pitfall: a
+ * fixed edge and a conditional edge from the same source node both fire — fan-out, not
+ * override — see the START/argGraphBuilder header comments below for the same class of
+ * bug already documented in this file). Loop guard (T-12-16): reads
+ * state.triggerGateComplete — 'triggerGate' on the FIRST pass through mutationGate in a
+ * given invocation (triggerGateComplete is null/not-yet-set), 'end' on any SUBSEQUENT
+ * pass (triggerGateComplete === true, set unconditionally by triggerGateNode's own
+ * return — trigger-gate.ts). This guarantees termination: triggerGateComplete is
+ * overwrite-style and never reset back to null within a single invocation, so no path
+ * through this graph can re-enter triggerGate more than once per invoke() call.
+ *
+ * routeAfterArgGraphBuilder REPLACES the fixed .addEdge('argGraphBuilder', 'analysis')
+ * (Phase 11) — replaced, not added alongside, for the same fan-out reason. Preserves the
+ * exact Phase 11 analysis_request behavior as one branch ('analysis' when
+ * state.triggerType === 'analysis_request'); any other triggerType value reaching
+ * argGraphBuilder routes to 'triggerGate' instead (forward-compatible with a future
+ * dedicated trigger_scan-style invocation path — not exercised by any currently-defined
+ * triggerType value, since routeFromStart today only ever sends argGraphBuilder
+ * 'analysis_request' invocations).
+ *
+ * routeAfterTriggerGate reads state.firingSkillRole (mirrors routeAfterOrchestrator's
+ * shape): 'coach' → 'facilitation', 'analyst' → 'analysis', null (no Skill fired) →
+ * 'end' — matches mutation-gate.ts's silent-below-threshold convention.
+ *
  * Anti-pattern: Never call getCheckpointer() here — unit tests pass MemorySaver directly.
  * [CITED: RESEARCH Anti-Pattern "Calling getCheckpointer() in unit tests"]
  */
@@ -49,6 +82,7 @@ import { driftReplyNode } from './nodes/drift-reply'
 import { argGraphBuilderNode } from './nodes/arg-graph-builder'
 import { facilitationAgentNode } from './nodes/facilitation-agent'
 import { analyticsAgentNode } from './nodes/analytics-agent'
+import { triggerGateNode } from './nodes/trigger-gate'
 
 /**
  * Conditional edge function that routes after the OrchestratorNode completes.
@@ -101,6 +135,56 @@ export function routeFromStart(state: GraphState): 'facilitation' | 'analysis' |
 }
 
 /**
+ * Conditional edge function that routes after MutationGateNode completes (Phase 12 Plan 06 —
+ * T-12-16 loop guard). REPLACES the fixed .addEdge('mutationGate', END) from Phase 6-11
+ * (Pitfall: a fixed edge and a conditional edge from the same source both fire — fan-out, not
+ * override — same class of bug already documented for START/argGraphBuilder in this file).
+ *
+ * Reads state.triggerGateComplete (state.ts, Plan 01/06): triggerGateNode unconditionally sets
+ * this to true on every one of its own return paths (trigger-gate.ts) — it is never reset back
+ * to null within a single graph invocation (overwrite-style Annotation, no node ever writes
+ * `false`/`null` to it once set). This guarantees termination:
+ *   - FIRST pass through mutationGate in an invocation (triggerGateComplete is still null,
+ *     the default — triggerGateNode has not run yet) → 'triggerGate'.
+ *   - Any SUBSEQUENT pass (triggerGateComplete === true) → 'end'.
+ * so no path through this graph can re-enter triggerGate more than once per invoke() call.
+ */
+export function routeAfterMutationGate(state: GraphState): 'triggerGate' | 'end' {
+  return state.triggerGateComplete !== true ? 'triggerGate' : 'end'
+}
+
+/**
+ * Conditional edge function that routes after ArgGraphBuilderNode completes (Phase 12 Plan 06).
+ * REPLACES the fixed .addEdge('argGraphBuilder', 'analysis') from Phase 11 (same fan-out
+ * hazard as above — replaced, not added alongside).
+ *
+ * Preserves the exact Phase 11 analysis_request behavior as one branch: 'analysis' when
+ * state.triggerType === 'analysis_request' (routeFromStart is the only current caller that
+ * ever sends argGraphBuilder an invocation, and it only ever does so for this triggerType) —
+ * any other triggerType value reaching argGraphBuilder routes to 'triggerGate' instead
+ * (forward-compatible with a future dedicated trigger-scan-style invocation path; not
+ * exercised by any currently-defined triggerType value).
+ */
+export function routeAfterArgGraphBuilder(state: GraphState): 'analysis' | 'triggerGate' {
+  return state.triggerType === 'analysis_request' ? 'analysis' : 'triggerGate'
+}
+
+/**
+ * Conditional edge function that routes after TriggerGateNode completes (Phase 12 Plan 06 —
+ * D-06). Mirrors routeAfterOrchestrator's shape exactly. Reads state.firingSkillRole
+ * (trigger-gate.ts's own return value) — never sets state itself, purely a router.
+ *
+ * CRITICAL (Pitfall 4): every normally-returned value MUST be a pathsMap key in createGraph's
+ * addConditionalEdges('triggerGate', ...) call below.
+ */
+export function routeAfterTriggerGate(state: GraphState): 'facilitation' | 'analysis' | 'end' {
+  if (state.firingSkillRole === 'coach') return 'facilitation'
+  if (state.firingSkillRole === 'analyst') return 'analysis'
+  // No Skill fired — silent exit, matches mutation-gate.ts's silent-below-threshold convention.
+  return 'end'
+}
+
+/**
  * Factory function that builds and compiles the Project Multiverse NSAI StateGraph.
  *
  * @param checkpointer - Optional checkpointer. Defaults to MemorySaver for tests.
@@ -117,6 +201,8 @@ export function createGraph(checkpointer?: BaseCheckpointSaver) {
     .addNode('argGraphBuilder', argGraphBuilderNode)
     .addNode('facilitation', facilitationAgentNode)
     .addNode('analysis', analyticsAgentNode)
+    // Phase 12 Plan 06 new node
+    .addNode('triggerGate', triggerGateNode)
 
     // Phase 11: conditional START edge REPLACES the fixed START → orchestrator edge
     // (Pitfall 2 — both cannot coexist; the fixed edge would silently win).
@@ -132,17 +218,40 @@ export function createGraph(checkpointer?: BaseCheckpointSaver) {
       end: END,
     })
     .addEdge('agent', 'mutationGate')
-    .addEdge('mutationGate', END)
     .addEdge('driftReply', END)
 
-    // Phase 11 new edges
-    .addEdge('argGraphBuilder', 'analysis')
+    // Phase 12 Plan 06: conditional mutationGate edge REPLACES the fixed
+    // .addEdge('mutationGate', END) (Phase 6-11) — T-12-16 loop guard (see
+    // routeAfterMutationGate's own doc comment above for the termination proof).
+    .addConditionalEdges('mutationGate', routeAfterMutationGate, {
+      triggerGate: 'triggerGate',
+      end: END,
+    })
+
     .addEdge('facilitation', END)
+
+    // Phase 12 Plan 06: conditional argGraphBuilder edge REPLACES the fixed
+    // .addEdge('argGraphBuilder', 'analysis') (Phase 11) — preserves the exact Phase 11
+    // analysis_request behavior as one branch (Pitfall 3 — replace, don't add alongside).
+    .addConditionalEdges('argGraphBuilder', routeAfterArgGraphBuilder, {
+      analysis: 'analysis',
+      triggerGate: 'triggerGate',
+    })
+
+    // Phase 12 Plan 06: TriggerGateNode's own conditional edge (D-06) — every return value
+    // of routeAfterTriggerGate MUST be a pathsMap key here (Pitfall 4).
+    .addConditionalEdges('triggerGate', routeAfterTriggerGate, {
+      facilitation: 'facilitation',
+      analysis: 'analysis',
+      end: END,
+    })
+
     // 'analysis' routes through mutationGate (same as 'agent') so that any
     // canvas mutation the Analyst proposes actually reaches state.canvasOps —
     // mutationGateNode already returns {} when state.agentOutput is null/
     // NO_ACTION, so this is a no-op for the common no-mutation case
-    // (CR-01 fix — REVIEW.md).
+    // (CR-01 fix — REVIEW.md). mutationGate's own conditional edge (above) then
+    // applies the same T-12-16 loop guard regardless of which path reached it.
     .addEdge('analysis', 'mutationGate')
 
   return graph.compile({ checkpointer: checkpointer ?? new MemorySaver() })
