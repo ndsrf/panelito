@@ -10,7 +10,7 @@ Project Multiverse is a synchronous, multi-user collaborative workspace where gr
 ### Constraints
 
 - **Solo:** Each phase must be scoped for one developer to complete independently
-- **AI coupling:** Claude API is the only AI provider in v1; abstraction layer should be clean to allow v2 swap-in
+- **AI coupling:** The codebase  routes through TASK_MODELS/adapter-factory.ts across anthropic, openai, and gemini (BYOK).
 - **Supabase-first:** Real-time subscriptions, auth, and storage handled by Supabase to minimize backend complexity
 - **Mobile-first:** The 40/60 split must hold on iOS/Android with virtual keyboard open — the IME handling is a hard constraint, not polish
 - **Budget:** BYOK means zero AI compute cost to the platform; creator's API key is the cost surface
