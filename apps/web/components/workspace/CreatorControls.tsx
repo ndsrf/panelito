@@ -512,10 +512,16 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
     </div>
   )
 
-  // Read-only cooldown caption (D-12, ROADMAP Phase 11 success criterion 5) — plain text, no edit affordance
+  // Read-only cooldown caption (D-12, ROADMAP Phase 11 success criterion 5) — plain text, no edit
+  // affordance. Derived from blueprint.bot_cooldowns (WR-04 fix — REVIEW.md) instead of hardcoded
+  // text, so a Blueprint with different cooldown values doesn't show a stale/incorrect caption.
+  const coachCooldown = blueprint?.bot_cooldowns?.coach
+  const analystCooldown = blueprint?.bot_cooldowns?.analyst
   const cooldownCaption = (
     <p className="text-[13px] text-muted-foreground">
-      Facilitador: máx. 3 mensajes cada 15 min · Analista/Verificador: máx. 2 mensajes cada 15 min
+      {coachCooldown ? `Facilitador: máx. ${coachCooldown.max} mensajes cada ${coachCooldown.window_minutes} min` : null}
+      {coachCooldown && analystCooldown ? ' · ' : null}
+      {analystCooldown ? `Analista/Verificador: máx. ${analystCooldown.max} mensajes cada ${analystCooldown.window_minutes} min` : null}
     </p>
   )
 
