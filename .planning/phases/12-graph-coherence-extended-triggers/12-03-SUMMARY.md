@@ -119,3 +119,10 @@ None - no external service configuration required.
 ---
 *Phase: 12-graph-coherence-extended-triggers*
 *Completed: 2026-07-15*
+
+## Self-Check: PASSED
+
+All 7 created/modified files verified present on disk (silence-break.ts/.test.ts,
+drift-redirect.ts/.test.ts, moderation.ts/.test.ts, bot-context.ts). All 7 commit
+hashes (ec1cb25, d022c4c, 59d1c7f, 0004038, 8409595, 3c2bd9d, a509bcb) verified
+present in `git log`.
