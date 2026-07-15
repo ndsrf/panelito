@@ -57,3 +57,17 @@ Issues discovered during execution that are out of scope for the current task
 - **Error:** SC-2 and SC-3 tests expect 200, get 404.
 - **Confirmed pre-existing:** same root cause already flagged by the 12-01 executor (module-resolution/environment flake, reproduced independently of this plan's changes) and by Phase 11's deferred-items.md.
 - **Action:** Not fixed (SCOPE BOUNDARY).
+
+## 12-06 Task 1 (re-confirmation)
+
+- **Files:** `apps/api/src/routes/ai.test.ts`, `apps/api/src/routes/keys.test.ts`
+- **Error:** Whole-suite import failure — `Cannot find module 'hono/streaming' imported from
+  .../apps/api/src/routes/ai.ts` — surfaced this time after a fresh `pnpm install` in a newly
+  spawned worktree (`agent-a7faa64addfe48af2`), same root cause already logged above (12-01
+  Task 2, Post-merge gate). `git diff --stat` for Task 1 of this plan touches only
+  `apps/api/src/lib/bot-arbitrator.ts`, `apps/api/src/lib/bot-registration.ts`, and two new
+  files under `apps/api/src/graph/nodes/trigger-gate.*` — none of which import or affect
+  `hono`/`ai.ts`/`keys.ts`. Confirmed present before any of this plan's edits.
+- **Action:** Not fixed (SCOPE BOUNDARY). Full `pnpm --filter api test` otherwise green:
+  222 passed / 2 pre-existing failing suites (11 total tests across the two failing suites
+  never execute due to the import-time module-resolution error, not a logic failure).

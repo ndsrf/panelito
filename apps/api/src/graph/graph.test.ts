@@ -15,10 +15,43 @@
  * All 5 tests use createGraph() with no argument (defaults to MemorySaver).
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StateGraph, START, END, MemorySaver, Annotation } from '@langchain/langgraph'
 import type { AIProvider, AIStreamEvent, Blueprint } from '@panelito/types'
-import { createGraph } from './graph'
+
+// ---------------------------------------------------------------------------
+// Phase 12 Plan 06 Task 3 — mock skills.ts so TriggerGateNode's Skill fan-out is
+// deterministic (no real ONNX/Supabase/heuristic work) for the routing/termination
+// tests below. Suffix-Mock naming (not prefix) matches this codebase's existing
+// vi.mock-hoisting-safe convention (silence-break.test.ts's checkSilenceGateMock).
+// Safe for the PRE-EXISTING D-11/routeFromStart tests in this file too: every one of
+// them uses debateBlueprint's bot_defaults: {} (both Roles disabled), so TriggerGateNode's
+// D-07 role-gate excludes these mock Skills from evaluation entirely regardless of what's
+// inside these arrays — those tests are unaffected by this mock.
+// ---------------------------------------------------------------------------
+const coachSkillDetectMock = vi.fn()
+const analystSkillDetectMock = vi.fn()
+
+vi.mock('../lib/skills', () => ({
+  COACH_SKILLS: [
+    {
+      id: 'mock-coach-skill',
+      role: 'coach',
+      detect: (...args: unknown[]) => coachSkillDetectMock(...args),
+      buildPromptGuidance: () => 'Mock coach trigger guidance.',
+    },
+  ],
+  ANALYST_SKILLS: [
+    {
+      id: 'mock-analyst-skill',
+      role: 'analyst',
+      detect: (...args: unknown[]) => analystSkillDetectMock(...args),
+      buildPromptGuidance: () => 'Mock analyst trigger guidance.',
+    },
+  ],
+}))
+
+import { createGraph, routeAfterTriggerGate } from './graph'
 
 // ---------------------------------------------------------------------------
 // SPIKE: LangGraph conditional-edge router error propagation (Task 1, Plan 05)
@@ -573,5 +606,302 @@ describe('routeFromStart — unrecognized triggerType (Finding 6 / ROADMAP succe
 
     consoleErrorSpy.mockRestore()
     consoleInfoSpy.mockRestore()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 12 Plan 06 Task 3 — TriggerGateNode routing + termination coverage
+//
+// Covers the six behaviors from 12-06-PLAN.md Task 3:
+//   (a) Coach-fires human path: agent -> mutationGate -> triggerGate -> facilitation -> END
+//   (b) Analyst-fires human path: triggerGate -> analysis -> mutationGate -> END (loop guard)
+//   (c) No-fire human path: triggerGate -> END silently, zero Role nodes invoked
+//   (d) Proactive analysis_request path still reaches analysis and terminates
+//   (e) firingSkillRole matches the routing outcome (asserted inline in a/b)
+//   (f) pathsMap-exhaustiveness guard — every routeAfterTriggerGate return value is handled
+// ---------------------------------------------------------------------------
+
+/** An adapter whose stream() is a spy — used to assert a Role node was (or was not) invoked. */
+function createSpyAdapter(events: AIStreamEvent[]) {
+  const streamSpy = vi.fn(async function* (): AsyncIterable<AIStreamEvent> {
+    for (const event of events) yield event
+  })
+  const adapter: AIProvider = {
+    capabilities: () => ({
+      streaming: true,
+      toolUse: true,
+      contextCaching: false,
+      semanticCaching: false,
+      imageInput: false,
+      voiceInput: false,
+      compression: false,
+    }),
+    stream: streamSpy as unknown as AIProvider['stream'],
+  }
+  return { adapter, streamSpy }
+}
+
+describe('TriggerGateNode wiring — human-path routing + termination (Phase 12 Plan 06 Task 3)', () => {
+  beforeEach(() => {
+    coachSkillDetectMock.mockReset()
+    analystSkillDetectMock.mockReset()
+  })
+
+  it('(a) Coach Skill fires: agent -> mutationGate -> triggerGate -> facilitation -> END, terminates', async () => {
+    coachSkillDetectMock.mockResolvedValue({ fires: true, confidence: 0.9, meta: { reason: 'drift' } })
+    analystSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+
+    const coachEnabledBlueprint: Blueprint = {
+      ...debateBlueprint,
+      bot_defaults: { coach: true, analyst: false },
+    }
+
+    const { adapter: coachAdapter, streamSpy: coachStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: '¿Podrían profundizar en ese punto?' },
+      { type: 'done' },
+    ])
+    const { adapter: analyticsAdapter, streamSpy: analyticsStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'should never run' },
+      { type: 'done' },
+    ])
+
+    const graph = createGraph(new MemorySaver())
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+      },
+      {
+        configurable: {
+          thread_id: `test-coach-fires-${Math.random().toString(36).slice(2)}`,
+          blueprint: coachEnabledBlueprint,
+          providerName: 'anthropic' as const,
+          plaintextKey: 'test-key',
+          classifierAdapter: classifierMatchAdapter,
+          agentAdapter: agentAddNode09,
+          facilitationAdapter: coachAdapter,
+          analyticsAdapter,
+        },
+      }
+    )
+
+    // Terminated without a rejected promise (implicit — await above did not throw).
+    expect(result.firingSkillId).toBe('mock-coach-skill')
+    expect(result.firingSkillRole).toBe('coach')
+    expect(result.triggerGateComplete).toBe(true)
+    // Coach's Role node ran; Analyst's Role node never did.
+    expect(coachStreamSpy).toHaveBeenCalledTimes(1)
+    expect(analyticsStreamSpy).not.toHaveBeenCalled()
+    // Analyst Skill was disabled (bot_defaults.analyst: false) — never evaluated (D-07).
+    expect(analystSkillDetectMock).not.toHaveBeenCalled()
+    expect(coachSkillDetectMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('(b) Analyst Skill fires: triggerGate -> analysis -> mutationGate -> END, loop guard verified (2nd mutationGate pass terminates)', async () => {
+    coachSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    analystSkillDetectMock.mockResolvedValue({ fires: true, confidence: 0.8, meta: { claimMessageId: 'm1' } })
+
+    const analystEnabledBlueprint: Blueprint = {
+      ...debateBlueprint,
+      bot_defaults: { coach: false, analyst: true },
+    }
+
+    const { adapter: coachAdapter, streamSpy: coachStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'should never run' },
+      { type: 'done' },
+    ])
+    const { adapter: analyticsAdapter, streamSpy: analyticsStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'Miguel afirmó que el agua es esencial — ¿de dónde viene esa cifra?' },
+      { type: 'done' },
+    ])
+
+    const graph = createGraph(new MemorySaver())
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+      },
+      {
+        configurable: {
+          thread_id: `test-analyst-fires-${Math.random().toString(36).slice(2)}`,
+          blueprint: analystEnabledBlueprint,
+          providerName: 'anthropic' as const,
+          plaintextKey: 'test-key',
+          classifierAdapter: classifierMatchAdapter,
+          agentAdapter: agentAddNode09,
+          facilitationAdapter: coachAdapter,
+          analyticsAdapter,
+        },
+      }
+    )
+
+    // Terminated (await resolved, not rejected) — the loop guard sent the 2nd mutationGate
+    // pass (after analysis) to END rather than re-entering triggerGate.
+    expect(result.firingSkillId).toBe('mock-analyst-skill')
+    expect(result.firingSkillRole).toBe('analyst')
+    expect(result.triggerGateComplete).toBe(true)
+    expect(analyticsStreamSpy).toHaveBeenCalledTimes(1)
+    expect(coachStreamSpy).not.toHaveBeenCalled()
+    // Coach Skill was disabled (bot_defaults.coach: false) — never evaluated (D-07).
+    expect(coachSkillDetectMock).not.toHaveBeenCalled()
+    expect(analystSkillDetectMock).toHaveBeenCalledTimes(1)
+    // The original agent-proposed ADD_NODE was already gated on mutationGate's FIRST pass;
+    // the Analyst's plain-text (no tool_use) response adds no additional canvasOp.
+    expect(result.canvasOps).toHaveLength(1)
+  })
+
+  it('(c) No Skill fires: triggerGate -> END silently, zero Role nodes invoked', async () => {
+    coachSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0.1 })
+    analystSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0.2 })
+
+    const bothEnabledBlueprint: Blueprint = {
+      ...debateBlueprint,
+      bot_defaults: { coach: true, analyst: true },
+    }
+
+    const { adapter: coachAdapter, streamSpy: coachStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'should never run' },
+      { type: 'done' },
+    ])
+    const { adapter: analyticsAdapter, streamSpy: analyticsStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'should never run' },
+      { type: 'done' },
+    ])
+
+    const graph = createGraph(new MemorySaver())
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+      },
+      {
+        configurable: {
+          thread_id: `test-no-fire-${Math.random().toString(36).slice(2)}`,
+          blueprint: bothEnabledBlueprint,
+          providerName: 'anthropic' as const,
+          plaintextKey: 'test-key',
+          classifierAdapter: classifierMatchAdapter,
+          agentAdapter: agentAddNode09,
+          facilitationAdapter: coachAdapter,
+          analyticsAdapter,
+        },
+      }
+    )
+
+    expect(result.firingSkillId).toBeNull()
+    expect(result.firingSkillRole).toBeNull()
+    expect(result.triggerGateComplete).toBe(true)
+    // Both Skills WERE evaluated (both Roles enabled)...
+    expect(coachSkillDetectMock).toHaveBeenCalledTimes(1)
+    expect(analystSkillDetectMock).toHaveBeenCalledTimes(1)
+    // ...but neither Role node ran — triggerGate routed straight to END.
+    expect(coachStreamSpy).not.toHaveBeenCalled()
+    expect(analyticsStreamSpy).not.toHaveBeenCalled()
+  })
+
+  it('(d) Proactive analysis_request path still reaches analysis (Phase 11 behavior preserved) and terminates', async () => {
+    // debateBlueprint's bot_defaults: {} disables both Roles — TriggerGateNode's own
+    // (2nd, post-analysis) evaluation on this path fires nothing and exits at END, proving
+    // termination even though this path additionally passes through triggerGate once
+    // (routeAfterMutationGate's loop guard) after argGraphBuilder routed straight to
+    // 'analysis' (routeAfterArgGraphBuilder preserving Phase 11 behavior for analysis_request).
+    coachSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    analystSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+
+    const argGraphAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        yield {
+          type: 'tool_use',
+          name: 'extract_arg_graph',
+          input: {
+            nodes: [
+              {
+                id: 'n1',
+                type: 'claim',
+                label: 'Water is essential for life',
+                message_id: VALID_MESSAGE_UUID,
+                speaker: 'Miguel',
+              },
+            ],
+            edges: [],
+          },
+        }
+        yield { type: 'done' }
+      },
+    }
+
+    const analyticsAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        yield { type: 'text_delta', text: 'Miguel afirmó que el agua es esencial para la vida.' }
+        yield { type: 'done' }
+      },
+    }
+
+    const graph = createGraph(new MemorySaver())
+
+    // Termination proof: this await either resolves or rejects — a real infinite loop would
+    // hang (this test's own timeout) or LangGraph's recursion-limit guard would reject.
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+        triggerType: 'analysis_request',
+      },
+      makeConfig({
+        branchId: VALID_BRANCH_UUID,
+        argGraphAdapter: argGraphAdapterMock,
+        analyticsAdapter: analyticsAdapterMock,
+      })
+    )
+
+    expect(result.argGraph.nodes).toHaveLength(1)
+    // No Skill fired (bot_defaults: {} on debateBlueprint) — the extra triggerGate pass this
+    // path now takes exits silently at END, matching (c)'s no-fire behavior.
+    expect(result.firingSkillId).toBeNull()
+    expect(result.triggerGateComplete).toBe(true)
+  })
+
+  it('(f) pathsMap-exhaustiveness guard — routeAfterTriggerGate never returns a value outside {facilitation, analysis, end}', () => {
+    const VALID_ROUTES = new Set(['facilitation', 'analysis', 'end'])
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stateCoach = { firingSkillRole: 'coach' } as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stateAnalyst = { firingSkillRole: 'analyst' } as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stateNone = { firingSkillRole: null } as any
+
+    expect(VALID_ROUTES.has(routeAfterTriggerGate(stateCoach))).toBe(true)
+    expect(VALID_ROUTES.has(routeAfterTriggerGate(stateAnalyst))).toBe(true)
+    expect(VALID_ROUTES.has(routeAfterTriggerGate(stateNone))).toBe(true)
+    expect(routeAfterTriggerGate(stateCoach)).toBe('facilitation')
+    expect(routeAfterTriggerGate(stateAnalyst)).toBe('analysis')
+    expect(routeAfterTriggerGate(stateNone)).toBe('end')
   })
 })
