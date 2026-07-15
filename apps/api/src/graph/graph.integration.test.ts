@@ -104,6 +104,7 @@ const debateBlueprint: Blueprint = {
   ],
   active_persona_ids: ['scientific-analyst'],
   drift_reply_probability: 0.8,
+  drift_detection_enabled: true,
   bot_defaults: {},
   role_personalities: {},
 }

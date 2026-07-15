@@ -42,6 +42,7 @@ const blueprintStub = {
   phase_sequence: [{ id: 'p1', label: 'Phase 1', llm_instructions: '...', allowed_node_types: ['claim'] }],
   active_persona_ids: [],
   drift_reply_probability: 0.8,
+  drift_detection_enabled: true,
   bot_defaults: {},
   role_personalities: {},
 }

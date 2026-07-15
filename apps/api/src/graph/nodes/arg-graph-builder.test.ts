@@ -54,6 +54,10 @@ function baseState(overrides: Partial<GraphState> = {}): GraphState {
     argGraph: { nodes: [], edges: [] },
     triggerMetadata: {},
     triggerType: null,
+    firingSkillId: null,
+    firingSkillRole: null,
+    skillMeta: null,
+    triggerGateComplete: null,
     ...overrides,
   }
 }

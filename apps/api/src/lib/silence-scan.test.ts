@@ -73,6 +73,7 @@ const debateBlueprint: Blueprint = {
   phase_sequence: [{ id: 'opening', label: 'Opening', llm_instructions: '...', allowed_node_types: ['claim'] }],
   active_persona_ids: [],
   drift_reply_probability: 0.8,
+  drift_detection_enabled: true,
   bot_defaults: { coach: true, analyst: true },
   role_personalities: { coach: 'coach_default', analyst: 'analyst_default' },
   bot_cooldowns: { coach: { max: 3, window_minutes: 15 }, analyst: { max: 2, window_minutes: 15 } },
