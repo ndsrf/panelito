@@ -6,6 +6,10 @@
  *      reference specific content) with Spanish BAD/GOOD few-shot pairs.
  *   2. Blueprint name/phase context.
  *   3. summarizeArgGraph(state.argGraph) content-aware block (D-13/D-14).
+ *   3.5. (Phase 12 Plan 05) Firing Coach Skill's buildPromptGuidance() output, looked up
+ *      from COACH_SKILLS by state.firingSkillId — splices in as its own "Active trigger
+ *      guidance" section. Present only when a Coach Skill fired; never precedes or
+ *      overrides the Role contract (step 1).
  *   4. Personality voice appended LAST as explicit styling-only — never overrides the
  *      contract above (D-02, D-03).
  *
@@ -29,6 +33,7 @@ import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@pa
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
 import { summarizeArgGraph, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { COACH_SKILLS } from '../../lib/skills'
 import type { GraphState } from '../state'
 
 /**
@@ -40,6 +45,7 @@ export function buildCoachSystemPrompt(
   blueprint: Blueprint,
   personality: Personality | undefined,
   argGraph: { nodes: ArgNode[]; edges: ArgEdge[] },
+  skillGuidance?: string,
 ): string {
   // Step 1: Role behavioral contract — non-negotiable, overrides all other instructions.
   const roleRules = [
@@ -75,6 +81,10 @@ export function buildCoachSystemPrompt(
   // Step 3: content-aware argGraph context (D-13/D-14) — the single shared summary path.
   const argGraphContext = ['', 'Argument structure so far:', summarizeArgGraph(argGraph)].join('\n')
 
+  // Step 3.5 (Phase 12 Plan 05, D-03): firing Coach Skill guidance, spliced AFTER argGraph
+  // context and BEFORE Personality voice — never precedes/overrides the Role contract (step 1).
+  const skillGuidanceBlock = skillGuidance ? ['', 'Active trigger guidance:', skillGuidance].join('\n') : ''
+
   // Step 4: Personality voice appended LAST — pure styling, no behavioral rules (D-02, D-03).
   const personalityVoice = personality
     ? [
@@ -84,7 +94,7 @@ export function buildCoachSystemPrompt(
       ].join('\n')
     : ''
 
-  return roleRules + blueprintContext + argGraphContext + personalityVoice
+  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,10 +124,18 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
     return {}
   }
 
-  // Step 2: build system prompt — Role rules FIRST (D-03), Personality voice appended last
-  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph)
+  // Step 2: look up the firing Coach Skill (Phase 12 Plan 05, D-03) via state.firingSkillId —
+  // undefined when no Skill fired or the firing Skill belongs to the Analyst, not the Coach.
+  const firingCoachSkill = COACH_SKILLS.find((skill) => skill.id === state.firingSkillId)
+  const skillGuidance = firingCoachSkill
+    ? firingCoachSkill.buildPromptGuidance({ state, blueprint, config })
+    : undefined
 
-  // Step 3: stream response; forward tokens to streamWriter (undefined = no-op, e.g. proactive
+  // Step 3: build system prompt — Role rules FIRST (D-03), Skill guidance (if any) spliced
+  // after argGraph context, Personality voice appended last.
+  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph, skillGuidance)
+
+  // Step 4: stream response; forward tokens to streamWriter (undefined = no-op, e.g. proactive
   // fire without a capturing closure supplied by the caller)
   try {
     for await (const event of adapter.stream(
@@ -134,7 +152,7 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
     return {}
   }
 
-  // Step 4: return partial state — node does NOT write to DB (D-16: caller inserts message).
+  // Step 5: return partial state — node does NOT write to DB (D-16: caller inserts message).
   // Update triggerMetadata to record firing time (cooldown enforcement reads this).
   const previous = state.triggerMetadata?.silence_gate
   return {

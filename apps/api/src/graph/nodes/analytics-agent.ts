@@ -11,6 +11,11 @@
  *   2. Blueprint name/phase context.
  *   3. summarizeArgGraph(state.argGraph) content-aware block — citations reference real
  *      nodes by speaker/message_id (GRAPH-04), not free-form model recall.
+ *   3.5. (Phase 12 Plan 05) Firing Analyst Skill's buildPromptGuidance() output, looked up
+ *      from ANALYST_SKILLS by state.firingSkillId — splices in as its own "Active trigger
+ *      guidance" section. Present only when an Analyst Skill fired; never precedes or
+ *      overrides the Role contract (step 1). factCheckFraming is ALSO enabled live when
+ *      state.firingSkillId === 'fact-check' (realizes the Phase 11 seam, D-06/D-15).
  *   4. Personality voice appended LAST as explicit styling-only (D-02, D-03).
  *
  * Tool use: may reuse canvasMutationTool (same as agentNode) to propose canvas mutations —
@@ -35,6 +40,7 @@ import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@pa
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
 import { summarizeArgGraph, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { ANALYST_SKILLS } from '../../lib/skills'
 import type { GraphState } from '../state'
 
 /**
@@ -47,6 +53,7 @@ export function buildAnalyticsSystemPrompt(
   personality: Personality | undefined,
   argGraph: { nodes: ArgNode[]; edges: ArgEdge[] },
   factCheckFraming: boolean,
+  skillGuidance?: string,
 ): string {
   // Step 1: Role behavioral contract — non-negotiable, overrides all other instructions.
   const roleRulesLines = [
@@ -97,6 +104,10 @@ export function buildAnalyticsSystemPrompt(
     '\n',
   )
 
+  // Step 3.5 (Phase 12 Plan 05, D-03): firing Analyst Skill guidance, spliced AFTER argGraph
+  // context and BEFORE Personality voice — never precedes/overrides the Role contract (step 1).
+  const skillGuidanceBlock = skillGuidance ? ['', 'Active trigger guidance:', skillGuidance].join('\n') : ''
+
   // Step 4: Personality voice appended LAST — pure styling, no behavioral rules (D-02, D-03).
   const personalityVoice = personality
     ? [
@@ -106,7 +117,7 @@ export function buildAnalyticsSystemPrompt(
       ].join('\n')
     : ''
 
-  return roleRules + blueprintContext + argGraphContext + personalityVoice
+  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,9 +127,11 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
   const providerName = config?.configurable?.providerName as ProviderName | undefined
   const plaintextKey = config?.configurable?.plaintextKey as string | undefined
   const personality = config?.configurable?.personality as Personality | undefined
-  // Claude's discretion (CONTEXT.md): fact-check framing is read from config.configurable —
-  // no live trigger wires this in Phase 11; a future trigger (Phase 12) sets it.
-  const factCheckFraming = config?.configurable?.factCheckFraming === true
+  // Claude's discretion (CONTEXT.md, Phase 11): fact-check framing is read from
+  // config.configurable — no live trigger wired it in Phase 11. Phase 12 Plan 05 realizes
+  // the seam: a firing 'fact-check' Skill (state.firingSkillId) activates it live too,
+  // without requiring the caller to separately set config.configurable.factCheckFraming.
+  const factCheckFraming = config?.configurable?.factCheckFraming === true || state.firingSkillId === 'fact-check'
 
   // Test injection seam — mirrors facilitationAdapter/agentAdapter/classifierAdapter
   const analyticsAdapter = config?.configurable?.analyticsAdapter as
@@ -139,14 +152,21 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
     return {}
   }
 
-  // Step 2: build system prompt — Role rules (+ conditional fact-check framing) FIRST (D-03),
-  // Personality voice appended last.
-  const system = buildAnalyticsSystemPrompt(blueprint, personality, state.argGraph, factCheckFraming)
+  // Step 2 (Phase 12 Plan 05, D-03): look up the firing Analyst Skill via state.firingSkillId —
+  // undefined when no Skill fired or the firing Skill belongs to the Coach, not the Analyst.
+  const firingAnalystSkill = ANALYST_SKILLS.find((skill) => skill.id === state.firingSkillId)
+  const skillGuidance = firingAnalystSkill
+    ? firingAnalystSkill.buildPromptGuidance({ state, blueprint, config })
+    : undefined
+
+  // Step 3: build system prompt — Role rules (+ conditional fact-check framing) FIRST (D-03),
+  // Skill guidance (if any) spliced after argGraph context, Personality voice appended last.
+  const system = buildAnalyticsSystemPrompt(blueprint, personality, state.argGraph, factCheckFraming, skillGuidance)
 
   let agentOutput: import('@panelito/types').CanvasOp | null = null
   let agentConfidence: number | null = null
 
-  // Step 3: stream response; forward tokens to streamWriter (undefined = no-op); the Analyst
+  // Step 4: stream response; forward tokens to streamWriter (undefined = no-op); the Analyst
   // may also emit a canvas_mutation tool call (reusing canvasMutationTool, same as agentNode) —
   // the citation contract itself is enforced via the system prompt, not a separate tool schema.
   try {
@@ -176,7 +196,7 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
     return {}
   }
 
-  // Step 4: return partial state — node does NOT write to DB (D-16: caller inserts message).
+  // Step 5: return partial state — node does NOT write to DB (D-16: caller inserts message).
   // Update triggerMetadata to record firing time (cooldown enforcement reads this).
   // Key by the actual triggerType that invoked this node (WR-01 fix — REVIEW.md): writing
   // unconditionally to the 'fact_check' key would let an unrelated 'analysis_request' run

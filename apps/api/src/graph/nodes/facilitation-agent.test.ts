@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
 import { TASK_MODELS } from '../../lib/model-config'
 import { buildCoachSystemPrompt, facilitationAgentNode } from './facilitation-agent'
+import { driftRedirectSkill } from '../../lib/skills/drift-redirect'
 import type { GraphState } from '../state'
 
 function createMockAdapter(
@@ -150,6 +151,115 @@ describe('buildCoachSystemPrompt — D-03 Role-dominant composition', () => {
   it('omits the Personality voice block entirely when no Personality is provided', () => {
     const system = buildCoachSystemPrompt(debateBlueprint, undefined, emptyArgGraph)
     expect(system).not.toContain('does not override')
+  })
+
+  it('splices skillGuidance AFTER the argGraph context and BEFORE the Personality voice (D-03)', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, casualPersonality, populatedArgGraph, 'Test guidance text.')
+    const argGraphIdx = system.indexOf('Argument structure so far')
+    const guidanceIdx = system.indexOf('Test guidance text.')
+    const voiceIdx = system.indexOf(casualPersonality.definition.voice_instructions)
+    expect(argGraphIdx).toBeGreaterThanOrEqual(0)
+    expect(guidanceIdx).toBeGreaterThan(argGraphIdx)
+    expect(voiceIdx).toBeGreaterThan(guidanceIdx)
+  })
+
+  it('adds no guidance block when skillGuidance is undefined (regression — byte-identical to pre-change)', () => {
+    const withoutGuidance = buildCoachSystemPrompt(debateBlueprint, casualPersonality, populatedArgGraph)
+    const withUndefinedGuidance = buildCoachSystemPrompt(debateBlueprint, casualPersonality, populatedArgGraph, undefined)
+    expect(withUndefinedGuidance).toBe(withoutGuidance)
+    expect(withoutGuidance).not.toContain('Active trigger guidance')
+  })
+})
+
+describe('facilitationAgentNode — Coach Skill-guidance injection slot (Phase 12 Plan 05)', () => {
+  it('splices the firing Coach Skill buildPromptGuidance() output into the system prompt', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Cómo se conecta esto?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({
+      firingSkillId: 'drift-redirect',
+      messages: [
+        { role: 'user', content: 'Primer mensaje' },
+        { role: 'user', content: 'Segundo mensaje' },
+        { role: 'user', content: 'Tercer mensaje sobre otra cosa' },
+      ],
+    })
+    await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    const expectedGuidance = driftRedirectSkill.buildPromptGuidance({
+      state,
+      blueprint: debateBlueprint,
+      config: { configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter } },
+    })
+    expect(captured.system).toContain(expectedGuidance)
+  })
+
+  it('positions the guidance block after argGraph context and before Personality voice in the constructed prompt', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({
+      firingSkillId: 'drift-redirect',
+      argGraph: populatedArgGraph,
+      messages: [
+        { role: 'user', content: 'Primer mensaje' },
+        { role: 'user', content: 'Segundo mensaje' },
+        { role: 'user', content: 'Tercer mensaje sobre otra cosa' },
+      ],
+    })
+    await facilitationAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        personality: casualPersonality,
+        facilitationAdapter: adapter,
+      },
+    })
+    const argGraphIdx = captured.system!.indexOf('Argument structure so far')
+    const guidanceIdx = captured.system!.indexOf('Trigger: the last few messages have drifted')
+    const voiceIdx = captured.system!.indexOf(casualPersonality.definition.voice_instructions)
+    expect(argGraphIdx).toBeGreaterThanOrEqual(0)
+    expect(guidanceIdx).toBeGreaterThan(argGraphIdx)
+    expect(voiceIdx).toBeGreaterThan(guidanceIdx)
+  })
+
+  it('adds no guidance block when firingSkillId is null (non-firing turn unchanged)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ firingSkillId: null })
+    await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(captured.system).not.toContain('Active trigger guidance')
+  })
+
+  it('adds no guidance block when firingSkillId does not match any COACH_SKILLS entry', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ firingSkillId: 'orphan-edge' }) // an Analyst Skill, not a Coach Skill
+    await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(captured.system).not.toContain('Active trigger guidance')
   })
 })
 

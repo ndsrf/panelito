@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest'
 import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
 import { TASK_MODELS } from '../../lib/model-config'
 import { buildAnalyticsSystemPrompt, analyticsAgentNode } from './analytics-agent'
+import { orphanEdgeSkill } from '../../lib/skills/orphan-edge'
 import type { GraphState } from '../state'
 
 function createMockAdapter(
@@ -160,6 +161,107 @@ describe('buildAnalyticsSystemPrompt — D-03 Role-dominant composition', () => 
     const system = buildAnalyticsSystemPrompt(debateBlueprint, undefined, emptyArgGraph, true)
     expect(system.toLowerCase()).toMatch(/no puedo verificar|verificar|fuente/)
     expect(system.toLowerCase()).toContain('never')
+  })
+
+  it('splices skillGuidance AFTER the argGraph context and BEFORE the Personality voice (D-03)', () => {
+    const system = buildAnalyticsSystemPrompt(
+      debateBlueprint,
+      neutralPersonality,
+      populatedArgGraph,
+      false,
+      'Test analyst guidance text.',
+    )
+    const argGraphIdx = system.indexOf('Argument structure so far')
+    const guidanceIdx = system.indexOf('Test analyst guidance text.')
+    const voiceIdx = system.indexOf(neutralPersonality.definition.voice_instructions)
+    expect(argGraphIdx).toBeGreaterThanOrEqual(0)
+    expect(guidanceIdx).toBeGreaterThan(argGraphIdx)
+    expect(voiceIdx).toBeGreaterThan(guidanceIdx)
+  })
+
+  it('adds no guidance block when skillGuidance is undefined (regression — byte-identical to pre-change)', () => {
+    const withoutGuidance = buildAnalyticsSystemPrompt(debateBlueprint, neutralPersonality, populatedArgGraph, false)
+    const withUndefinedGuidance = buildAnalyticsSystemPrompt(
+      debateBlueprint,
+      neutralPersonality,
+      populatedArgGraph,
+      false,
+      undefined,
+    )
+    expect(withUndefinedGuidance).toBe(withoutGuidance)
+    expect(withoutGuidance).not.toContain('Active trigger guidance')
+  })
+})
+
+describe('analyticsAgentNode — Analyst Skill-guidance injection + live factCheckFraming (Phase 12 Plan 05)', () => {
+  it('enables factCheckFraming live when state.firingSkillId is fact-check (no config.configurable.factCheckFraming needed)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ firingSkillId: 'fact-check' })
+    await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(captured.system!.toLowerCase()).toContain('fact-check framing is active')
+  })
+
+  it('splices the firing Analyst Skill buildPromptGuidance() output into the system prompt (orphan-edge)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Ana...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({
+      firingSkillId: 'orphan-edge',
+      skillMeta: { orphanLabel: 'El agua es esencial para la vida' },
+    })
+    await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    const expectedGuidance = orphanEdgeSkill.buildPromptGuidance({ state, blueprint: debateBlueprint, config: undefined })
+    expect(captured.system).toContain(expectedGuidance)
+  })
+
+  it('adds no guidance block and does not enable factCheckFraming when firingSkillId is null (non-firing turn unchanged)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Ana...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ firingSkillId: null })
+    await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(captured.system).not.toContain('Active trigger guidance')
+    expect(captured.system!.toLowerCase()).not.toContain('fact-check framing is active')
+  })
+
+  it('still honors config.configurable.factCheckFraming=true when firingSkillId is unrelated (existing seam unchanged)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Ana...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ firingSkillId: null })
+    await analyticsAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        analyticsAdapter: adapter,
+        factCheckFraming: true,
+      },
+    })
+    expect(captured.system!.toLowerCase()).toContain('fact-check framing is active')
   })
 })
 
