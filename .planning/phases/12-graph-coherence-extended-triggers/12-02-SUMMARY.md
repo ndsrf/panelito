@@ -137,3 +137,10 @@ None - no external service configuration required. (The `supabase link`/`db push
 ---
 *Phase: 12-graph-coherence-extended-triggers*
 *Completed: 2026-07-15*
+
+## Self-Check: PASSED
+
+All created files verified present on disk (embeddings.ts, embeddings.test.ts,
+moderation-count.ts, moderation-count.test.ts, 0015_graph_coherence_triggers.sql,
+this SUMMARY.md). All task commit hashes (da9f317, 2b7c5de, cf8831b) verified
+present in git log.
