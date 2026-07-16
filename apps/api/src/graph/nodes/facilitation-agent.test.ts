@@ -66,7 +66,7 @@ const debateBlueprint: Blueprint = {
   ],
   edge_types: [{ id: 'SUPPORTS', label: 'Supports', color: '#10b981' }],
   phase_sequence: [
-    { id: 'opening', label: 'Opening', llm_instructions: 'Establish hypotheses.', allowed_node_types: ['hypothesis'] },
+    { id: 'opening', label: 'Opening', llm_instructions: 'Establish hypotheses.', allowed_node_types: ['hypothesis'], phase_readiness_gate: { min_nodes: 3, min_messages_after: 5 } },
   ],
   active_persona_ids: [],
   drift_reply_probability: 0.8,
@@ -121,6 +121,7 @@ function makeState(overrides: Partial<GraphState> = {}): GraphState {
     firingSkillRole: null,
     skillMeta: null,
     triggerGateComplete: null,
+    phaseGateProgress: null,
     ...overrides,
   }
 }

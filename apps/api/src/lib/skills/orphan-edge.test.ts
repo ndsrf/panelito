@@ -88,6 +88,7 @@ function baseGraphState(overrides: Partial<GraphState> = {}): GraphState {
     firingSkillRole: null,
     skillMeta: null,
     triggerGateComplete: null,
+    phaseGateProgress: null,
     ...overrides,
   }
 }
@@ -98,7 +99,7 @@ const blueprintStub: Blueprint = {
   canvas_view_mode: 'graph',
   node_types: [{ id: 'claim', label: 'Claim', color: '#fff', description: 'A claim' }],
   edge_types: [{ id: 'supports', label: 'Supports', color: '#000' }],
-  phase_sequence: [{ id: 'opening', label: 'Opening', llm_instructions: '...', allowed_node_types: ['claim'] }],
+  phase_sequence: [{ id: 'opening', label: 'Opening', llm_instructions: '...', allowed_node_types: ['claim'], phase_readiness_gate: { min_nodes: 3, min_messages_after: 5 } }],
   active_persona_ids: [],
   drift_reply_probability: 0.8,
   drift_detection_enabled: true,
