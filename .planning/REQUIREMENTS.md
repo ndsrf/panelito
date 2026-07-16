@@ -164,8 +164,8 @@
 
 ### Per-Session User Profiles (PROFILE)
 
-- [ ] **PROFILE-01**: The ArgGraphBuilderNode maintains an in-memory profile per session participant (stored in LangGraph thread state via InMemoryStore namespaced by `[sessionId, participantId, 'profile']`) tracking: stated positions, key assertions made, engagement level (messages sent, reactions used)
-- [ ] **PROFILE-02**: The Coach bot receives a summary of each participant's profile as part of its prompt context, enabling personalized facilitation ("Earlier you mentioned X — does this new point support or challenge that?")
+- [x] **PROFILE-01**: The ArgGraphBuilderNode maintains an in-memory profile per session participant (stored in LangGraph thread state via InMemoryStore namespaced by `[sessionId, participantId, 'profile']`) tracking: stated positions, key assertions made, engagement level (messages sent, reactions used)
+- [x] **PROFILE-02**: The Coach bot receives a summary of each participant's profile as part of its prompt context, enabling personalized facilitation ("Earlier you mentioned X — does this new point support or challenge that?")
 
 ### Model Cost Routing (COST)
 
@@ -226,8 +226,8 @@
 | GRAPH-02 | Phase 11 | Pending |
 | GRAPH-03 | Phase 12 | Complete |
 | GRAPH-04 | Phase 11 | Pending |
-| PROFILE-01 | Phase 13 | Pending |
-| PROFILE-02 | Phase 13 | Pending |
+| PROFILE-01 | Phase 13 | Complete |
+| PROFILE-02 | Phase 13 | Complete |
 | COST-01 | Phase 12 | Complete |
 | COST-02 | Phase 12 | Complete |
 | COST-03 | Phase 14 | Pending |
