@@ -146,3 +146,7 @@ None — all new surface (participant_profiles RLS, two new RPCs) was already an
 ---
 *Phase: 13-user-profiles-phase-signal*
 *Completed: IN PROGRESS — blocked at Task 3 checkpoint (2026-07-16)*
+
+## Self-Check: PASSED
+
+All created files verified present; all task commits verified present in `git log`.
