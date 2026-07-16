@@ -146,3 +146,16 @@ None — all new surface this plan introduces (the `judge_phase_readiness` cover
 ---
 *Phase: 13-user-profiles-phase-signal*
 *Completed: 2026-07-16*
+
+## Self-Check: PASSED
+
+- FOUND: apps/api/src/lib/skills/phase-readiness.ts
+- FOUND: apps/api/src/lib/skills/phase-readiness.test.ts
+- FOUND: apps/api/src/lib/skills.ts
+- FOUND: apps/api/src/graph/nodes/trigger-gate.ts
+- FOUND: apps/api/src/graph/nodes/agent.ts
+- FOUND: .planning/phases/13-user-profiles-phase-signal/13-04-SUMMARY.md
+- FOUND: commit 4f6a23e (Task 1 RED)
+- FOUND: commit d07b4ab (Task 1 GREEN)
+- FOUND: commit b016c8a (Task 2)
+- FOUND: commit afa5229 (Task 3)
