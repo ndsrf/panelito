@@ -133,3 +133,8 @@ None - no external service configuration required. (Migration 0016 — the `part
 ---
 *Phase: 13-user-profiles-phase-signal*
 *Completed: 2026-07-16*
+
+## Self-Check: PASSED
+
+All 8 files created/modified confirmed present on disk; all 6 commit hashes (`67b6038`,
+`3c4e725`, `cdb20bc`, `5dc10bb`, `e95da74`, `ee2f5fa`) confirmed present in `git log --oneline --all`.
