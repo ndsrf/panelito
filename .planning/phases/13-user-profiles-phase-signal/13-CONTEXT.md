@@ -42,6 +42,13 @@ A new `ProfileBuilderNode` runs after `ArgGraphBuilderNode` and maintains a pers
 
 - **D-11:** Personalization is **not a competing/firing Skill** in the `TriggerGateNode` arbitration sense (reconciling an initial answer that named it a "dedicated Skill" with the follow-up clarification). It's implemented as a **shared `summarizeParticipant()` enrichment function** (sibling to `summarizeArgGraph()` in `bot-context.ts`), invoked by whichever Coach Skill already won arbitration (silence-break, drift-redirect, moderation, or the new phase-readiness) to append that Skill's target participant's profile summary into its own `buildPromptGuidance()` output. There is no independent "personalize wins arbitration" path — personalization always rides along with whichever Skill is already firing, targeting whichever participant that Skill is already responding to.
 
+### Reachability Fixes (added post-research, 2026-07-16)
+
+Research (13-RESEARCH.md) found that D-03/D-06 as originally written assumed infrastructure that is not actually live in production. The user confirmed both fixes below are in scope for this phase:
+
+- **D-12:** `ArgGraphBuilderNode` is wired onto the human-message path (`mutationGate → argGraphBuilder → profileBuilder → triggerGate`), not just the dead `analysis_request` proactive-scan path. Today, `state.triggerType === 'analysis_request'` is never set by any live caller (`ai.ts`'s human `/invoke` sets no `triggerType`; `silence-scan.ts` only ever sets `'silence_gate'`), so `state.argGraph` stays permanently empty and D-06's "derive positions/assertions by filtering argGraph nodes" would silently produce nothing. This mirrors Phase 12 Plan 06's identical resolution for `TriggerGateNode` reachability. Cost: one `TASK_MODELS[provider].classification` (cheap tier) LLM call added per human turn — user confirmed this is an acceptable scope/cost expansion. Also fixes `config.configurable` on `ai.ts`'s human path to carry `supabase`/`branchId` (currently absent on both live invocation paths — the same gap already made Phase 12's `moderation` Skill's atomic increment path silently unreachable in production since it shipped).
+- **D-13:** `config.configurable.botOverrides` is wired into `ai.ts`'s live invocation path in the same commit as D-12's `branchId`/`supabase` fix. Today no caller ever sets `botOverrides`, so the creator-facing "Analistas activos" toggle has zero effect on Skill firing — a pre-existing Phase 12 gap, not introduced by Phase 13, but low-cost to fix at the same code location and expected behavior once `phase-readiness` exists (a creator disabling the Analyst should also disable it).
+
 ### Claude's Discretion
 
 - Exact `participant_profiles` table schema/migration shape and RPC naming (following `0015_graph_coherence_triggers.sql`'s `moderation_counts` + `increment_moderation_count` precedent)
@@ -49,6 +56,7 @@ A new `ProfileBuilderNode` runs after `ArgGraphBuilderNode` and maintains a pers
 - Cap/recency window for how many positions/assertions are retained per participant profile
 - Exact `speaker` → `author_id` resolution mechanism in `ProfileBuilderNode` (via `ArgNode.message_id` → message lookup)
 - Removal/deprecation mechanics for the existing `agent.ts:150-181` ad-hoc `phase_signal` emission path — confirm no other consumer depends on that exact emission site before removing it
+- Fix the pre-existing Ajv/Zod schema-drift bug in `blueprint-loader.ts` (missing `drift_detection_enabled` declaration, per 13-RESEARCH.md CRITICAL Finding 4) in the same migration that adds this phase's new Blueprint field(s) — required, not optional, or the new field will suffer the identical bug on day one
 
 </decisions>
 
