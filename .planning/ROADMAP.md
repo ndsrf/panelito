@@ -339,7 +339,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 13-01-PLAN.md — Shared contracts & state: ParticipantProfileSchema, phaseReadinessJudgmentTool, per-phase phase_readiness_gate Blueprint field, phaseGateProgress GraphState channel (PROFILE-01/02, TRIGGER-02)
+- [x] 13-01-PLAN.md — Shared contracts & state: ParticipantProfileSchema, phaseReadinessJudgmentTool, per-phase phase_readiness_gate Blueprint field, phaseGateProgress GraphState channel (PROFILE-01/02, TRIGGER-02)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -390,7 +390,7 @@ Plans:
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 6/6 | Complete    | 2026-07-16 |
-| 13. User Profiles + Phase Signal | v3.0 | 0/? | Not started | - |
+| 13. User Profiles + Phase Signal | v3.0 | 1/5 | In Progress|  |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
 ---

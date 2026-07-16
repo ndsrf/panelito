@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: The Bots Must Help the Conversation Flow
-status: planning
+status: executing
 stopped_at: Phase 13 context gathered
-last_updated: "2026-07-16T09:38:27.851Z"
-last_activity: 2026-07-16
+last_updated: "2026-07-16T10:44:15.914Z"
+last_activity: 2026-07-16 -- Phase 13 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 16
+  total_plans: 21
   completed_plans: 16
   percent: 60
 ---
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09)
 
 **Core value:** The live analytics panel stays perfectly synchronized with the active conversation branch — transforming passive group chat into structured, visual collective thinking.
-**Current focus:** Phase 13 — user profiles + phase signal
+**Current focus:** Phase 13 — user-profiles-phase-signal
 
 ---
 
@@ -103,7 +103,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Current Position
 
-Phase: 12 (graph-coherence-extended-triggers) — EXECUTING
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-16
+Phase: 13 (user-profiles-phase-signal) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 13
+Last activity: 2026-07-16 -- Phase 13 execution started
