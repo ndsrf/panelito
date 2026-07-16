@@ -142,6 +142,15 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
+-- RETURNS TABLE's OUT parameters share names with participant_profiles'
+-- real columns (branch_id, participant_id, positions, ...) — without this
+-- pragma, every bare column reference in the INSERT column list / ON
+-- CONFLICT target / SET clause below throws "column reference is ambiguous"
+-- (PL/pgSQL variable vs. table column). use_column resolves bare
+-- identifiers to the table column, which is correct here — this function's
+-- SQL body never intends to reference the OUT vars by bare name (the
+-- RETURN QUERY below explicitly qualifies every reference with pp.*).
 begin
   INSERT INTO public.participant_profiles
     (branch_id, participant_id, positions, assertions, messages_sent, reactions_used, updated_at)
