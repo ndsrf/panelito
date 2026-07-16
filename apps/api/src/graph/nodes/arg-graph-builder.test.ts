@@ -58,6 +58,7 @@ function baseState(overrides: Partial<GraphState> = {}): GraphState {
     firingSkillRole: null,
     skillMeta: null,
     triggerGateComplete: null,
+    phaseGateProgress: null,
     ...overrides,
   }
 }

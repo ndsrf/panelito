@@ -162,6 +162,7 @@ const debateBlueprint: Blueprint = {
       label: 'Opening',
       llm_instructions: 'Focus on establishing core hypotheses.',
       allowed_node_types: ['hypothesis', 'evidence'],
+      phase_readiness_gate: { min_nodes: 3, min_messages_after: 5 },
     },
   ],
   active_persona_ids: ['analista_cientifico'],

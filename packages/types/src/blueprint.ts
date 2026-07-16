@@ -39,6 +39,19 @@ export const PhaseSequenceSchema = z.object({
   label: z.string(),
   llm_instructions: z.string(),
   allowed_node_types: z.array(z.string()), // references NodeTypeConfig.id values
+  // D-09 (Phase 13): per-phase N/M readiness gate — min_nodes and min_messages_after
+  // naturally vary by phase (Assumption A3), so this is scoped to the phase_sequence
+  // item, NOT a top-level Blueprint field. Optional in DB (existing seeded phase
+  // entries lack this field); Zod supplies the default, mirroring the
+  // drift_detection_enabled precedent on Blueprint itself. The matching Ajv
+  // declaration lands in blueprint-loader.ts (Plan 02) to avoid the
+  // additionalProperties:false rejection (Pitfall 4).
+  phase_readiness_gate: z
+    .object({
+      min_nodes: z.number().int().min(1),
+      min_messages_after: z.number().int().min(1),
+    })
+    .default({ min_nodes: 3, min_messages_after: 5 }),
 });
 
 export type PhaseSequence = z.infer<typeof PhaseSequenceSchema>;
