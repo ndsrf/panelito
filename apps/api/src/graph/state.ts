@@ -151,6 +151,29 @@ export const GraphStateAnnotation = Annotation.Root({
     reducer: (_: boolean | null, v: boolean | null) => v,
     default: () => null,
   }),
+
+  // -------------------------------------------------------------------------
+  // Phase-readiness gate progress (Phase 13, D-09, TRIGGER-02)
+  // Persists the sequential N/M gate counters (phase_readiness_gate.min_nodes /
+  // min_messages_after) across invocations on a thread via PostgresSaver — there is
+  // no "phase changed at" timestamp in the DB schema to derive these from. Overwrite
+  // style, defaults to null. Reset to a fresh object by the phase-readiness Skill
+  // (Plan 04) whenever `phaseId !== state.currentPhaseId`.
+  // -------------------------------------------------------------------------
+
+  /** Sequential N/M gate progress for the phase-readiness Skill, or null before the
+   *  gate has been opened for the current phase. */
+  phaseGateProgress: Annotation<{
+    phaseId: string
+    nodeCountAtGateOpen: number
+    messagesSinceGateOpen: number
+  } | null>({
+    reducer: (
+      _: { phaseId: string; nodeCountAtGateOpen: number; messagesSinceGateOpen: number } | null,
+      v: { phaseId: string; nodeCountAtGateOpen: number; messagesSinceGateOpen: number } | null,
+    ) => v,
+    default: () => null,
+  }),
 })
 
 /** Full state type derived from the annotation root. */
