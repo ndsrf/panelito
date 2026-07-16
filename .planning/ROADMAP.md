@@ -334,7 +334,25 @@ Plans:
   2. The Coach's prompt context includes a summary of each active participant's profile; a Coach invocation references a specific prior assertion by a named participant ("Earlier you mentioned X — does this new point support or challenge that?") — verifiable in the Langfuse trace prompt payload
   3. When the Analyst evaluates the argGraph and message history as having sufficient coverage of the current Blueprint phase's required topics, a phase-readiness signal is emitted; the Coach asks the group if they want to advance; the actual phase advancement still requires a human click (the LLM cannot advance the phase autonomously)
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — Shared contracts & state: ParticipantProfileSchema, phaseReadinessJudgmentTool, per-phase phase_readiness_gate Blueprint field, phaseGateProgress GraphState channel (PROFILE-01/02, TRIGGER-02)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 13-02-PLAN.md — Migration 0016 (participant_profiles + moderation_counts fold-in + RPCs), participant-profile repository, moderation-count repoint, Ajv drift fix (F4), [BLOCKING] schema push (PROFILE-01, TRIGGER-02)
+
+**Wave 3** *(parallel — blocked on Wave 2, no file overlap)*
+
+- [ ] 13-03-PLAN.md — ProfileBuilderNode + summarizeParticipant() + human-path topology reachability (F1/D-12) (PROFILE-01, PROFILE-02)
+- [ ] 13-04-PLAN.md — phase-readiness Analyst Skill (sequential N/M gate + coverage judgment) + ANALYST_SKILLS registration + agent.ts ad-hoc phase_signal removal (TRIGGER-02)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 13-05-PLAN.md — ai.ts config wiring (F2/D-12/D-13), analyticsAgentNode phase_signal derivation (F3) + D-11 personalization, end-to-end integration test (PROFILE-02, TRIGGER-02)
 
 ### Phase 14: Polish + TriggerEngine Wiring
 
