@@ -73,6 +73,22 @@ const BLUEPRINT_JSON_SCHEMA = {
           label: { type: "string" },
           llm_instructions: { type: "string" },
           allowed_node_types: { type: "array", items: { type: "string" } },
+          // D-09 (Phase 13, TRIGGER-02): per-phase N/M readiness gate — optional field.
+          // NOT in the `required` array: existing phase_sequence entries (seeded
+          // debate-strategy-v1) predate this field and must still validate. Zod's
+          // .default({ min_nodes: 3, min_messages_after: 5 }) supplies the value at
+          // parse time (packages/types/src/blueprint.ts PhaseSequenceSchema). MUST be
+          // declared here (even though optional) because `additionalProperties: false`
+          // would reject any phase_sequence entry that DOES set it without this
+          // declaration (same idiom as drift_reply_probability below).
+          phase_readiness_gate: {
+            type: "object",
+            properties: {
+              min_nodes: { type: "number" },
+              min_messages_after: { type: "number" },
+            },
+            additionalProperties: false,
+          },
         },
         additionalProperties: false,
       },
@@ -84,6 +100,14 @@ const BLUEPRINT_JSON_SCHEMA = {
     // MUST be declared in `properties` (even though optional) because `additionalProperties: false`
     // would reject any blueprint that does include the field without this declaration (T-06-01).
     drift_reply_probability: { type: "number", minimum: 0, maximum: 1 },
+    // D-09 (Phase 12/0015, RESEARCH Finding 4 — urgent live-bug fix): migration 0015
+    // added drift_detection_enabled to the live debate-strategy-v1 Blueprint row via
+    // `definition || '{"drift_detection_enabled": true}'::jsonb`, but this Ajv schema
+    // was never updated to declare it — `additionalProperties: false` has been
+    // rejecting the ONLY seeded Blueprint on every /invoke and every PATCH
+    // /:id/phase since 0015 landed. Declared here now (optional — Zod supplies its
+    // own default for any Blueprint predating this migration).
+    drift_detection_enabled: { type: "boolean" },
     // Phase 11 (Plan 01/02): bot_defaults + role_personalities + bot_cooldowns.
     // Optional in the schema (Zod supplies .default({})/.optional()) but MUST be
     // declared here — additionalProperties: false at top level rejects any

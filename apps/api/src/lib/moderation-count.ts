@@ -1,10 +1,13 @@
 /**
  * moderation-count.ts — Postgres-backed per-participant moderation escalation counter (D-16).
  *
- * getModerationCount / incrementModerationCount read/write the moderation_counts table
- * (migration 0015). Escalation tone (D-16: "moderation intervention tone escalates after
- * repeated triggers on the same participant within a session") reads this counter to decide
- * gentle-vs-direct tone.
+ * getModerationCount / incrementModerationCount read/write
+ * participant_profiles.moderation_count (migration 0016 folded the old
+ * standalone moderation_counts table into participant_profiles per D-02;
+ * the RPC below is still named increment_moderation_count but is repointed
+ * to write the new column). Escalation tone (D-16: "moderation intervention
+ * tone escalates after repeated triggers on the same participant within a
+ * session") reads this counter to decide gentle-vs-direct tone.
  *
  * Fail-closed on any Supabase error (T-12-05): return 0 — the GENTLEST tier, never throw.
  * A false negative here is a gentle nudge, never a wrongful escalation. This mirrors
@@ -34,8 +37,8 @@ export async function getModerationCount(
   participantId: string
 ): Promise<number> {
   const { data, error } = await supabase
-    .from('moderation_counts')
-    .select('count')
+    .from('participant_profiles')
+    .select('moderation_count')
     .eq('branch_id', branchId)
     .eq('participant_id', participantId)
     .maybeSingle()
@@ -51,7 +54,7 @@ export async function getModerationCount(
   }
 
   const row = data as Record<string, unknown>
-  return typeof row.count === 'number' ? row.count : FAIL_CLOSED_COUNT
+  return typeof row.moderation_count === 'number' ? row.moderation_count : FAIL_CLOSED_COUNT
 }
 
 /**
