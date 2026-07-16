@@ -83,3 +83,10 @@ export { SkillDetectionResultSchema } from "./skill";
 
 // Fact-check tier-2 classifier tool (Phase 12 Task 1, TRIGGER-05, COST-02)
 export { factCheckClassificationTool } from "./fact-check-tool";
+
+// ParticipantProfile types + schema (Phase 13, PROFILE-01/02, D-01/D-04/D-05)
+export type { ParticipantProfile } from "./participant-profile";
+export { ParticipantProfileSchema } from "./participant-profile";
+
+// Phase-readiness judgment tool (Phase 13, TRIGGER-02, D-10)
+export { phaseReadinessJudgmentTool } from "./phase-readiness-tool";
