@@ -48,16 +48,20 @@ The live analytics panel stays perfectly synchronized with the active conversati
 - ✓ Langfuse observability (graph tracing, costs, latency, prompts) — Phase 6
 - ✓ Debate/Strategy Blueprint (Hypothesis, Evidence, Counter-Argument, Action) — Phase 5
 
+<!-- v3.0 partial — phase 12 complete -->
+- ✓ Semantic drift trigger (ONNX cosine-similarity vs. Blueprint domain centroid, $0-cost detection) — Phase 12
+- ✓ Unlinked assertion trigger (orphan-edge detection + typed/ghost edge proposal) — Phase 12
+- ✓ Fact-check trigger (heuristic → light classifier → capable-tier three-tier escalation) — Phase 12
+- ✓ Moderation trigger (Spanish heuristic pre-filter + moderation_count tone escalation) — Phase 12
+- ✓ Bots derive and create typed edge relationships for orphaned canvas nodes — Phase 12
+- ✓ Task-based LLM tier routing for proactive bot invocations (fast tier for facilitation/moderation, capable tier for analysis/graph-reasoning) — Phase 12
+
 ### Active
 
 **Proactive Bot Engine (v3.0)**
 - [ ] Bots speak autonomously without human invocation, triggered by 6 event types
 - [ ] Silence-window trigger: bot intervenes after N seconds of no human message
 - [ ] Blueprint phase-signal trigger: bot nudges group when conversation is ready to advance
-- [ ] Semantic drift trigger: bot redirects when conversation leaves Blueprint scope
-- [ ] Unlinked assertion trigger: bot surfaces connection between new claim and existing graph node
-- [ ] Fact-check trigger: bot challenges clearly false or unsupported claims
-- [ ] Moderation trigger: bot intervenes on rude or disruptive messages
 
 **Bot Personalities (v3.0)**
 - [ ] Coach bot: Socratic, empathetic — asks questions, never gives answers, guides humans to their own conclusions
@@ -67,12 +71,10 @@ The live analytics panel stays perfectly synchronized with the active conversati
 
 **Coherent Graph Model (v3.0)**
 - [ ] Every new canvas node linked via typed edges to ≥1 existing node (no isolated hypotheses)
-- [ ] Bots derive and create edge relationships (SUPPORTS, CONTRADICTS, BUILDS_ON, QUESTIONS, etc.)
 - [ ] Graph reflects actual argument structure, not a flat list of sentences
 - [ ] In-memory conversation graph used by bots for facilitation context
 
 **Model Cost Routing (v3.0)**
-- [ ] Task-based LLM tier selection: heavy model for graph reasoning + fact-check; light model for facilitation + classification
 - [ ] Model assignment configurable per operation type in Blueprint
 
 **Per-Session User Profiles (v3.0)**
@@ -148,4 +150,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-10 after Phase 10 (infrastructure-foundation) complete*
+*Last updated: 2026-07-16 after Phase 12 (graph-coherence-extended-triggers) complete*
