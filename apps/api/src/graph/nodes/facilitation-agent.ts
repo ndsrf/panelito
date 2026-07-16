@@ -29,10 +29,12 @@
  * Never imports @anthropic-ai/sdk directly — all LLM access via createAdapter().
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
-import { summarizeArgGraph, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { summarizeArgGraph, summarizeParticipant, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { getParticipantProfile } from '../../lib/participant-profile'
 import { COACH_SKILLS } from '../../lib/skills'
 import type { GraphState } from '../state'
 
@@ -131,9 +133,32 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
     ? firingCoachSkill.buildPromptGuidance({ state, blueprint, config })
     : undefined
 
-  // Step 3: build system prompt — Role rules FIRST (D-03), Skill guidance (if any) spliced
-  // after argGraph context, Personality voice appended last.
-  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph, skillGuidance)
+  // Step 2.5 (Phase 13 Plan 05, D-11): when the firing Skill carries a resolvable target
+  // participant (state.skillMeta.participantId — e.g. moderation's own meta.participantId),
+  // splice that participant's profile summary into the SAME step-3.5 guidance slot as
+  // skillGuidance — after argGraph context, before Personality voice. Absent targetId →
+  // append nothing (graceful). Profile-fetch failure fails open — getParticipantProfile
+  // never throws (participant-profile.ts) and summarizeParticipant(null) renders a safe
+  // placeholder sentence.
+  const targetParticipantId = state.skillMeta?.participantId as string | undefined
+  let combinedSkillGuidance = skillGuidance
+  if (targetParticipantId) {
+    const supabaseForProfile = config?.configurable?.supabase as SupabaseClient | undefined
+    const branchIdForProfile = config?.configurable?.branchId as string | undefined
+    const targetProfile =
+      supabaseForProfile && branchIdForProfile
+        ? await getParticipantProfile(supabaseForProfile, branchIdForProfile, targetParticipantId)
+        : null
+    const participantSummary = summarizeParticipant(targetProfile)
+    combinedSkillGuidance = combinedSkillGuidance
+      ? `${combinedSkillGuidance}\n\n${participantSummary}`
+      : participantSummary
+  }
+
+  // Step 3: build system prompt — Role rules FIRST (D-03), Skill guidance (if any, now
+  // including participant profile context) spliced after argGraph context, Personality
+  // voice appended last.
+  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph, combinedSkillGuidance)
 
   // Step 4: stream response; forward tokens to streamWriter (undefined = no-op, e.g. proactive
   // fire without a capturing closure supplied by the caller)

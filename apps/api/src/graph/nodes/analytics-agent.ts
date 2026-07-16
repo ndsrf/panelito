@@ -35,11 +35,13 @@
  * Never imports @anthropic-ai/sdk directly — all LLM access via createAdapter().
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { canvasMutationTool, CanvasOpSchema } from '@panelito/types'
 import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
-import { summarizeArgGraph, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { summarizeArgGraph, summarizeParticipant, CONTEXT_WINDOWS } from '../../lib/bot-context'
+import { getParticipantProfile } from '../../lib/participant-profile'
 import { ANALYST_SKILLS } from '../../lib/skills'
 import type { GraphState } from '../state'
 
@@ -159,9 +161,40 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
     ? firingAnalystSkill.buildPromptGuidance({ state, blueprint, config })
     : undefined
 
+  // Step 2.5 (Phase 13 Plan 05, D-11/Pattern 3): when the firing Skill carries a resolvable
+  // target participant (state.skillMeta.participantId), splice that participant's profile
+  // summary into the SAME step-3.5 guidance slot as skillGuidance — after argGraph context,
+  // before Personality voice. No current Analyst Skill sets skillMeta.participantId (only
+  // moderation, a Coach Skill, does) — this seam is symmetric with facilitation-agent.ts per
+  // D-11's own instruction, and phase-readiness deliberately has no single target (Pattern 3),
+  // so this is a graceful no-op for every Analyst Skill firing today. Profile-fetch failure
+  // fails open — getParticipantProfile never throws (participant-profile.ts) and
+  // summarizeParticipant(null) renders a safe placeholder sentence.
+  const targetParticipantId = state.skillMeta?.participantId as string | undefined
+  let combinedSkillGuidance = skillGuidance
+  if (targetParticipantId) {
+    const supabaseForProfile = config?.configurable?.supabase as SupabaseClient | undefined
+    const branchIdForProfile = config?.configurable?.branchId as string | undefined
+    const targetProfile =
+      supabaseForProfile && branchIdForProfile
+        ? await getParticipantProfile(supabaseForProfile, branchIdForProfile, targetParticipantId)
+        : null
+    const participantSummary = summarizeParticipant(targetProfile)
+    combinedSkillGuidance = combinedSkillGuidance
+      ? `${combinedSkillGuidance}\n\n${participantSummary}`
+      : participantSummary
+  }
+
   // Step 3: build system prompt — Role rules (+ conditional fact-check framing) FIRST (D-03),
-  // Skill guidance (if any) spliced after argGraph context, Personality voice appended last.
-  const system = buildAnalyticsSystemPrompt(blueprint, personality, state.argGraph, factCheckFraming, skillGuidance)
+  // Skill guidance (if any, now including participant profile context) spliced after argGraph
+  // context, Personality voice appended last.
+  const system = buildAnalyticsSystemPrompt(
+    blueprint,
+    personality,
+    state.argGraph,
+    factCheckFraming,
+    combinedSkillGuidance,
+  )
 
   let agentOutput: import('@panelito/types').CanvasOp | null = null
   let agentConfidence: number | null = null
@@ -207,9 +240,19 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
   // into the same generic 'analysis_request' bucket.
   const metaKey = state.firingSkillId ?? state.triggerType ?? 'analysis_request'
   const previous = state.triggerMetadata?.[metaKey]
+
+  // Phase 13 Plan 05 (F3/TRIGGER-02, T-13-12): phase_signal is derived STRICTLY from
+  // state.firingSkillId === 'phase-readiness' — never a broader "any Analyst Skill fired"
+  // check (Pitfall 5 — that would let e.g. fact-check or orphan-edge firings spoof the
+  // user-facing "Advance Phase" affordance). null (not undefined/false) when not firing,
+  // matching GraphState's Annotation<boolean | null> shape. Existing SSE → CreatorControls →
+  // PATCH plumbing (ai.ts) is UNCHANGED — it already reads finalState.phase_signal generically.
+  const phaseReadinessFired = state.firingSkillId === 'phase-readiness'
+
   return {
     agentOutput,
     agentConfidence,
+    phase_signal: phaseReadinessFired ? true : null,
     triggerMetadata: {
       ...state.triggerMetadata,
       [metaKey]: {
