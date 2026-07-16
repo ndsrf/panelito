@@ -32,6 +32,23 @@ import type { AIProvider, AIStreamEvent, Blueprint } from '@panelito/types'
 const coachSkillDetectMock = vi.fn()
 const analystSkillDetectMock = vi.fn()
 
+// ---------------------------------------------------------------------------
+// Phase 13 Plan 03 Task 3 — mock profileBuilderNode so its own DB/branchId
+// requirements never touch a real Supabase client here; the graph-topology
+// tests below only need to observe THAT it was invoked (and when, relative to
+// argGraphBuilder/triggerGate), not what it persists (profile-builder.test.ts
+// already covers ProfileBuilderNode's own behavior in isolation).
+// ---------------------------------------------------------------------------
+const profileBuilderCallOrderMock: string[] = []
+const profileBuilderNodeMock = vi.fn(async (..._args: unknown[]) => {
+  profileBuilderCallOrderMock.push('profileBuilder')
+  return {}
+})
+
+vi.mock('./nodes/profile-builder', () => ({
+  profileBuilderNode: (...args: unknown[]) => profileBuilderNodeMock(...args),
+}))
+
 vi.mock('../lib/skills', () => ({
   COACH_SKILLS: [
     {
@@ -984,5 +1001,173 @@ describe('TriggerGateNode wiring — human-path routing + termination (Phase 12 
     expect(routeAfterTriggerGate(stateCoach)).toBe('facilitation')
     expect(routeAfterTriggerGate(stateAnalyst)).toBe('analysis')
     expect(routeAfterTriggerGate(stateNone)).toBe('end')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 13 Plan 03 Task 3 — profileBuilder wiring (Finding 1 human-path
+// reachability fix): human path now runs
+// mutationGate -> argGraphBuilder -> profileBuilder -> triggerGate, while the
+// analysis_request proactive path is unchanged (still argGraphBuilder ->
+// analysis directly, never visiting profileBuilder).
+// ---------------------------------------------------------------------------
+describe('profileBuilder wiring (Phase 13 Plan 03 Task 3 — Finding 1)', () => {
+  beforeEach(() => {
+    coachSkillDetectMock.mockReset()
+    analystSkillDetectMock.mockReset()
+    profileBuilderNodeMock.mockClear()
+    profileBuilderCallOrderMock.length = 0
+  })
+
+  it('(a)+(b) human path (triggerType null) visits argGraphBuilder -> profileBuilder -> triggerGate, in order, and terminates', async () => {
+    coachSkillDetectMock.mockImplementation(async () => {
+      profileBuilderCallOrderMock.push('triggerGate')
+      return { fires: false, confidence: 0 }
+    })
+    analystSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+
+    const bothEnabledBlueprint: Blueprint = {
+      ...debateBlueprint,
+      bot_defaults: { coach: true, analyst: true },
+    }
+
+    const argGraphAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        profileBuilderCallOrderMock.push('argGraphBuilder')
+        yield {
+          type: 'tool_use',
+          name: 'extract_arg_graph',
+          input: {
+            nodes: [
+              {
+                id: 'n1',
+                type: 'claim',
+                label: 'Water is essential for life',
+                message_id: VALID_MESSAGE_UUID,
+                speaker: 'Miguel',
+              },
+            ],
+            edges: [],
+          },
+        }
+        yield { type: 'done' }
+      },
+    }
+
+    const graph = createGraph(new MemorySaver())
+
+    // Termination proof: this await either resolves or rejects — an infinite loop
+    // (the exact failure mode this wiring risks per Finding 1's own doc comment)
+    // would hang this test's own timeout instead.
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+        triggerType: null,
+      },
+      {
+        configurable: {
+          thread_id: `test-profilebuilder-human-${Math.random().toString(36).slice(2)}`,
+          blueprint: bothEnabledBlueprint,
+          providerName: 'anthropic' as const,
+          plaintextKey: 'test-key',
+          branchId: VALID_BRANCH_UUID,
+          classifierAdapter: classifierMatchAdapter,
+          agentAdapter: agentNoAction03,
+          argGraphAdapter: argGraphAdapterMock,
+        },
+      }
+    )
+
+    expect(result.triggerGateComplete).toBe(true)
+    expect(result.argGraph.nodes).toHaveLength(1)
+    expect(profileBuilderNodeMock).toHaveBeenCalledTimes(1)
+    expect(profileBuilderCallOrderMock).toEqual(['argGraphBuilder', 'profileBuilder', 'triggerGate'])
+  })
+
+  it('(c) analysis_request path is unchanged — still argGraphBuilder -> analysis directly, never visiting profileBuilder', async () => {
+    coachSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    analystSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+
+    const argGraphAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        yield {
+          type: 'tool_use',
+          name: 'extract_arg_graph',
+          input: {
+            nodes: [
+              {
+                id: 'n1',
+                type: 'claim',
+                label: 'Water is essential for life',
+                message_id: VALID_MESSAGE_UUID,
+                speaker: 'Miguel',
+              },
+            ],
+            edges: [],
+          },
+        }
+        yield { type: 'done' }
+      },
+    }
+
+    const analyticsAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        yield { type: 'text_delta', text: 'Miguel afirmó que el agua es esencial para la vida.' }
+        yield { type: 'done' }
+      },
+    }
+
+    const graph = createGraph(new MemorySaver())
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+        triggerType: 'analysis_request',
+      },
+      makeConfig({
+        branchId: VALID_BRANCH_UUID,
+        argGraphAdapter: argGraphAdapterMock,
+        analyticsAdapter: analyticsAdapterMock,
+      })
+    )
+
+    expect(result.argGraph.nodes).toHaveLength(1)
+    expect(result.triggerGateComplete).toBe(true)
+    // The whole point of this test: profileBuilder is NEVER reached on the
+    // analysis_request path — routeAfterArgGraphBuilder's analysis_request branch
+    // still routes straight to 'analysis', preserving Phase 11 behavior exactly.
+    expect(profileBuilderNodeMock).not.toHaveBeenCalled()
   })
 })

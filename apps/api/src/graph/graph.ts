@@ -1,15 +1,29 @@
 /**
  * graph.ts — createGraph factory + routeFromStart / routeAfterOrchestrator conditional edges
  *
- * Creates a StateGraph with eight nodes (Phase 12 Plan 06 adds triggerGate):
+ * Creates a StateGraph with nine nodes (Phase 12 Plan 06 added triggerGate; Phase 13
+ * Plan 03 adds profileBuilder — Finding 1 human-path reachability fix):
  *   START → (conditional: routeFromStart) → facilitation | argGraphBuilder | orchestrator
  *   orchestrator → (conditional: routeAfterOrchestrator) → agent | driftReply | END
- *   agent → mutationGate → (conditional: routeAfterMutationGate) → triggerGate | END
+ *   agent → mutationGate → (conditional: routeAfterMutationGate) → argGraphBuilder | triggerGate | END
  *   driftReply → END
  *   facilitation → END
- *   argGraphBuilder → (conditional: routeAfterArgGraphBuilder) → analysis | triggerGate
- *   analysis → mutationGate → (conditional: routeAfterMutationGate) → triggerGate | END
+ *   argGraphBuilder → (conditional: routeAfterArgGraphBuilder) → analysis | profileBuilder
+ *   profileBuilder → triggerGate
+ *   analysis → mutationGate → (conditional: routeAfterMutationGate) → argGraphBuilder | triggerGate | END
  *   triggerGate → (conditional: routeAfterTriggerGate) → facilitation | analysis | END
+ *
+ * Phase 13 Plan 03 human path (Finding 1, 13-RESEARCH.md): on a real human message,
+ * mutationGate → argGraphBuilder → profileBuilder → triggerGate — making state.argGraph
+ * (and therefore ProfileBuilderNode's positions/assertions derivation, D-06) load-bearing
+ * on every human turn for the first time in this project's history. The analysis_request
+ * proactive path is UNCHANGED (routeAfterArgGraphBuilder's analysis_request branch still
+ * goes straight to 'analysis', preserving Phase 11 behavior) — routeAfterMutationGate
+ * distinguishes the two paths via state.triggerType (see its own doc comment below) so
+ * argGraphBuilder is never re-entered a second time within the same invocation for the
+ * analysis_request path (that would both double an LLM extraction call and break the
+ * termination proof, since routeAfterArgGraphBuilder's analysis_request branch never
+ * routes through triggerGate to set triggerGateComplete).
  *
  * checkpointer parameter enables the MemorySaver/PostgresSaver swap:
  *   - No arg (or undefined): defaults to MemorySaver (unit tests, D-11)
@@ -43,25 +57,10 @@
  * triggerType than analysis_request — analysis_request itself still routes straight to
  * 'analysis', preserving Phase 11 behavior unchanged).
  *
- * routeAfterMutationGate REPLACES the fixed .addEdge('mutationGate', END) (Pitfall: a
- * fixed edge and a conditional edge from the same source node both fire — fan-out, not
- * override — see the START/argGraphBuilder header comments below for the same class of
- * bug already documented in this file). Loop guard (T-12-16): reads
- * state.triggerGateComplete — 'triggerGate' on the FIRST pass through mutationGate in a
- * given invocation (triggerGateComplete is null/not-yet-set), 'end' on any SUBSEQUENT
- * pass (triggerGateComplete === true, set unconditionally by triggerGateNode's own
- * return — trigger-gate.ts). This guarantees termination: triggerGateComplete is
- * overwrite-style and never reset back to null within a single invocation, so no path
- * through this graph can re-enter triggerGate more than once per invoke() call.
- *
- * routeAfterArgGraphBuilder REPLACES the fixed .addEdge('argGraphBuilder', 'analysis')
- * (Phase 11) — replaced, not added alongside, for the same fan-out reason. Preserves the
- * exact Phase 11 analysis_request behavior as one branch ('analysis' when
- * state.triggerType === 'analysis_request'); any other triggerType value reaching
- * argGraphBuilder routes to 'triggerGate' instead (forward-compatible with a future
- * dedicated trigger_scan-style invocation path — not exercised by any currently-defined
- * triggerType value, since routeFromStart today only ever sends argGraphBuilder
- * 'analysis_request' invocations).
+ * routeAfterMutationGate and routeAfterArgGraphBuilder — see each function's own doc
+ * comment below (updated for Phase 13 Plan 03's Finding 1 human-path reachability fix,
+ * which routes the human-message path through argGraphBuilder → profileBuilder before
+ * triggerGate for the first time, while leaving the analysis_request path unchanged).
  *
  * routeAfterTriggerGate reads state.firingSkillRole (mirrors routeAfterOrchestrator's
  * shape): 'coach' → 'facilitation', 'analyst' → 'analysis', null (no Skill fired) →
@@ -83,6 +82,7 @@ import { argGraphBuilderNode } from './nodes/arg-graph-builder'
 import { facilitationAgentNode } from './nodes/facilitation-agent'
 import { analyticsAgentNode } from './nodes/analytics-agent'
 import { triggerGateNode } from './nodes/trigger-gate'
+import { profileBuilderNode } from './nodes/profile-builder'
 
 /**
  * Conditional edge function that routes after the OrchestratorNode completes.
@@ -136,37 +136,54 @@ export function routeFromStart(state: GraphState): 'facilitation' | 'analysis' |
 
 /**
  * Conditional edge function that routes after MutationGateNode completes (Phase 12 Plan 06 —
- * T-12-16 loop guard). REPLACES the fixed .addEdge('mutationGate', END) from Phase 6-11
- * (Pitfall: a fixed edge and a conditional edge from the same source both fire — fan-out, not
- * override — same class of bug already documented for START/argGraphBuilder in this file).
+ * T-12-16 loop guard; Phase 13 Plan 03 — Finding 1 human-path reachability fix). REPLACES the
+ * fixed .addEdge('mutationGate', END) from Phase 6-11 (Pitfall: a fixed edge and a conditional
+ * edge from the same source both fire — fan-out, not override — same class of bug already
+ * documented for START/argGraphBuilder in this file).
  *
  * Reads state.triggerGateComplete (state.ts, Plan 01/06): triggerGateNode unconditionally sets
  * this to true on every one of its own return paths (trigger-gate.ts) — it is never reset back
  * to null within a single graph invocation (overwrite-style Annotation, no node ever writes
  * `false`/`null` to it once set). This guarantees termination:
- *   - FIRST pass through mutationGate in an invocation (triggerGateComplete is still null,
- *     the default — triggerGateNode has not run yet) → 'triggerGate'.
- *   - Any SUBSEQUENT pass (triggerGateComplete === true) → 'end'.
- * so no path through this graph can re-enter triggerGate more than once per invoke() call.
+ *   - Any pass through mutationGate ONCE triggerGateComplete === true → 'end'. This covers
+ *     both the loop-guard's original subsequent-pass case AND the analysis_request path's
+ *     own post-triggerGate mutationGate pass (CR-02 / routeAfterTriggerGate).
+ *   - Otherwise (triggerGateComplete is still null — triggerGateNode has not run yet this
+ *     invocation), the route depends on state.triggerType (Finding 1):
+ *       - triggerType === null | undefined (the human-message path, reached via
+ *         agent → mutationGate) → 'argGraphBuilder', so state.argGraph gets populated and
+ *         profileBuilder runs BEFORE triggerGate for the first time on a real human turn.
+ *       - triggerType === 'analysis_request' (reached via analysis → mutationGate, on the
+ *         proactive path that already ran argGraphBuilder once via routeFromStart) →
+ *         'triggerGate' directly, exactly as before Phase 13 — re-entering argGraphBuilder
+ *         here would both double the extraction LLM call AND infinite-loop, since
+ *         routeAfterArgGraphBuilder's analysis_request branch never routes through
+ *         triggerGate to ever set triggerGateComplete=true.
  */
-export function routeAfterMutationGate(state: GraphState): 'triggerGate' | 'end' {
-  return state.triggerGateComplete !== true ? 'triggerGate' : 'end'
+export function routeAfterMutationGate(state: GraphState): 'argGraphBuilder' | 'triggerGate' | 'end' {
+  if (state.triggerGateComplete === true) {
+    return 'end'
+  }
+  return state.triggerType === null || state.triggerType === undefined ? 'argGraphBuilder' : 'triggerGate'
 }
 
 /**
- * Conditional edge function that routes after ArgGraphBuilderNode completes (Phase 12 Plan 06).
- * REPLACES the fixed .addEdge('argGraphBuilder', 'analysis') from Phase 11 (same fan-out
- * hazard as above — replaced, not added alongside).
+ * Conditional edge function that routes after ArgGraphBuilderNode completes (Phase 12 Plan 06;
+ * Phase 13 Plan 03 — Finding 1). REPLACES the fixed .addEdge('argGraphBuilder', 'analysis')
+ * from Phase 11 (same fan-out hazard as above — replaced, not added alongside).
  *
  * Preserves the exact Phase 11 analysis_request behavior as one branch: 'analysis' when
- * state.triggerType === 'analysis_request' (routeFromStart is the only current caller that
- * ever sends argGraphBuilder an invocation, and it only ever does so for this triggerType) —
- * any other triggerType value reaching argGraphBuilder routes to 'triggerGate' instead
- * (forward-compatible with a future dedicated trigger-scan-style invocation path; not
- * exercised by any currently-defined triggerType value).
+ * state.triggerType === 'analysis_request' (routeFromStart is the only caller that reaches
+ * argGraphBuilder via START, and it only ever does so for this triggerType, so state.argGraph
+ * was already populated by the time this router runs on that path). Any other triggerType
+ * value reaching argGraphBuilder (in practice only null/undefined — routeAfterMutationGate is
+ * the only OTHER caller of argGraphBuilder, and it only routes there for the human path, above)
+ * routes to 'profileBuilder' instead, so ProfileBuilderNode can derive positions/assertions
+ * from the argGraph this very call just populated (D-03/D-06) before continuing on to
+ * triggerGate via a fixed profileBuilder → triggerGate edge.
  */
-export function routeAfterArgGraphBuilder(state: GraphState): 'analysis' | 'triggerGate' {
-  return state.triggerType === 'analysis_request' ? 'analysis' : 'triggerGate'
+export function routeAfterArgGraphBuilder(state: GraphState): 'analysis' | 'profileBuilder' {
+  return state.triggerType === 'analysis_request' ? 'analysis' : 'profileBuilder'
 }
 
 /**
@@ -213,6 +230,8 @@ export function createGraph(checkpointer?: BaseCheckpointSaver) {
     .addNode('analysis', analyticsAgentNode)
     // Phase 12 Plan 06 new node
     .addNode('triggerGate', triggerGateNode)
+    // Phase 13 Plan 03 new node (Finding 1 human-path reachability fix)
+    .addNode('profileBuilder', profileBuilderNode)
 
     // Phase 11: conditional START edge REPLACES the fixed START → orchestrator edge
     // (Pitfall 2 — both cannot coexist; the fixed edge would silently win).
@@ -230,23 +249,32 @@ export function createGraph(checkpointer?: BaseCheckpointSaver) {
     .addEdge('agent', 'mutationGate')
     .addEdge('driftReply', END)
 
-    // Phase 12 Plan 06: conditional mutationGate edge REPLACES the fixed
-    // .addEdge('mutationGate', END) (Phase 6-11) — T-12-16 loop guard (see
-    // routeAfterMutationGate's own doc comment above for the termination proof).
+    // Phase 12 Plan 06 / Phase 13 Plan 03: conditional mutationGate edge REPLACES the
+    // fixed .addEdge('mutationGate', END) (Phase 6-11) — T-12-16 loop guard + Finding 1
+    // human-path reachability fix (see routeAfterMutationGate's own doc comment above for
+    // the termination proof and the triggerType-based path split).
     .addConditionalEdges('mutationGate', routeAfterMutationGate, {
+      argGraphBuilder: 'argGraphBuilder',
       triggerGate: 'triggerGate',
       end: END,
     })
 
     .addEdge('facilitation', END)
 
-    // Phase 12 Plan 06: conditional argGraphBuilder edge REPLACES the fixed
-    // .addEdge('argGraphBuilder', 'analysis') (Phase 11) — preserves the exact Phase 11
-    // analysis_request behavior as one branch (Pitfall 3 — replace, don't add alongside).
+    // Phase 12 Plan 06 / Phase 13 Plan 03: conditional argGraphBuilder edge REPLACES the
+    // fixed .addEdge('argGraphBuilder', 'analysis') (Phase 11) — preserves the exact
+    // Phase 11 analysis_request behavior as one branch (Pitfall 3 — replace, don't add
+    // alongside); the other branch now routes to profileBuilder (Finding 1) instead of
+    // straight to triggerGate.
     .addConditionalEdges('argGraphBuilder', routeAfterArgGraphBuilder, {
       analysis: 'analysis',
-      triggerGate: 'triggerGate',
+      profileBuilder: 'profileBuilder',
     })
+
+    // Phase 13 Plan 03: fixed profileBuilder → triggerGate edge (Finding 1) — always
+    // continues to TriggerGateNode regardless of what profileBuilderNode's fail-open
+    // return did (it always returns {}, never blocking this edge).
+    .addEdge('profileBuilder', 'triggerGate')
 
     // Phase 12 Plan 06: TriggerGateNode's own conditional edge (D-06) — every return value
     // of routeAfterTriggerGate MUST be a pathsMap key here (Pitfall 4).
