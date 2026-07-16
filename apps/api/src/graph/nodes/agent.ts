@@ -147,12 +147,6 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
         // D-05: Phase 7 streamWriter seam — routes tokens to SSE via route's async queue
         config?.configurable?.streamWriter?.(event.text)
       } else if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
-        // HUMAN-02 / D-08 (Phase 8): Read phase_signal from raw input BEFORE safeParse.
-        // CanvasOpSchema uses strict Zod parsing — unknown fields (including phase_signal)
-        // are silently dropped. Must extract from rawInput first (RESEARCH.md Pitfall 2 / Pitfall 4).
-        const rawInput = event.input as Record<string, unknown>
-        const rawPhaseSignal = typeof rawInput.phase_signal === 'boolean' ? rawInput.phase_signal : null
-
         // T-06-08: safeParse via CanvasOpSchema; parse failure logged and dropped (fail-silent)
         const parsed = CanvasOpSchema.safeParse(event.input)
         if (parsed.success) {
@@ -168,7 +162,11 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
           // fail-silent: do not throw, do not set agentOutput
         }
         // Only process the first canvas_mutation tool call
-        return { agentOutput, agentConfidence, phase_signal: rawPhaseSignal }
+        // D-08 (Phase 13): the ad-hoc ready-to-advance flag extraction from the raw
+        // canvas_mutation tool input (formerly read/returned here) is deprecated/removed
+        // in favor of the phase-readiness Skill-driven path (analyticsAgentNode, Plan 05),
+        // which reuses the existing SSE -> UI -> PATCH advisory-signal plumbing as-is.
+        return { agentOutput, agentConfidence }
       }
     }
   } catch (err) {
@@ -176,7 +174,5 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
     return {}
   }
 
-  // phase_signal: null on all non-tool-use paths (DOMAIN_DRIFT, streaming-only response, safeParse failure).
-  // Every exit from agentNode must include phase_signal — see RESEARCH.md Pitfall 4.
-  return { agentOutput, agentConfidence, phase_signal: null }
+  return { agentOutput, agentConfidence }
 }
