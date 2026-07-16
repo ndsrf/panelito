@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: The Bots Must Help the Conversation Flow
-status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-07-15T11:13:02.346Z"
+status: ready_to_plan
+stopped_at: Phase 12 complete (6/6) — ready to discuss Phase 13
+last_updated: 2026-07-16T08:59:44.899Z
 last_activity: 2026-07-15 -- Phase 12 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 16
-  completed_plans: 10
+  completed_plans: 16
   percent: 40
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09)
 
 **Core value:** The live analytics panel stays perfectly synchronized with the active conversation branch — transforming passive group chat into structured, visual collective thinking.
-**Current focus:** Phase 12 — graph-coherence-extended-triggers
+**Current focus:** Phase 13 — user profiles + phase signal
 
 ---
 
 ## Current Status
 
-**Phase:** 11 of 14 (personality + basic triggers)
+**Phase:** 13 of 14 (user profiles + phase signal)
 **Phase goal:** Coach/Analyst Roles wired into the LangGraph graph, Role/Personality architecture live, and the first proactive trigger (silence window) fires a real Coach message end-to-end.
 **Phase status:** Complete — 7/7 plans (all SUMMARY.md present). Plan 06's Task 4 live-verification checkpoint was accepted via code-review (no browser automation tool available in this execution environment) — see 11-06-SUMMARY.md "Known Issues / Not Verified" for the precise gap. Ready for `/gsd:transition`.
 
@@ -104,6 +104,6 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 ## Current Position
 
 Phase: 12 (graph-coherence-extended-triggers) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 12
-Last activity: 2026-07-15 -- Phase 12 execution started
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-16
