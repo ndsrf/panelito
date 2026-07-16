@@ -343,7 +343,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 13-02-PLAN.md — Migration 0016 (participant_profiles + moderation_counts fold-in + RPCs), participant-profile repository, moderation-count repoint, Ajv drift fix (F4), [BLOCKING] schema push (PROFILE-01, TRIGGER-02)
+- [x] 13-02-PLAN.md — Migration 0016 (participant_profiles + moderation_counts fold-in + RPCs), participant-profile repository, moderation-count repoint, Ajv drift fix (F4), [BLOCKING] schema push (PROFILE-01, TRIGGER-02)
 
 **Wave 3** *(parallel — blocked on Wave 2, no file overlap)*
 
@@ -390,7 +390,7 @@ Plans:
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 6/6 | Complete    | 2026-07-16 |
-| 13. User Profiles + Phase Signal | v3.0 | 1/5 | In Progress|  |
+| 13. User Profiles + Phase Signal | v3.0 | 2/5 | In Progress|  |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
 ---
