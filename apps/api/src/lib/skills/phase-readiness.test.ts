@@ -316,7 +316,9 @@ describe('phaseReadinessSkill', () => {
     const source = await readFile(path.join(__dirname, './phase-readiness.ts'), 'utf-8')
     expect(source).toMatch(/canvas_nodes/)
     expect(source).toMatch(/['"]status['"]\s*,\s*['"]committed['"]/)
-    expect(source).not.toMatch(/argGraph\.nodes\.length/)
+    // Checks the actual assignment expression, not doc-comment prose describing the
+    // anti-pattern (this file's own header comment explains WHY argGraph is not used).
+    expect(source).not.toMatch(/committedCount\s*=\s*[^\n;]*argGraph/)
   })
 
   it('a poisoned state.argGraph does not affect the committed-count gate decision', async () => {
@@ -462,9 +464,11 @@ describe('phaseReadinessSkill', () => {
       expect(guidance.toLowerCase()).toContain('human')
     })
 
-    it('does not import/call summarizeParticipant (Pattern 3 — no single target participant)', async () => {
+    it('does not import summarizeParticipant (Pattern 3 — no single target participant)', async () => {
       const source = await readFile(path.join(__dirname, './phase-readiness.ts'), 'utf-8')
-      expect(source).not.toMatch(/summarizeParticipant/)
+      // Checks the actual import statement, not doc-comment prose explaining WHY this
+      // Skill deliberately does not call summarizeParticipant() (Pattern 3).
+      expect(source).not.toMatch(/import\s*\{[^}]*summarizeParticipant[^}]*\}\s*from/)
     })
   })
 })
