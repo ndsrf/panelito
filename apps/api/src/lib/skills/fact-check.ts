@@ -32,7 +32,7 @@ import { factCheckClassificationTool } from '@panelito/types'
 import type { AIProvider, ProviderName, ProviderMessage, SkillDetectionResult } from '@panelito/types'
 import { createAdapter } from '../adapter-factory'
 import { TASK_MODELS } from '../model-config'
-import { summarizeArgGraph } from '../bot-context'
+import { summarizeArgGraph, escapeUntrustedText } from '../bot-context'
 import type { Skill, SkillContext } from '../skills'
 
 const MAX_ATTEMPTS = 2 // initial attempt + ONE retry, then fail closed
@@ -134,14 +134,6 @@ async function classifyTier2(
 
   console.error('[fact-check] tier-2: MAX_ATTEMPTS exhausted — failing closed')
   return null
-}
-
-// ---------------------------------------------------------------------------
-// WR-06 — untrusted-text escaping (mirrors bot-context.ts's escapeUntrustedText)
-// ---------------------------------------------------------------------------
-
-function escapeUntrustedText(value: string): string {
-  return value.replace(/["\n\r]/g, ' ').replace(/<<<|>>>/g, '')
 }
 
 // ---------------------------------------------------------------------------

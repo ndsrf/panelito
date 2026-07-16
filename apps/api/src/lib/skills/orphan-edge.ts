@@ -29,6 +29,7 @@
 
 import { createServiceClient } from '../supabase'
 import { embed, cosineSimilarity } from '../embeddings'
+import { escapeUntrustedText } from '../bot-context'
 import type { Skill, SkillContext } from '../skills'
 import type { SkillDetectionResult } from '@panelito/types'
 
@@ -42,14 +43,6 @@ interface CommittedNodeRow {
 interface EdgeRow {
   source_node_id: string
   target_node_id: string
-}
-
-/**
- * WR-06 fix (mirrors bot-context.ts's escapeUntrustedText): node labels are freeform
- * chat-derived content, not trusted input — escape before splicing into a prompt.
- */
-function escapeUntrustedText(value: string): string {
-  return value.replace(/["\n\r]/g, ' ').replace(/<<<|>>>/g, '')
 }
 
 /**

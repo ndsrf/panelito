@@ -26,7 +26,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SkillDetectionResult } from '@panelito/types'
 import type { Skill, SkillContext } from '../skills'
-import { getModerationCount } from '../moderation-count'
+import { incrementModerationCount } from '../moderation-count'
 import { escapeUntrustedText } from '../bot-context'
 
 /** Escalation threshold (Claude's Discretion, D-16) — documented in 12-03-SUMMARY.md. */
@@ -117,8 +117,9 @@ export const moderationSkill: Skill = {
 
     let escalationTier = 0
     if (supabase && branchId && participantId) {
-      const count = await getModerationCount(supabase, branchId, participantId)
-      escalationTier = count >= ESCALATION_THRESHOLD_N ? 1 : 0
+      // Increments first — the count returned includes this offense (D-16).
+      const countAfterThisOffense = await incrementModerationCount(supabase, branchId, participantId)
+      escalationTier = countAfterThisOffense >= ESCALATION_THRESHOLD_N ? 1 : 0
     } else {
       // Fail-closed to the gentlest tier — mirrors moderation-count.ts's own FAIL_CLOSED
       // posture: unknown state -> least-severe behavior, never a wrongful escalation.

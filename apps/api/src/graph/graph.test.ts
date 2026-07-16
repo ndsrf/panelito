@@ -887,6 +887,85 @@ describe('TriggerGateNode wiring — human-path routing + termination (Phase 12 
     expect(result.triggerGateComplete).toBe(true)
   })
 
+  it('(g) CR-02 regression: analysis_request + Analyst Skill fires → analyticsAdapter.stream called at most once (no duplicate LLM call)', async () => {
+    // Same shape as (d), but with bot_defaults.analyst: true AND the mock Analyst Skill firing —
+    // this is exactly the interaction REVIEW.md's CR-02 identified: routeAfterArgGraphBuilder
+    // already routes analysis_request straight to 'analysis' once; before the fix,
+    // routeAfterTriggerGate would then route back into 'analysis' a SECOND time once the
+    // Analyst Skill fired during the post-analysis triggerGate pass.
+    coachSkillDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    analystSkillDetectMock.mockResolvedValue({ fires: true, confidence: 0.8, meta: { claimMessageId: 'm1' } })
+
+    const analystEnabledBlueprint: Blueprint = {
+      ...debateBlueprint,
+      bot_defaults: { coach: false, analyst: true },
+    }
+
+    const argGraphAdapterMock: AIProvider = {
+      capabilities: () => ({
+        streaming: true,
+        toolUse: true,
+        contextCaching: false,
+        semanticCaching: false,
+        imageInput: false,
+        voiceInput: false,
+        compression: false,
+      }),
+      async *stream(): AsyncIterable<AIStreamEvent> {
+        yield {
+          type: 'tool_use',
+          name: 'extract_arg_graph',
+          input: {
+            nodes: [
+              {
+                id: 'n1',
+                type: 'claim',
+                label: 'Water is essential for life',
+                message_id: VALID_MESSAGE_UUID,
+                speaker: 'Miguel',
+              },
+            ],
+            edges: [],
+          },
+        }
+        yield { type: 'done' }
+      },
+    }
+
+    const { adapter: analyticsAdapter, streamSpy: analyticsStreamSpy } = createSpyAdapter([
+      { type: 'text_delta', text: 'Miguel afirmó que el agua es esencial para la vida.' },
+      { type: 'done' },
+    ])
+
+    const graph = createGraph(new MemorySaver())
+    const result = await graph.invoke(
+      {
+        blueprintId: 'debate-strategy-v1',
+        currentPhaseId: 'opening',
+        messages: initialMessages,
+        canvasOps: [],
+        triggerType: 'analysis_request',
+      },
+      {
+        configurable: {
+          thread_id: `test-cr02-${Math.random().toString(36).slice(2)}`,
+          blueprint: analystEnabledBlueprint,
+          providerName: 'anthropic' as const,
+          plaintextKey: 'test-key',
+          branchId: VALID_BRANCH_UUID,
+          argGraphAdapter: argGraphAdapterMock,
+          analyticsAdapter,
+        },
+      }
+    )
+
+    expect(result.triggerGateComplete).toBe(true)
+    // The fix: routeAfterTriggerGate refuses to re-route into 'analysis' for the
+    // analysis_request trigger type, since 'analysis' already ran once via
+    // routeAfterArgGraphBuilder. Without the fix this would be called twice.
+    expect(analyticsStreamSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('(f) pathsMap-exhaustiveness guard — routeAfterTriggerGate never returns a value outside {facilitation, analysis, end}', () => {
     const VALID_ROUTES = new Set(['facilitation', 'analysis', 'end'])
 

@@ -201,7 +201,11 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
   // Key by the actual triggerType that invoked this node (WR-01 fix — REVIEW.md): writing
   // unconditionally to the 'fact_check' key would let an unrelated 'analysis_request' run
   // clobber the cooldown timestamp that Phase 12's real 'fact_check' trigger will read.
-  const metaKey = state.triggerType ?? 'analysis_request'
+  // WR-02 fix (REVIEW.md): state.triggerType is null on the human-message path, including
+  // when this node is reached via TriggerGateNode because an Analyst Skill (fact-check or
+  // orphan-edge) fired — prefer firingSkillId there so distinct Skill firings don't collapse
+  // into the same generic 'analysis_request' bucket.
+  const metaKey = state.firingSkillId ?? state.triggerType ?? 'analysis_request'
   const previous = state.triggerMetadata?.[metaKey]
   return {
     agentOutput,

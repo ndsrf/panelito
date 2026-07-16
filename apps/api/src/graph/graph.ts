@@ -176,10 +176,20 @@ export function routeAfterArgGraphBuilder(state: GraphState): 'analysis' | 'trig
  *
  * CRITICAL (Pitfall 4): every normally-returned value MUST be a pathsMap key in createGraph's
  * addConditionalEdges('triggerGate', ...) call below.
+ *
+ * CR-02 fix (REVIEW.md): for the analysis_request trigger path, routeAfterArgGraphBuilder
+ * already routed straight to 'analysis' once, by design, before triggerGate ever ran (see
+ * that function's own doc comment). If an Analyst Skill also fires during this triggerGate
+ * pass, routing back into 'analysis' here would invoke analyticsAgentNode a SECOND time in
+ * the same graph.invoke() call — a duplicate LLM call and duplicate streamed response. Only
+ * the human-message path (state.triggerType is null) hasn't run 'analysis' yet at this point,
+ * so only that path is allowed to route there via an Analyst Skill firing.
  */
 export function routeAfterTriggerGate(state: GraphState): 'facilitation' | 'analysis' | 'end' {
   if (state.firingSkillRole === 'coach') return 'facilitation'
-  if (state.firingSkillRole === 'analyst') return 'analysis'
+  if (state.firingSkillRole === 'analyst') {
+    return state.triggerType === 'analysis_request' ? 'end' : 'analysis'
+  }
   // No Skill fired — silent exit, matches mutation-gate.ts's silent-below-threshold convention.
   return 'end'
 }

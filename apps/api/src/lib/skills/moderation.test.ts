@@ -21,10 +21,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Blueprint } from '@panelito/types'
 import type { GraphState } from '../../graph/state'
 
-const getModerationCountMock = vi.fn()
+const incrementModerationCountMock = vi.fn()
 
 vi.mock('../moderation-count', () => ({
-  getModerationCount: (...args: unknown[]) => getModerationCountMock(...args),
+  incrementModerationCount: (...args: unknown[]) => incrementModerationCountMock(...args),
 }))
 
 import { checkModerationHeuristic, moderationSkill } from './moderation'
@@ -85,7 +85,7 @@ describe('checkModerationHeuristic (pure function, zero I/O)', () => {
 
 describe('moderationSkill', () => {
   beforeEach(() => {
-    getModerationCountMock.mockReset()
+    incrementModerationCountMock.mockReset()
   })
 
   it('has id "moderation" and role "coach"', () => {
@@ -103,11 +103,11 @@ describe('moderationSkill', () => {
     })
 
     expect(result.fires).toBe(false)
-    expect(getModerationCountMock).not.toHaveBeenCalled()
+    expect(incrementModerationCountMock).not.toHaveBeenCalled()
   })
 
   it('detect() fires and sets meta.escalationTier 0 for a first offense (moderation_count 0)', async () => {
-    getModerationCountMock.mockResolvedValue(0)
+    incrementModerationCountMock.mockResolvedValue(0)
     const state = stateWithLastMessage('Eres un idiota')
 
     const result = await moderationSkill.detect({
@@ -118,11 +118,11 @@ describe('moderationSkill', () => {
 
     expect(result.fires).toBe(true)
     expect(result.meta?.escalationTier).toBe(0)
-    expect(getModerationCountMock).toHaveBeenCalledTimes(1)
+    expect(incrementModerationCountMock).toHaveBeenCalledTimes(1)
   })
 
   it('detect() fires and sets meta.escalationTier 1 once moderation_count reaches N', async () => {
-    getModerationCountMock.mockResolvedValue(3)
+    incrementModerationCountMock.mockResolvedValue(3)
     const state = stateWithLastMessage('Eres un idiota otra vez')
 
     const result = await moderationSkill.detect({
