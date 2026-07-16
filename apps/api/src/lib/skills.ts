@@ -25,6 +25,7 @@ import { moderationSkill } from './skills/moderation'
 import { driftRedirectSkill } from './skills/drift-redirect'
 import { orphanEdgeSkill } from './skills/orphan-edge'
 import { factCheckSkill } from './skills/fact-check'
+import { phaseReadinessSkill } from './skills/phase-readiness'
 
 /**
  * Context passed to every Skill's detect()/buildPromptGuidance(). Mirrors the
@@ -64,5 +65,15 @@ export const COACH_SKILLS: Skill[] = [silenceBreakSkill, moderationSkill, driftR
 /**
  * Analyst's registered Skills (D-02 roster). Order = priority order: TriggerGateNode
  * (Plan 06) evaluates candidates and the first firing Skill wins (AI-SPEC Section 4).
+ *
+ * Phase 13 Plan 04 (TRIGGER-02): phaseReadinessSkill is placed AFTER factCheckSkill but
+ * BEFORE orphanEdgeSkill — correcting a live misinformation claim is more time-sensitive
+ * than a phase-advance prompt, but asking the group whether they're ready to advance is
+ * more valuable to surface than orphan-edge's graph-housekeeping nudge. This ordering is
+ * a deliberate priority choice, not load-bearing for correctness: regardless of which
+ * Skill wins arbitration this turn, phase-readiness's own N/M gate counter still persists
+ * via the phaseGateProgress carried in its detect() result's meta (TriggerGateNode surfaces
+ * it on every return path, Plan 04 Task 2) — it is never silently dropped just because a
+ * higher-priority Skill fired instead.
  */
-export const ANALYST_SKILLS: Skill[] = [factCheckSkill, orphanEdgeSkill]
+export const ANALYST_SKILLS: Skill[] = [factCheckSkill, phaseReadinessSkill, orphanEdgeSkill]

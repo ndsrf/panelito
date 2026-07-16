@@ -109,6 +109,7 @@ describe('triggerGateNode', () => {
       firingSkillRole: null,
       skillMeta: null,
       triggerGateComplete: true,
+      phaseGateProgress: null,
     })
   })
 
@@ -147,6 +148,7 @@ describe('triggerGateNode', () => {
       firingSkillRole: 'coach',
       skillMeta: { foo: 'bar' },
       triggerGateComplete: true,
+      phaseGateProgress: null,
     })
   })
 
@@ -167,6 +169,7 @@ describe('triggerGateNode', () => {
       firingSkillRole: 'coach',
       skillMeta: null,
       triggerGateComplete: true,
+      phaseGateProgress: null,
     })
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[trigger-gate]'),
@@ -187,6 +190,7 @@ describe('triggerGateNode', () => {
       firingSkillRole: null,
       skillMeta: null,
       triggerGateComplete: true,
+      phaseGateProgress: null,
     })
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[trigger-gate]'))
     errorSpy.mockRestore()
@@ -214,6 +218,55 @@ describe('triggerGateNode', () => {
       firingSkillRole: 'analyst',
       skillMeta: { claimMessageId: 'm1' },
       triggerGateComplete: true,
+      phaseGateProgress: null,
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // Behavior 7 (Phase 13 Plan 04, TRIGGER-02): phaseGateProgress persistence
+  // ---------------------------------------------------------------------------
+
+  it('Behavior 7: phaseGateProgress from a non-firing candidate\'s meta persists in the return even when a DIFFERENT Skill fires', async () => {
+    const progress = { phaseId: 'opening', nodeCountAtGateOpen: 3, messagesSinceGateOpen: 2 }
+    // coach-a fires and wins arbitration...
+    coachSkillADetectMock.mockResolvedValue({ fires: true, confidence: 0.9 })
+    coachSkillBDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    // ...but analyst-a (standing in for phase-readiness) did NOT fire this turn — its N/M
+    // gate counter must still be threaded through to the top-level phaseGateProgress field
+    // so it survives to the next invocation (D-09 persistence).
+    analystSkillADetectMock.mockResolvedValue({ fires: false, confidence: 0, meta: { phaseGateProgress: progress } })
+
+    const result = await triggerGateNode(
+      stateStub,
+      makeConfig({ botOverrides: { coach: true, analyst: true } })
+    )
+
+    expect(result).toEqual({
+      firingSkillId: 'coach-a',
+      firingSkillRole: 'coach',
+      skillMeta: null,
+      triggerGateComplete: true,
+      phaseGateProgress: progress,
+    })
+  })
+
+  it('Behavior 8: phaseGateProgress persists on the no-fire path (gate not yet open, nothing else fires)', async () => {
+    const progress = { phaseId: 'opening', nodeCountAtGateOpen: 0, messagesSinceGateOpen: 0 }
+    coachSkillADetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    coachSkillBDetectMock.mockResolvedValue({ fires: false, confidence: 0 })
+    analystSkillADetectMock.mockResolvedValue({ fires: false, confidence: 0, meta: { phaseGateProgress: progress } })
+
+    const result = await triggerGateNode(
+      stateStub,
+      makeConfig({ botOverrides: { coach: true, analyst: true } })
+    )
+
+    expect(result).toEqual({
+      firingSkillId: null,
+      firingSkillRole: null,
+      skillMeta: null,
+      triggerGateComplete: true,
+      phaseGateProgress: progress,
     })
   })
 })
