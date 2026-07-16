@@ -5,6 +5,10 @@
  * a query/RPC error returns 0 (fail-closed, T-12-05) and does not throw.
  * Mocked SupabaseClient follows the bot-arbitrator.test.ts / silence-scan.test.ts
  * chain-mock convention.
+ *
+ * Phase 13 (D-02, 13-02-PLAN.md Task 2): getModerationCount now reads
+ * participant_profiles.moderation_count (moderation_counts folded in +
+ * dropped by migration 0016) — table name and selected column updated below.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -30,13 +34,13 @@ function buildRpcMock(result: { data: unknown; error: unknown }) {
 describe('moderation-count', () => {
   describe('getModerationCount', () => {
     it('happy path: returns the stored count', async () => {
-      const { from } = buildSelectMock({ data: { count: 3 }, error: null })
+      const { from } = buildSelectMock({ data: { moderation_count: 3 }, error: null })
       const supabase = { from } as never
 
       const result = await getModerationCount(supabase, 'branch-1', 'participant-1')
 
       expect(result).toBe(3)
-      expect(from).toHaveBeenCalledWith('moderation_counts')
+      expect(from).toHaveBeenCalledWith('participant_profiles')
     })
 
     it('no row yet (first offense): returns 0', async () => {
