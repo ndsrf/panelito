@@ -372,7 +372,14 @@ Plans:
   4. A message that matches system artifact patterns is silently dropped (replaced with empty string) at the frontend rendering layer as defense-in-depth — verifiable by injecting a test message with a blocked pattern
   5. The Langfuse dashboard shows cost attribution by trigger type for each LLM call; a developer can identify which trigger type is most expensive from the dashboard without querying the database
 
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
+- [ ] 14-01-PLAN.md — Shared contracts: AIStreamEvent usage member, speech-artifact blocklist, Blueprint coupling toggle (wave 1)
+- [ ] 14-02-PLAN.md — ai.ts route: trigger-tag human-reactive Langfuse call + remove '[canvas updated]' fallback (wave 1)
+- [ ] 14-03-PLAN.md — Cost infra: Langfuse Generation helper + adapter usage events + environment field (wave 2)
+- [ ] 14-04-PLAN.md — TriggerEngine generalization + phase-readiness coupling + graceful shutdown + 5-min auto-freeze (wave 2)
+- [ ] 14-05-PLAN.md — Frontend speech filtering: MessageBubble drop + MessageList zero-row suppression (wave 2)
+- [ ] 14-06-PLAN.md — Role nodes: persona re-anchor counter + Generation wrap + SPEECH-01 prompt discipline (wave 3)
+- [ ] 14-07-PLAN.md — Phase verification: synthetic-session harness + live/Langfuse human-verify checkpoint (wave 4)
 **UI hint**: yes
 
 ---
