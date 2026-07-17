@@ -356,8 +356,8 @@ Plans:
 
 **Gap closure** *(parallel — disjoint files, no overlap; from 13-VERIFICATION.md gaps_found 1/3)*
 
-- [ ] 13-06-PLAN.md — CR-01 fix: profileBuilderNode merges argGraph nodes by RESOLVED author_id before upsert (application-side, no schema change) + same-author collision regression test (PROFILE-01)
-- [ ] 13-07-PLAN.md — WR-04 fix: ai.ts attributes participantId to the resolved last-message author + Role-node config-participantId fallback so personalization fires on ordinary facilitation turns + splice-branch tests (WR-03); bundled WR-01/WR-02 hardening (PROFILE-02, TRIGGER-02)
+- [x] 13-06-PLAN.md — CR-01 fix: profileBuilderNode merges argGraph nodes by RESOLVED author_id before upsert (application-side, no schema change) + same-author collision regression test (PROFILE-01)
+- [x] 13-07-PLAN.md — WR-04 fix: ai.ts attributes participantId to the resolved last-message author + Role-node config-participantId fallback so personalization fires on ordinary facilitation turns + splice-branch tests (WR-03); bundled WR-01/WR-02 hardening (PROFILE-02, TRIGGER-02)
 
 ### Phase 14: Polish + TriggerEngine Wiring
 
@@ -395,7 +395,7 @@ Plans:
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 6/6 | Complete    | 2026-07-16 |
-| 13. User Profiles + Phase Signal | v3.0 | 5/5 | Complete   | 2026-07-17 |
+| 13. User Profiles + Phase Signal | v3.0 | 7/7 | Complete   | 2026-07-17 |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
 ---
