@@ -70,9 +70,12 @@ aiRouter.post('/:id/invoke', async (c) => {
   // 1. Session ownership check — fetch session (T-02-05)
   //    D-03: expanded SELECT to include blueprint_id + current_phase
   // -------------------------------------------------------------------------
+  // F2/D-12/D-13: bot_overrides is selected here so it can be threaded into
+  // graphConfig.configurable below — it is the same column the "Analistas activos"
+  // toggle writes via POST /api/sessions/:id/bots (routes/bots.ts).
   const { data: session, error: sessionErr } = await supabase
     .from('sessions')
-    .select('id, creator_id, active_personas, blueprint_id, current_phase')
+    .select('id, creator_id, active_personas, blueprint_id, current_phase, bot_overrides')
     .eq('id', sessionId)
     .single()
 
@@ -342,6 +345,15 @@ aiRouter.post('/:id/invoke', async (c) => {
     })
 
     // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
+    // F2/D-12/D-13: supabase/serviceClient/branchId/participantId/botOverrides make
+    // profileBuilder, phase-readiness, and moderation reachable on the real human
+    // /invoke path for the first time — previously these config.configurable keys were
+    // only ever supplied by test harnesses, so those Skills/nodes were silent no-ops in
+    // production (RESEARCH.md Finding 2). Both `supabase` and `serviceClient` point at
+    // the SAME client — moderation.ts reads `supabase`; profileBuilderNode/orphan-edge/
+    // phase-readiness read `serviceClient` (`?? createServiceClient()` fallback).
+    // participantId is the human-path invoker, always the session creator (T-02-05
+    // ownership gate above already enforced session.creator_id === user.id).
     const graphConfig = {
       configurable: {
         thread_id: `${activeBranchId ?? sessionId}:human`,  // BOT-04: dual thread_id — human thread
@@ -350,6 +362,11 @@ aiRouter.post('/:id/invoke', async (c) => {
         plaintextKey,
         activePersonas: activePersonaInstructions,  // D-10: string[] of persona systemPromptAddition values
         streamWriter,                               // D-05: text token seam
+        supabase,                                    // F2/D-12: moderation.ts's config.configurable.supabase seam
+        serviceClient: supabase,                     // F2/D-12: profileBuilder/orphan-edge/phase-readiness seam
+        branchId: activeBranchId,                    // F2/D-12
+        participantId: user.id,                      // F2/D-12: human-path invoker == session creator
+        botOverrides: (session.bot_overrides as Record<string, boolean> | null) ?? {},  // D-13
       },
       callbacks: [callbackHandler],
       signal: c.req.raw.signal,  // D-14: abort propagation (T-07-04)
