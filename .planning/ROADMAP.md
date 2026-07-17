@@ -334,7 +334,7 @@ Plans:
   2. The Coach's prompt context includes a summary of each active participant's profile; a Coach invocation references a specific prior assertion by a named participant ("Earlier you mentioned X — does this new point support or challenge that?") — verifiable in the Langfuse trace prompt payload
   3. When the Analyst evaluates the argGraph and message history as having sufficient coverage of the current Blueprint phase's required topics, a phase-readiness signal is emitted; the Coach asks the group if they want to advance; the actual phase advancement still requires a human click (the LLM cannot advance the phase autonomously)
 
-**Plans**: 5 plans
+**Plans**: 7 plans
 
 Plans:
 **Wave 1**
@@ -353,6 +353,11 @@ Plans:
 **Wave 4** *(blocked on Wave 3)*
 
 - [x] 13-05-PLAN.md — ai.ts config wiring (F2/D-12/D-13), analyticsAgentNode phase_signal derivation (F3) + D-11 personalization, end-to-end integration test (PROFILE-02, TRIGGER-02)
+
+**Gap closure** *(parallel — disjoint files, no overlap; from 13-VERIFICATION.md gaps_found 1/3)*
+
+- [ ] 13-06-PLAN.md — CR-01 fix: profileBuilderNode merges argGraph nodes by RESOLVED author_id before upsert (application-side, no schema change) + same-author collision regression test (PROFILE-01)
+- [ ] 13-07-PLAN.md — WR-04 fix: ai.ts attributes participantId to the resolved last-message author + Role-node config-participantId fallback so personalization fires on ordinary facilitation turns + splice-branch tests (WR-03); bundled WR-01/WR-02 hardening (PROFILE-02, TRIGGER-02)
 
 ### Phase 14: Polish + TriggerEngine Wiring
 
