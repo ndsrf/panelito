@@ -257,6 +257,43 @@ describe('profileBuilderNode', () => {
     errorSpy.mockRestore()
   })
 
+  it('upserts a single merged profile row when two speaker labels resolve to the same author_id', async () => {
+    const { from, rpc } = buildSupabaseMock({
+      messagesLookupByMessageId: {
+        'msg-1': { data: { author_id: 'author-a', role: 'user' }, error: null },
+        'msg-2': { data: { author_id: 'author-a', role: 'user' }, error: null },
+      },
+      messagesSentCountByAuthor: {
+        'author-a': { count: 5, error: null },
+      },
+      reactionsUsedCountByAuthor: {
+        'author-a': { count: 2, error: null },
+      },
+    })
+
+    const nodes: ArgNode[] = [
+      makeArgNode({ id: 'n1', speaker: 'Miguel', message_id: 'msg-1', type: 'hypothesis', label: 'Position One' }),
+      makeArgNode({ id: 'n2', speaker: 'miguel', message_id: 'msg-2', type: 'claim', label: 'Position Two' }),
+    ]
+
+    const result = await profileBuilderNode(
+      baseGraphState({ argGraph: { nodes, edges: [] } }),
+      { configurable: { branchId: 'branch-1', serviceClient: { from, rpc } } }
+    )
+
+    expect(result).toEqual({})
+
+    const profileCalls = rpc.mock.calls.filter((c) => c[0] === 'upsert_participant_profile')
+    expect(profileCalls).toHaveLength(1)
+
+    const input = profileCalls[0]?.[1] as { p_participant_id: string; p_positions: string[]; p_assertions: string[] }
+    expect(input.p_participant_id).toBe('author-a')
+    expect(input.p_positions).toContain('Position One')
+    expect(input.p_positions).toContain('Position Two')
+    expect(input.p_assertions).toContain('Position One')
+    expect(input.p_assertions).toContain('Position Two')
+  })
+
   it('never writes a GraphState field — always returns {}', async () => {
     const { from, rpc } = buildSupabaseMock({
       messagesLookupByMessageId: {
