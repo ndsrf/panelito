@@ -147,20 +147,32 @@ export async function profileBuilderNode(state: GraphState, config?: any): Promi
 
     const bySpeaker = groupBySpeaker(state.argGraph.nodes)
 
-    for (const [speaker, nodes] of bySpeaker) {
+    // Phase 1 — resolve each speaker-label group to its real author_id (messages-table
+    // lookup, role='user' only — Pitfall 1) and union all groups that resolve to the SAME
+    // author_id. CR-01: identity is NEVER the freeform `speaker` label, so label drift
+    // (nicknames, capitalization) across a single invocation cannot cause one group's
+    // upsert to silently discard another's (the RPC is a full-replace, not a merge).
+    const byAuthor = new Map<string, ArgNode[]>()
+
+    for (const [, nodes] of bySpeaker) {
+      const firstNode = nodes[0]
+      if (!firstNode) {
+        continue
+      }
+
+      const resolved = await resolveAuthorId(supabase, firstNode.message_id)
+      if (!resolved || resolved.role !== 'user') {
+        // Pitfall 1: no row, or the citing message was AI-authored — never attribute.
+        continue
+      }
+
+      byAuthor.set(resolved.authorId, (byAuthor.get(resolved.authorId) ?? []).concat(nodes))
+    }
+
+    // Phase 2 — one upsert (and one count-pair) per resolved author, computed from the
+    // complete union of every speaker-label group that resolved to that author.
+    for (const [authorId, nodes] of byAuthor) {
       try {
-        const firstNode = nodes[0]
-        if (!firstNode) {
-          continue
-        }
-
-        const resolved = await resolveAuthorId(supabase, firstNode.message_id)
-        if (!resolved || resolved.role !== 'user') {
-          // Pitfall 1: no row, or the citing message was AI-authored — never attribute.
-          continue
-        }
-        const authorId = resolved.authorId
-
         const positions = nodes
           .filter((n) => POSITION_NODE_TYPES.has(n.type))
           .map((n) => n.label)
@@ -179,7 +191,7 @@ export async function profileBuilderNode(state: GraphState, config?: any): Promi
           reactionsUsed: reactionsUsed ?? 0,
         })
       } catch (err) {
-        console.error('[profile-builder] error processing speaker', speaker, err)
+        console.error('[profile-builder] error processing author', authorId, err)
         continue
       }
     }
