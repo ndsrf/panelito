@@ -365,7 +365,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     // Instantiated inside SSE callback, never module-level — prevents trace context corruption.
     // D-16: early-exit paths (400/409/429) are not traced — only real invocations reach here.
     const callbackHandler = new CallbackHandler({
-      tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`],
+      tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`, 'trigger:human-reactive'],
     })
 
     // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
