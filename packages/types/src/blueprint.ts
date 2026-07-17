@@ -93,6 +93,14 @@ export const BlueprintSchema = z.object({
   bot_cooldowns: z
     .record(z.string(), z.object({ max: z.number(), window_minutes: z.number() }))
     .optional(),
+  // D-04 (Phase 14): Blueprint-global opt-in for silence↔phase-readiness coupling
+  // (TRIGGER-07) — a Blueprint that enables this lets the silence-window trigger
+  // consult phase-readiness state before firing. Default false: unlike
+  // drift_detection_enabled (defaults true, universal), this coupling is opt-in
+  // per D-04, not a universal behavior. Follows the exact drift_detection_enabled
+  // precedent above — optional in DB, Zod supplies the default so existing seeded
+  // Blueprints (which lack this field) still parse without a migration.
+  silence_phase_readiness_coupling_enabled: z.boolean().default(false),
 });
 
 export type Blueprint = z.infer<typeof BlueprintSchema>;

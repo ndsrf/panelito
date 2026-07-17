@@ -7,7 +7,7 @@
  *
  * This file is the single source of truth for:
  *   - ProviderMessage / ProviderTool / ProviderCapabilities / AIProvider
- *   - Adapter-side AIStreamEvent (text_delta | tool_use | done)
+ *   - Adapter-side AIStreamEvent (text_delta | tool_use | done | usage)
  *   - renderPanelTool definition (uses `parameters`, NOT `input_schema`)
  *   - ProviderSchema / ProviderName
  *
@@ -66,6 +66,11 @@ export type AIStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'tool_use'; name: string; input: unknown }
   | { type: 'done' }
+  // COST-03: provider-neutral token usage. Adapters translate provider-specific
+  // shapes (Anthropic input_tokens/output_tokens, OpenAI usage, Gemini
+  // usageMetadata) into these two camelCase fields — no provider-specific names
+  // leak past the adapter boundary (CLAUDE.md AI-coupling constraint).
+  | { type: 'usage'; inputTokens: number; outputTokens: number }
 
 // ---------------------------------------------------------------------------
 // AIProvider interface — D-01

@@ -90,3 +90,6 @@ export { ParticipantProfileSchema } from "./participant-profile";
 
 // Phase-readiness judgment tool (Phase 13, TRIGGER-02, D-10)
 export { phaseReadinessJudgmentTool } from "./phase-readiness-tool";
+
+// Shared speech-artifact blocklist + substring matcher (Phase 14, SPEECH-01/02/03, D-08)
+export { SPEECH_ARTIFACT_BLOCKLIST, containsSpeechArtifact } from "./speech-artifacts";
