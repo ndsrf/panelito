@@ -14,7 +14,7 @@
  *   - analyticsAgentNode: canvas_mutation tool_use is safeParsed into agentOutput
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
 import { TASK_MODELS } from '../../lib/model-config'
 import { buildAnalyticsSystemPrompt, analyticsAgentNode } from './analytics-agent'
@@ -263,6 +263,68 @@ describe('analyticsAgentNode — Analyst Skill-guidance injection + live factChe
       },
     })
     expect(captured.system!.toLowerCase()).toContain('fact-check framing is active')
+  })
+})
+
+describe('analyticsAgentNode — participant-profile splice (Phase 13 Plan 07, WR-03/WR-04)', () => {
+  function buildProfileSupabaseMock(profile: unknown) {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: profile, error: null })
+    const eq2 = vi.fn().mockReturnValue({ maybeSingle })
+    const eq1 = vi.fn().mockReturnValue({ eq: eq2 })
+    const select = vi.fn().mockReturnValue({ eq: eq1 })
+    const from = vi.fn().mockReturnValue({ select })
+    return { from, select, eq1, eq2, maybeSingle }
+  }
+
+  it('splices target participant profile into the analyst system prompt when config.configurable.participantId is set', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Ana...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const { from, eq2 } = buildProfileSupabaseMock({
+      branch_id: 'branch-1',
+      participant_id: 'author-a',
+      positions: ['La evidencia importa'],
+      assertions: [],
+      messages_sent: 3,
+      reactions_used: 0,
+      moderation_count: 0,
+      updated_at: '2026-07-16T00:00:00.000Z',
+    })
+    const state = makeState({ firingSkillId: null, skillMeta: null })
+    await analyticsAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        analyticsAdapter: adapter,
+        participantId: 'author-a',
+        branchId: 'branch-1',
+        supabase: { from } as never,
+      },
+    })
+    expect(captured.system).toContain('La evidencia importa')
+    expect(captured.system).toContain('PARTICIPANT_PROFILE_DATA')
+    expect(eq2).toHaveBeenCalledWith('participant_id', 'author-a')
+  })
+
+  it('skillMeta.participantId takes precedence over config participantId', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }])
+    const { from, eq2 } = buildProfileSupabaseMock(null)
+    const state = makeState({ firingSkillId: null, skillMeta: { participantId: 'author-b' } })
+    await analyticsAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        analyticsAdapter: adapter,
+        participantId: 'author-a',
+        branchId: 'branch-1',
+        supabase: { from } as never,
+      },
+    })
+    expect(eq2).toHaveBeenCalledWith('participant_id', 'author-b')
   })
 })
 

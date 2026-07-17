@@ -299,6 +299,30 @@ aiRouter.post('/:id/invoke', async (c) => {
   }
 
   // -------------------------------------------------------------------------
+  // Step 8.55: Resolve the real author of the message being responded to (WR-04)
+  // Mirrors profile-builder.ts's resolveAuthorId pattern: identity is ALWAYS resolved
+  // server-side from the authoritative `messages` table, never from client input or
+  // an LLM-supplied label. This is the actual author of the last human message on the
+  // active branch — which may be a guest, and is NOT necessarily the session creator
+  // (the /invoke ownership gate above forces user.id === session.creator_id always,
+  // so user.id can never be used as a stand-in for "the participant this turn is
+  // responding to"). Falls back to user.id only if no human message resolves (e.g.
+  // very first turn on a branch) — this keeps participantId always non-null for
+  // moderation/personalization consumers (T-13-07-01, T-13-07-02).
+  // -------------------------------------------------------------------------
+  const { data: lastHumanMessage } = await supabase
+    .from('messages')
+    .select('author_id')
+    .eq('session_id', sessionId)
+    .in('path_id', ancestorPaths)
+    .eq('role', 'user')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const lastHumanAuthorId = (lastHumanMessage?.author_id as string | undefined) ?? user.id
+
+  // -------------------------------------------------------------------------
   // Step 8.6: Mic lock acquire — BEFORE streamSSE() so locked branches return
   // JSON 409 (not an SSE error). Must be after branch UUID resolution. (HUMAN-01, D-01)
   // -------------------------------------------------------------------------
@@ -352,8 +376,11 @@ aiRouter.post('/:id/invoke', async (c) => {
     // production (RESEARCH.md Finding 2). Both `supabase` and `serviceClient` point at
     // the SAME client — moderation.ts reads `supabase`; profileBuilderNode/orphan-edge/
     // phase-readiness read `serviceClient` (`?? createServiceClient()` fallback).
-    // participantId is the human-path invoker, always the session creator (T-02-05
-    // ownership gate above already enforced session.creator_id === user.id).
+    // WR-04: participantId is now the resolved AUTHOR of the last human message on the
+    // active branch (Step 8.55 above), NOT always the session creator — the /invoke
+    // ownership gate (T-02-05) only constrains WHO can invoke, never who the Coach/
+    // Analyst/moderation Skills should target or attribute. This corrects moderation
+    // escalation attribution and supplies the correct default personalization target.
     const graphConfig = {
       configurable: {
         thread_id: `${activeBranchId ?? sessionId}:human`,  // BOT-04: dual thread_id — human thread
@@ -365,7 +392,7 @@ aiRouter.post('/:id/invoke', async (c) => {
         supabase,                                    // F2/D-12: moderation.ts's config.configurable.supabase seam
         serviceClient: supabase,                     // F2/D-12: profileBuilder/orphan-edge/phase-readiness seam
         branchId: activeBranchId,                    // F2/D-12
-        participantId: user.id,                      // F2/D-12: human-path invoker == session creator
+        participantId: lastHumanAuthorId,             // WR-04: resolved author of the last human message
         botOverrides: (session.bot_overrides as Record<string, boolean> | null) ?? {},  // D-13
       },
       callbacks: [callbackHandler],
@@ -487,7 +514,9 @@ aiRouter.post('/:id/invoke', async (c) => {
         const currentPhaseIndex = blueprint.phase_sequence.findIndex(
           (p) => p.id === (session.current_phase ?? blueprint.phase_sequence[0]?.id)
         )
-        const nextPhase = blueprint.phase_sequence[currentPhaseIndex + 1] ?? null
+        // WR-02: an unresolved current phase (findIndex -1) must SUPPRESS the signal,
+        // not fall through to `-1 + 1 = 0` and wrongly offer phase 0 as "next".
+        const nextPhase = currentPhaseIndex >= 0 ? (blueprint.phase_sequence[currentPhaseIndex + 1] ?? null) : null
 
         if (nextPhase) {
           await stream.writeSSE({

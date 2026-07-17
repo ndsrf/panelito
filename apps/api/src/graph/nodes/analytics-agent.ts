@@ -161,16 +161,19 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
     ? firingAnalystSkill.buildPromptGuidance({ state, blueprint, config })
     : undefined
 
-  // Step 2.5 (Phase 13 Plan 05, D-11/Pattern 3): when the firing Skill carries a resolvable
-  // target participant (state.skillMeta.participantId), splice that participant's profile
-  // summary into the SAME step-3.5 guidance slot as skillGuidance — after argGraph context,
-  // before Personality voice. No current Analyst Skill sets skillMeta.participantId (only
-  // moderation, a Coach Skill, does) — this seam is symmetric with facilitation-agent.ts per
-  // D-11's own instruction, and phase-readiness deliberately has no single target (Pattern 3),
-  // so this is a graceful no-op for every Analyst Skill firing today. Profile-fetch failure
-  // fails open — getParticipantProfile never throws (participant-profile.ts) and
-  // summarizeParticipant(null) renders a safe placeholder sentence.
-  const targetParticipantId = state.skillMeta?.participantId as string | undefined
+  // Step 2.5 (Phase 13 Plan 05, D-11/Pattern 3; widened Plan 07 WR-04/WR-03): when the
+  // firing Skill carries a resolvable target participant (state.skillMeta.participantId),
+  // that takes precedence. Otherwise fall back to config.configurable.participantId — the
+  // resolved author of the last human message this turn is responding to (ai.ts, WR-04) —
+  // symmetric with facilitation-agent.ts, so the Analyst also personalizes toward the
+  // responded-to participant on any firing Analyst Skill (fact-check, orphan-edge,
+  // phase-readiness), not only when a Skill explicitly sets skillMeta.participantId. Splice
+  // that participant's profile summary into the SAME step-3.5 guidance slot as skillGuidance
+  // — after argGraph context, before Personality voice. Absent targetId → append nothing
+  // (graceful). Profile-fetch failure fails open — getParticipantProfile never throws
+  // (participant-profile.ts) and summarizeParticipant(null) renders a safe placeholder
+  // sentence.
+  const targetParticipantId = (state.skillMeta?.participantId as string | undefined) ?? (config?.configurable?.participantId as string | undefined)
   let combinedSkillGuidance = skillGuidance
   if (targetParticipantId) {
     const supabaseForProfile = config?.configurable?.supabase as SupabaseClient | undefined

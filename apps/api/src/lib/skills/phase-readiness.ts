@@ -180,7 +180,11 @@ async function detect(context: SkillContext): Promise<SkillDetectionResult> {
     }
 
     // Gate is open — start/continue counting human messages toward min_messages_after.
-    const messagesSinceGateOpen = progress.messagesSinceGateOpen + 1
+    // WR-01: only advance the counter on the genuine human-message path
+    // (context.state.triggerType == null) — proactive invocations (silence_gate,
+    // analysis_request) must not inflate the M-message counter.
+    const messagesSinceGateOpen =
+      context.state.triggerType == null ? progress.messagesSinceGateOpen + 1 : progress.messagesSinceGateOpen
     if (messagesSinceGateOpen < gateConfig.min_messages_after) {
       return {
         fires: false,

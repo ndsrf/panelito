@@ -133,14 +133,19 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
     ? firingCoachSkill.buildPromptGuidance({ state, blueprint, config })
     : undefined
 
-  // Step 2.5 (Phase 13 Plan 05, D-11): when the firing Skill carries a resolvable target
-  // participant (state.skillMeta.participantId — e.g. moderation's own meta.participantId),
-  // splice that participant's profile summary into the SAME step-3.5 guidance slot as
-  // skillGuidance — after argGraph context, before Personality voice. Absent targetId →
-  // append nothing (graceful). Profile-fetch failure fails open — getParticipantProfile
-  // never throws (participant-profile.ts) and summarizeParticipant(null) renders a safe
-  // placeholder sentence.
-  const targetParticipantId = state.skillMeta?.participantId as string | undefined
+  // Step 2.5 (Phase 13 Plan 05, D-11; widened Plan 07 WR-04/WR-03): when the firing Skill
+  // carries a resolvable target participant (state.skillMeta.participantId — e.g.
+  // moderation's own meta.participantId), that takes precedence. Otherwise fall back to
+  // config.configurable.participantId — the resolved author of the last human message
+  // this turn is responding to (ai.ts, WR-04) — so personalization also fires on ordinary
+  // facilitation moments (silence-break, drift-redirect, fact-check, phase-readiness,
+  // orphan-edge), not only on moderation escalation. Splice that participant's profile
+  // summary into the SAME step-3.5 guidance slot as skillGuidance — after argGraph
+  // context, before Personality voice. Absent targetId → append nothing (graceful).
+  // Profile-fetch failure fails open — getParticipantProfile never throws
+  // (participant-profile.ts) and summarizeParticipant(null) renders a safe placeholder
+  // sentence.
+  const targetParticipantId = (state.skillMeta?.participantId as string | undefined) ?? (config?.configurable?.participantId as string | undefined)
   let combinedSkillGuidance = skillGuidance
   if (targetParticipantId) {
     const supabaseForProfile = config?.configurable?.supabase as SupabaseClient | undefined
