@@ -32,6 +32,17 @@ let _capturedStreamConfig: unknown = null
 /** Whether graph.stream() should emit text_delta tokens (set per-test) */
 let _emitTextTokens = false
 
+/** Whether the final graph chunk should include a non-empty canvasOps array (set per-test) */
+let _emitCanvasOps = false
+
+/**
+ * Spy on the messages-table `insert` call, shared across every `from('messages')`
+ * invocation made within a single buildSupabaseMock() instance (there are several
+ * SELECT calls against 'messages' before the potential INSERT). Reset per-test via
+ * buildSupabaseMock(); read by the canvas-only-turn regression test.
+ */
+let _messagesInsertSpy: ReturnType<typeof vi.fn> | null = null
+
 // ---------------------------------------------------------------------------
 // Mock: ../lib/supabase
 // ---------------------------------------------------------------------------
@@ -94,13 +105,15 @@ vi.mock('../graph/graph', () => ({
         // each node completes. The previous { agent: { canvasOps: [] } } shape was
         // "updates" mode and caused Object.assign(finalState, chunk) to produce
         // finalState.agent.canvasOps rather than finalState.canvasOps, hiding the
-        // [canvas updated] fallback path from all tests.
+        // canvas-only-turn skip-insert path from all tests.
         async function* generateChunks() {
           yield {
             blueprintId: 'debate-strategy-v1',
             currentPhaseId: 'opening',
             messages: [],
-            canvasOps: [],
+            canvasOps: _emitCanvasOps
+              ? [{ op: 'ADD_NODE', status: 'committed', node: { id: 'n1', type: 'hypothesis', label: 'Test' } }]
+              : [],
             guardrailResult: 'DOMAIN_MATCH',
             agentConfidence: 0.9,
             driftAction: null,
@@ -194,6 +207,18 @@ const FAKE_JWT = 'fake-bearer-token'
 function buildSupabaseMock(sessionData: Record<string, unknown> | null) {
   let sessionsCallCount = 0
 
+  // Shared across all from('messages') calls this test makes (several SELECTs precede
+  // the potential INSERT) so the canvas-only-turn test can assert insert was never called.
+  const messagesInsertSpy = vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnValue({
+      single: vi.fn().mockResolvedValue({
+        data: { id: 'ai-msg-test', content: 'Hello from graph.', role: 'assistant' },
+        error: null,
+      }),
+    }),
+  })
+  _messagesInsertSpy = messagesInsertSpy
+
   const fromFn = vi.fn().mockImplementation((table: string) => {
     if (table === 'sessions') {
       sessionsCallCount++
@@ -216,7 +241,7 @@ function buildSupabaseMock(sessionData: Record<string, unknown> | null) {
       })
     }
     if (table === 'messages') {
-      return makeMessagesChain()
+      return makeMessagesChain(messagesInsertSpy)
     }
     if (table === 'branches') {
       return makeSelectSingleChain(null, { message: 'not found' })
@@ -235,7 +260,10 @@ function buildSupabaseMock(sessionData: Record<string, unknown> | null) {
     channel: vi.fn().mockReturnValue({
       httpSend: vi.fn().mockReturnValue({ catch: vi.fn() }),
     }),
-    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    // try_acquire_mic (ai.ts Step 8.6) expects `data: [{ acquired: boolean }]` — default
+    // to a granted lock so tests that reach this step (e.g. the canvas-only-turn test,
+    // which supplies branchId to bypass the pre-existing branches-mock gap) don't 500.
+    rpc: vi.fn().mockResolvedValue({ data: [{ acquired: true }], error: null }),
   }
 }
 
@@ -277,23 +305,24 @@ function makeMaybeSingleChain(data: unknown) {
   return self
 }
 
-function makeMessagesChain() {
-  const insertResult = {
-    select: vi.fn().mockReturnValue({
-      single: vi.fn().mockResolvedValue({
-        data: { id: 'ai-msg-test', content: 'Hello from graph.', role: 'assistant' },
-        error: null,
-      }),
-    }),
+function makeMessagesChain(insertSpy: ReturnType<typeof vi.fn>) {
+  // `.limit(...)` is dual-purpose in real supabase-js: awaited directly as a terminal
+  // (sliding-window fetch at ai.ts:213-219, resolves {data,error}) OR chained further
+  // with `.maybeSingle()` (Step 8.55 last-human-author lookup at ai.ts:313-321). Mirror
+  // that thenable-and-chainable shape here rather than a plain mockResolvedValue.
+  const limitResult = {
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve({ data: [], error: null }).then(resolve, reject),
   }
   const self: Record<string, ReturnType<typeof vi.fn>> = {
     select: vi.fn(),
     eq: vi.fn(),
     in: vi.fn(),
     order: vi.fn(),
-    limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    limit: vi.fn().mockReturnValue(limitResult),
     range: vi.fn().mockResolvedValue({ data: [], error: null }),
-    insert: vi.fn().mockReturnValue(insertResult),
+    insert: insertSpy,
   }
   ;['select', 'eq', 'in', 'order'].forEach((m) => {
     self[m]!.mockReturnValue(self)
@@ -309,6 +338,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   _capturedStreamConfig = null
   _emitTextTokens = false
+  _emitCanvasOps = false
+  _messagesInsertSpy = null
 
   // Re-apply defaults after clearAllMocks()
   mockGetCheckpointer.mockResolvedValue(new MemorySaver() as any)
@@ -495,5 +526,78 @@ describe('POST /api/sessions/:id/invoke — abort propagation (SC-3)', () => {
     const config = _capturedStreamConfig as Record<string, unknown>
     expect(config.signal).toBeDefined()
     expect(config.signal).toBeInstanceOf(AbortSignal)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// SPEECH-01/D-10/D-11: canvas-only bot turn writes NO message row
+// ---------------------------------------------------------------------------
+
+describe('POST /api/sessions/:id/invoke — canvas-only turn skip-insert (SPEECH-01)', () => {
+  it('performs no messages INSERT and writes no placeholder text when the bot turn yields canvas ops but zero accumulated text', async () => {
+    // No text tokens emitted; the final chunk carries a non-empty canvasOps array.
+    _emitTextTokens = false
+    _emitCanvasOps = true
+
+    const sessionWithBlueprint = {
+      id: TEST_SESSION_ID,
+      creator_id: TEST_USER_ID,
+      active_personas: ['analista_cientifico'],
+      blueprint_id: 'debate-strategy-v1',
+      current_phase: 'opening',
+    }
+
+    mockCreateServiceClient.mockReturnValue(
+      buildSupabaseMock(sessionWithBlueprint) as any
+    )
+
+    const req = new Request(`http://localhost/api/sessions/${TEST_SESSION_ID}/invoke`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${FAKE_JWT}`,
+        'Content-Type': 'application/json',
+      },
+      // branchId supplied explicitly so the request skips the Step 8.5 "resolve main
+      // branch" fallback query (ai.ts:288) — this test's shared buildSupabaseMock()
+      // 'branches' chain always resolves not-found (pre-existing gap unrelated to
+      // SPEECH-01; also affects SC-2/SC-3, tracked in deferred-items.md).
+      body: JSON.stringify({ userMessage: 'Add a node to the canvas.', branchId: 'branch-00000000-0000-0000-0000-000000000001' }),
+    })
+
+    const res = await app.fetch(req)
+    expect(res.status).toBe(200)
+
+    // Drain the SSE stream to completion.
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let sseText = ''
+    let foundDone = false
+
+    const timeout = new Promise<void>((_, reject) =>
+      setTimeout(() => reject(new Error('canvas-only-turn stream timed out after 15s')), 15_000)
+    )
+
+    const drain = async (): Promise<void> => {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const text = decoder.decode(value, { stream: true })
+        sseText += text
+        if (text.includes('event: done')) {
+          foundDone = true
+          break
+        }
+      }
+    }
+
+    await Promise.race([drain(), timeout])
+    expect(foundDone).toBe(true)
+
+    // No placeholder string anywhere in the SSE payload.
+    expect(sseText).not.toContain('canvas updated')
+
+    // No messages INSERT was attempted — canvas-only turns write zero chat rows.
+    expect(_messagesInsertSpy).not.toBeNull()
+    expect(_messagesInsertSpy).not.toHaveBeenCalled()
   })
 })
