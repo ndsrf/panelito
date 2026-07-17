@@ -352,7 +352,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 13-05-PLAN.md — ai.ts config wiring (F2/D-12/D-13), analyticsAgentNode phase_signal derivation (F3) + D-11 personalization, end-to-end integration test (PROFILE-02, TRIGGER-02)
+- [x] 13-05-PLAN.md — ai.ts config wiring (F2/D-12/D-13), analyticsAgentNode phase_signal derivation (F3) + D-11 personalization, end-to-end integration test (PROFILE-02, TRIGGER-02)
 
 ### Phase 14: Polish + TriggerEngine Wiring
 
@@ -390,7 +390,7 @@ Plans:
 | 10. Infrastructure Foundation | v3.0 | 3/3 | Complete    | 2026-07-10 |
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 6/6 | Complete    | 2026-07-16 |
-| 13. User Profiles + Phase Signal | v3.0 | 4/5 | In Progress|  |
+| 13. User Profiles + Phase Signal | v3.0 | 5/5 | Complete   | 2026-07-17 |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 0/? | Not started | - |
 
 ---
