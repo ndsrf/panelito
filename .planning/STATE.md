@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — The Bots Must Help the Conversation Flow
 status: completed
-stopped_at: Phase 13 context gathered
-last_updated: "2026-07-17T10:36:37.596Z"
+stopped_at: Phase 14 context gathered
+last_updated: "2026-07-17T14:57:03.626Z"
 last_activity: 2026-07-17 -- Phase 13 marked complete
 progress:
   total_phases: 5
@@ -97,9 +97,9 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Session
 
-**Last session:** 2026-07-16T09:38:27.844Z
-**Stopped at:** Phase 13 context gathered
-**Resume file:** .planning/phases/13-user-profiles-phase-signal/13-CONTEXT.md
+**Last session:** 2026-07-17T14:57:03.615Z
+**Stopped at:** Phase 14 context gathered
+**Resume file:** .planning/phases/14-polish-triggerengine-wiring/14-CONTEXT.md
 
 ## Current Position
 
