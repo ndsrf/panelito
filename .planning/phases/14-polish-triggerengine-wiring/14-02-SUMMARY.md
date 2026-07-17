@@ -133,3 +133,13 @@ None - no external service configuration required.
 ---
 *Phase: 14-polish-triggerengine-wiring*
 *Completed: 2026-07-17*
+
+## Self-Check: PASSED
+
+- FOUND: apps/api/src/routes/ai.ts
+- FOUND: apps/api/src/routes/ai.test.ts
+- FOUND: apps/api/vitest.config.ts
+- FOUND: .planning/phases/14-polish-triggerengine-wiring/deferred-items.md
+- FOUND commit: fbd8168 (Task 1)
+- FOUND commit: 23ea11c (Task 2)
+- FOUND commit: 2b63fa5 (docs: plan metadata)
