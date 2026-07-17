@@ -365,7 +365,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     // Instantiated inside SSE callback, never module-level — prevents trace context corruption.
     // D-16: early-exit paths (400/409/429) are not traced — only real invocations reach here.
     const callbackHandler = new CallbackHandler({
-      tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`],
+      tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`, 'trigger:human-reactive'],
     })
 
     // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
@@ -464,11 +464,11 @@ aiRouter.post('/:id/invoke', async (c) => {
       await Promise.all([runGraph(), drainQueue()])
 
       // --- Message insert (RESEARCH Pitfall 7: handle empty accumulatedText) ---
-      // T-07-08: empty accumulatedText + no canvasOps → skip INSERT
-      if (!accumulatedText.trim() && (finalState as any)?.canvasOps?.length > 0) {
-        accumulatedText = '[canvas updated]'  // minimal fallback for messages_content_check constraint
-      }
-
+      // T-07-08/D-10/D-11: empty accumulatedText → skip INSERT entirely, regardless of
+      // canvasOps. Canvas-only bot turns (no chat text) must write NO message row and no
+      // placeholder fallback text ever reaches the DB or chat stream (SPEECH-01).
+      // The canvas mutation itself is persisted separately (Phase 8), so this row is not
+      // needed to reflect the canvas change to other participants.
       if (accumulatedText.length > 0) {
         const { data: row, error: insertError } = await supabase
           .from('messages')

@@ -7,11 +7,18 @@ import { readFileSync, statSync } from 'fs'
  * The worktree shares the pnpm-lock.yaml but not .env files.
  */
 function loadDotEnv(): Record<string, string> {
-  // Try the worktree location first, then fall back to main repo
-  const candidates = [
-    path.resolve(__dirname, '.env'),
-    path.resolve(__dirname, '../../../apps/api/.env'),
-  ]
+  // Try the worktree location first, then fall back to main repo. Nesting depth from
+  // __dirname (apps/api) to the main repo root varies by worktree layout — a top-level
+  // sibling worktree (e.g. panelito-worktree/apps/api) is 3 levels up, while a Claude
+  // Code linked worktree (panelito/.claude/worktrees/<id>/apps/api) is 5 levels up.
+  // Scan a range of ancestor depths (same fix already applied to mainRepoNodeModules
+  // resolution above) rather than hardcoding one depth — 14-02 deviation, discovered
+  // running ai.test.ts: the 3-levels-up-only candidate silently produced an empty env
+  // object for the nested layout, causing env.KEY_ENCRYPTION_SECRET access to throw.
+  const candidates = [path.resolve(__dirname, '.env')]
+  for (let levels = 2; levels <= 8; levels++) {
+    candidates.push(path.resolve(__dirname, '../'.repeat(levels), 'apps/api/.env'))
+  }
   for (const candidate of candidates) {
     try {
       const content = readFileSync(candidate, 'utf-8')
@@ -60,6 +67,23 @@ function detectWorktree(): { typesPath: string | undefined; mainRepoNodeModules:
     typesPath = path.resolve(__dirname, '../../packages/types/src')
   } catch {
     // types not available in worktree
+  }
+
+  // If the worktree already has its OWN populated node_modules (e.g. a workspace-wide
+  // `pnpm install` was run against the worktree's checked-out pnpm-lock.yaml), skip the
+  // mainRepoNodeModules alias hack entirely and let normal node_modules resolution do its
+  // job. The flat alias-to-directory approach below only maps a bare package name (e.g.
+  // 'hono') to its main-repo directory — it does NOT honor that package's package.json
+  // `exports` map, so subpath imports like 'hono/streaming' silently break (404 to
+  // literal '<pkg-dir>/streaming', which doesn't exist — real file lives under
+  // dist/helper/streaming/index.js per exports). A local, real node_modules resolves
+  // subpath exports correctly via normal Node/Vite resolution, so prefer it when present
+  // (14-02 deviation — Rule 3 blocking-issue fix, discovered running ai.test.ts).
+  try {
+    statSync(path.resolve(__dirname, 'node_modules', '@anthropic-ai'))
+    return { typesPath, mainRepoNodeModules: undefined }
+  } catch {
+    // No local node_modules — fall through to the main-repo alias fallback below.
   }
 
   // Worktree: find main repo's apps/api/node_modules for module resolution.
