@@ -264,6 +264,68 @@ describe('facilitationAgentNode — Coach Skill-guidance injection slot (Phase 1
   })
 })
 
+describe('facilitationAgentNode — participant-profile splice (Phase 13 Plan 07, WR-03/WR-04)', () => {
+  function buildProfileSupabaseMock(profile: unknown) {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: profile, error: null })
+    const eq2 = vi.fn().mockReturnValue({ maybeSingle })
+    const eq1 = vi.fn().mockReturnValue({ eq: eq2 })
+    const select = vi.fn().mockReturnValue({ eq: eq1 })
+    const from = vi.fn().mockReturnValue({ select })
+    return { from, select, eq1, eq2, maybeSingle }
+  }
+
+  it('splices target participant profile into the system prompt when config.configurable.participantId is set (no skillMeta)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Qué opinas?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const { from, eq2 } = buildProfileSupabaseMock({
+      branch_id: 'branch-1',
+      participant_id: 'author-a',
+      positions: ['La evidencia importa'],
+      assertions: [],
+      messages_sent: 3,
+      reactions_used: 0,
+      moderation_count: 0,
+      updated_at: '2026-07-16T00:00:00.000Z',
+    })
+    const state = makeState({ firingSkillId: null, skillMeta: null })
+    await facilitationAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        facilitationAdapter: adapter,
+        participantId: 'author-a',
+        branchId: 'branch-1',
+        supabase: { from } as never,
+      },
+    })
+    expect(captured.system).toContain('La evidencia importa')
+    expect(captured.system).toContain('PARTICIPANT_PROFILE_DATA')
+    expect(eq2).toHaveBeenCalledWith('participant_id', 'author-a')
+  })
+
+  it('skillMeta.participantId takes precedence over config participantId', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: '¿Y esto?' }, { type: 'done' }])
+    const { from, eq2 } = buildProfileSupabaseMock(null)
+    const state = makeState({ firingSkillId: null, skillMeta: { participantId: 'author-b' } })
+    await facilitationAgentNode(state, {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        facilitationAdapter: adapter,
+        participantId: 'author-a',
+        branchId: 'branch-1',
+        supabase: { from } as never,
+      },
+    })
+    expect(eq2).toHaveBeenCalledWith('participant_id', 'author-b')
+  })
+})
+
 describe('facilitationAgentNode — fail-silent + routing', () => {
   it('returns {} when blueprint is missing from config.configurable', async () => {
     const result = await facilitationAgentNode(makeState(), { configurable: {} })
