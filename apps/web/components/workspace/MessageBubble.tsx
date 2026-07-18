@@ -280,7 +280,7 @@ export function MessageBubble({
                   Bifurcando...
                 </div>
               )}
-              {containsSpeechArtifact(message.content) ? '' : message.content}
+              {message.content}
             </div>
           )}
         </div>
