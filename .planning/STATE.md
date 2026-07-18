@@ -4,14 +4,14 @@ milestone: v3.0
 milestone_name: — The Bots Must Help the Conversation Flow
 status: executing
 stopped_at: Phase 14 context gathered
-last_updated: "2026-07-17T15:51:56.453Z"
+last_updated: "2026-07-18T06:25:54.616Z"
 last_activity: 2026-07-17 -- Phase 14 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 30
-  completed_plans: 23
-  percent: 77
+  completed_plans: 29
+  percent: 80
 ---
 
 # Project State: Project Multiverse
@@ -75,6 +75,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 - **2026-07-06** — Phase 9 approved. Key bugs fixed: LangGraph stream chunk format (node-keyed → flat merge), @xyflow/react transpilePackages, canvas hydration on mount, ghost nodes delivered via SSE (Realtime dead in WSL2). Ghost nodes correctly ephemeral on reconnect.
 - **2026-07-09** — v3.0 roadmap created (Phases 10–14). Key architectural constraints enforced: TriggerEngine (TRIGGER-07) built last in Phase 14 — requires all trigger detectors + ProactiveInvoker. Conditional START edge (route to FacilitationAgentNode vs AnalyticsAgentNode) isolated in Phase 11 — highest-risk topology change. Devil's Advocate explicitly deferred to v3.1. All bot state (argGraph, profiles, trigger metadata) in PostgresSaver — no JS process memory. One new package: @huggingface/transformers 4.2.0 for local ONNX semantic drift scoring.
 - **2026-07-15** — Phase 11 Plan 06 (silence-scan interim trigger loop) complete — TRIGGER-01/PERSONA-01 marked complete. Fixed a latent Phase 10 bug in bot-arbitrator.ts: the arbitration lock's cooldown-duration calculation read blueprint.bot_cooldowns[id] as a raw seconds number, but Plan 02 already changed the real field to {max, window_minutes} — this threw RangeError on every real arbitration call once Coach/Analyst were registered. Fixed to read window_minutes*60. Task 4's live-browser checkpoint was accepted via code-review (no browser automation tool available in this execution environment), same precedent as Plan 07 — the live silence-fire/cooldown/frozen-session behavior has not been directly observed by a human; recommended as follow-up before treating Phase 11 as fully production-validated.
+- **2026-07-18** — Phase 14 Plan 07 Task 1 (synthetic-session harness) complete. `scripts/synthetic-session.ts` cycles `firingSkillId` through all 6 Skill ids (silence-break/moderation/drift-redirect for Coach, fact-check/phase-readiness/orphan-edge for Analyst) rather than fabricating unrecognized `triggerType` values — `routeFromStart` throws by design on any triggerType outside `silence_gate`/`analysis_request`/null. Analyst turns route via `analysis_request` (the only real START-reachable path to AnalyticsAgentNode), which also runs one extra argGraph-extraction call per turn (~1.5x total LLM calls, documented in-file). Task 2 (live TriggerEngine + Langfuse dashboard human-verify checkpoint) is paused awaiting the user.
 
 ---
 
@@ -97,13 +98,13 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 
 ## Session
 
-**Last session:** 2026-07-17T14:57:03.615Z
-**Stopped at:** Phase 14 context gathered
-**Resume file:** .planning/phases/14-polish-triggerengine-wiring/14-CONTEXT.md
+**Last session:** 2026-07-18T00:00:00.000Z
+**Stopped at:** Phase 14 Plan 07 Task 1 complete (synthetic-session harness) — Task 2 human-verify checkpoint awaiting user
+**Resume file:** .planning/phases/14-polish-triggerengine-wiring/14-07-PLAN.md
 
 ## Current Position
 
 Phase: 14 (polish-triggerengine-wiring) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 14
-Last activity: 2026-07-17 -- Phase 14 execution started
+Plan: 7 of 7 (14-01 through 14-06 complete; 14-07 Task 1 of 2 complete)
+Status: Paused at Task 2 checkpoint (human-verify: live TriggerEngine + synthetic harness run + Langfuse dashboard inspection)
+Last activity: 2026-07-18 -- Phase 14 Plan 07 Task 1 (synthetic-session harness) committed
