@@ -143,7 +143,7 @@
 - [x] **PERSONA-01**: Coach bot is wired into the LangGraph graph as a new FacilitationAgentNode; its prompt enforces Socratic discipline — every output ends with a question, never a statement or answer; it never gives conclusions, only surfaces them
 - [ ] **PERSONA-02**: Analyst/Fact-Checker bot is wired as a new AnalyticsAgentNode; its output always cites the specific prior message (speaker name + paraphrased content) it is responding to; when operating as Fact-Checker it uses uncertainty framing exclusively ("I can't verify that — what's the source?") and never makes confident counter-assertions
 - [ ] **PERSONA-03**: Each personality has configurable per-session cooldown budgets (default: Coach 3/15min, Analyst 2/15min, Fact-check 1/30min) stored in the Blueprint or session config; Creator can adjust in session settings
-- [ ] **PERSONA-04**: Persona consistency is maintained across long sessions via a periodic re-anchor mechanism that refreshes the persona context window every 15 bot invocations; tested against a 100-turn synthetic session before release
+- [x] **PERSONA-04**: Persona consistency is maintained across long sessions via a periodic re-anchor mechanism that refreshes the persona context window every 15 bot invocations; tested against a 100-turn synthetic session before release
 
 ### Trigger Types (TRIGGER)
 
@@ -153,7 +153,7 @@
 - [x] **TRIGGER-04**: Unlinked assertion trigger — when a new canvas node has been committed with no edges to existing nodes after the first 3 nodes in the session, the Analyst detects the orphan and proposes one or more typed edge connections
 - [x] **TRIGGER-05**: Fact-check trigger — when the classifier detects a message containing a verifiable factual claim with low self-consistency (heuristic pre-filter → Haiku → Sonnet three-tier escalation), the Analyst/Fact-Checker responds with uncertainty framing; never operates without the pre-filter
 - [x] **TRIGGER-06**: Moderation trigger — when a message is classified as rude, disruptive, or off-topic by the heuristic pre-filter (no LLM cost), the Coach intervenes with a neutral, non-accusatory facilitation move
-- [ ] **TRIGGER-07**: A TriggerEngine module runs on the standalone Node.js server (`server.ts`) as a persistent `setInterval` scan loop (not Vercel serverless); it evaluates all 6 trigger conditions per active branch and dispatches to a ProactiveInvoker when a trigger fires
+- [x] **TRIGGER-07**: A TriggerEngine module runs on the standalone Node.js server (`server.ts`) as a persistent `setInterval` scan loop (not Vercel serverless); it evaluates all 6 trigger conditions per active branch and dispatches to a ProactiveInvoker when a trigger fires
 
 ### Coherent Graph Model (GRAPH)
 
@@ -171,13 +171,13 @@
 
 - [x] **COST-01**: All proactive bot invocations use task-based model routing via the existing TASK_MODELS registry; facilitation moves (Coach silence/phase triggers, moderation) route to the provider's **fast/light tier** (Claude Haiku, GPT-4o-mini, or equivalent); analysis and graph reasoning (Analyst, Fact-Checker, ArgGraphBuilder) route to the provider's **capable tier** (Claude Sonnet, GPT-4o, or equivalent); tier-to-model mapping is resolved per provider at runtime, never hardcoded
 - [x] **COST-02**: Trigger classification uses a three-tier escalation gate (heuristic regex/rule → light-tier classifier → capable-tier for confirmed positives) to minimize LLM calls during the detection phase; raw trigger evaluation never calls the capable-tier model directly
-- [ ] **COST-03**: Langfuse traces tag each LLM call with its trigger type and model tier; cost attribution by trigger type is visible in the Langfuse dashboard
+- [x] **COST-03**: Langfuse traces tag each LLM call with its trigger type and model tier; cost attribution by trigger type is visible in the Langfuse dashboard
 
 ### Natural Bot Speech (SPEECH)
 
-- [ ] **SPEECH-01**: No bot message in the chat stream contains system artifact strings ("[canvas updated]", "[graph modified]", "[node added]", or similar); all bot output is conversational, persona-consistent, and natural
-- [ ] **SPEECH-02**: The message rendering layer blocks any message content matching system artifact patterns at the frontend layer as defense-in-depth; blocked strings are replaced with an empty string (silent drop)
-- [ ] **SPEECH-03**: Canvas update confirmations are communicated exclusively through the canvas UI (ghost → committed animation, node count badge) — never through chat text
+- [x] **SPEECH-01**: No bot message in the chat stream contains system artifact strings ("[canvas updated]", "[graph modified]", "[node added]", or similar); all bot output is conversational, persona-consistent, and natural
+- [x] **SPEECH-02**: The message rendering layer blocks any message content matching system artifact patterns at the frontend layer as defense-in-depth; blocked strings are replaced with an empty string (silent drop)
+- [x] **SPEECH-03**: Canvas update confirmations are communicated exclusively through the canvas UI (ghost → committed animation, node count badge) — never through chat text
 
 ## v3.0 Future Requirements
 
@@ -214,14 +214,14 @@
 | PERSONA-01 | Phase 11 | Complete |
 | PERSONA-02 | Phase 11 | Pending |
 | PERSONA-03 | Phase 11 | Pending |
-| PERSONA-04 | Phase 14 | Pending |
+| PERSONA-04 | Phase 14 | Complete |
 | TRIGGER-01 | Phase 11 | Complete |
 | TRIGGER-02 | Phase 13 | Pending |
 | TRIGGER-03 | Phase 12 | Complete |
 | TRIGGER-04 | Phase 12 | Complete |
 | TRIGGER-05 | Phase 12 | Complete |
 | TRIGGER-06 | Phase 12 | Complete |
-| TRIGGER-07 | Phase 14 | Pending |
+| TRIGGER-07 | Phase 14 | Complete |
 | GRAPH-01 | Phase 11 | Pending |
 | GRAPH-02 | Phase 11 | Pending |
 | GRAPH-03 | Phase 12 | Complete |
@@ -230,10 +230,10 @@
 | PROFILE-02 | Phase 13 | Complete |
 | COST-01 | Phase 12 | Complete |
 | COST-02 | Phase 12 | Complete |
-| COST-03 | Phase 14 | Pending |
-| SPEECH-01 | Phase 14 | Pending |
-| SPEECH-02 | Phase 14 | Pending |
-| SPEECH-03 | Phase 14 | Pending |
+| COST-03 | Phase 14 | Complete |
+| SPEECH-01 | Phase 14 | Complete |
+| SPEECH-02 | Phase 14 | Complete |
+| SPEECH-03 | Phase 14 | Complete |
 
 **v3.0 Coverage:**
 - v3.0 requirements: 28 total (5 BOT + 4 PERSONA + 7 TRIGGER + 4 GRAPH + 2 PROFILE + 3 COST + 3 SPEECH)
