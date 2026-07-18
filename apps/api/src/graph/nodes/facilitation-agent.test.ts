@@ -10,12 +10,36 @@
  *   - facilitationAgentNode: triggerMetadata.silence_gate.last_fired_at updated on success
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
+import { SPEECH_ARTIFACT_BLOCKLIST } from '@panelito/types'
 import { TASK_MODELS } from '../../lib/model-config'
-import { buildCoachSystemPrompt, facilitationAgentNode } from './facilitation-agent'
 import { driftRedirectSkill } from '../../lib/skills/drift-redirect'
 import type { GraphState } from '../state'
+
+// ---------------------------------------------------------------------------
+// Mock @langfuse/tracing (COST-03 Generation-wrap, Phase 14 Plan 06) — mirrors
+// langfuse-generation.test.ts's mock so streamWithGeneration's startObservation
+// call never hits a real Langfuse SDK during these unit tests.
+// ---------------------------------------------------------------------------
+
+const mockUpdate = vi.fn()
+const mockEnd = vi.fn()
+const mockStartObservation = vi.fn()
+
+vi.mock('@langfuse/tracing', () => ({
+  startObservation: (...args: unknown[]) => mockStartObservation(...args),
+}))
+
+beforeEach(() => {
+  mockStartObservation.mockClear()
+  mockUpdate.mockClear()
+  mockEnd.mockClear()
+  mockStartObservation.mockReturnValue({ update: mockUpdate, end: mockEnd })
+})
+
+// Import AFTER vi.mock() declaration — hoisting ensures the mock is applied.
+import { buildCoachSystemPrompt, facilitationAgentNode, REANCHOR_EVERY_N_INVOCATIONS } from './facilitation-agent'
 
 function createMockAdapter(
   events: AIStreamEvent[],
@@ -123,6 +147,7 @@ function makeState(overrides: Partial<GraphState> = {}): GraphState {
     skillMeta: null,
     triggerGateComplete: null,
     phaseGateProgress: null,
+    roleInvocationCounts: {},
     ...overrides,
   }
 }
@@ -394,5 +419,108 @@ describe('facilitationAgentNode — fail-silent + routing', () => {
     })
     expect(result.triggerMetadata?.silence_gate?.last_fired_at).toBeTruthy()
     expect(new Date(result.triggerMetadata!.silence_gate!.last_fired_at as string).getTime()).not.toBeNaN()
+  })
+})
+
+describe('buildCoachSystemPrompt — SPEECH-01 prompt discipline (Phase 14 Plan 06)', () => {
+  it('always contains a SPEECH-01 discipline instruction naming the artifact strings', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, undefined, emptyArgGraph)
+    expect(system).toContain('Never emit literal system artifact strings')
+    for (const artifact of SPEECH_ARTIFACT_BLOCKLIST) {
+      expect(system).toContain(artifact)
+    }
+  })
+
+  it('appends the re-anchor reminder AFTER the Personality voice step when shouldReanchor is true', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, casualPersonality, emptyArgGraph, undefined, true)
+    const voiceIdx = system.indexOf(casualPersonality.definition.voice_instructions)
+    const reanchorIdx = system.indexOf('REMINDER')
+    expect(voiceIdx).toBeGreaterThanOrEqual(0)
+    expect(reanchorIdx).toBeGreaterThan(voiceIdx)
+  })
+
+  it('omits the re-anchor reminder when shouldReanchor is false/undefined', () => {
+    const system = buildCoachSystemPrompt(debateBlueprint, casualPersonality, emptyArgGraph)
+    expect(system).not.toContain('REMINDER')
+  })
+})
+
+describe('facilitationAgentNode — PERSONA-04 re-anchor counter (Phase 14 Plan 06, D-06/D-07)', () => {
+  it('computes currentCount 15 and shouldReanchor=true when roleInvocationCounts.coach is 14, returning the incremented count', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ roleInvocationCounts: { coach: REANCHOR_EVERY_N_INVOCATIONS - 1 } })
+    const result = await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts?.coach).toBe(REANCHOR_EVERY_N_INVOCATIONS)
+    expect(captured.system).toContain('REMINDER')
+  })
+
+  it('does not re-anchor at count 16 (next invocation after a re-anchor)', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ roleInvocationCounts: { coach: REANCHOR_EVERY_N_INVOCATIONS } })
+    const result = await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts?.coach).toBe(REANCHOR_EVERY_N_INVOCATIONS + 1)
+    expect(captured.system).not.toContain('REMINDER')
+  })
+
+  it('starts the counter at 1 when roleInvocationCounts is empty, preserving other role keys', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }])
+    const state = makeState({ roleInvocationCounts: { analyst: 7 } })
+    const result = await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts).toEqual({ analyst: 7, coach: 1 })
+  })
+})
+
+describe('facilitationAgentNode — COST-03 Generation wrap (Phase 14 Plan 06)', () => {
+  it('routes adapter.stream() through the langfuse-generation helper with tier:"fast" and a trigger tag', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }])
+    const state = makeState({ triggerType: 'silence_gate' })
+    await facilitationAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', facilitationAdapter: adapter },
+    })
+    expect(mockStartObservation).toHaveBeenCalledWith(
+      'facilitation-coach',
+      expect.objectContaining({
+        model: TASK_MODELS.anthropic.facilitation,
+        metadata: { trigger: 'silence_gate', tier: 'fast' },
+      }),
+      { asType: 'generation' },
+    )
+    expect(mockEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('never throws when the Langfuse SDK fails — preserves fail-silent turn output', async () => {
+    mockStartObservation.mockImplementation(() => {
+      throw new Error('Langfuse SDK boom')
+    })
+    const chunks: string[] = []
+    const adapter = createMockAdapter([{ type: 'text_delta', text: '¿Y ahora?' }, { type: 'done' }])
+    const result = await facilitationAgentNode(makeState(), {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        facilitationAdapter: adapter,
+        streamWriter: (text: string) => chunks.push(text),
+      },
+    })
+    expect(chunks.join('')).toBe('¿Y ahora?')
+    expect(result.roleInvocationCounts?.coach).toBe(1)
   })
 })

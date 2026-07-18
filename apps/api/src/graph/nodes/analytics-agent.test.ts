@@ -14,12 +14,37 @@
  *   - analyticsAgentNode: canvas_mutation tool_use is safeParsed into agentOutput
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AIProvider, AIStreamEvent, Blueprint, Personality } from '@panelito/types'
+import { SPEECH_ARTIFACT_BLOCKLIST } from '@panelito/types'
 import { TASK_MODELS } from '../../lib/model-config'
-import { buildAnalyticsSystemPrompt, analyticsAgentNode } from './analytics-agent'
 import { orphanEdgeSkill } from '../../lib/skills/orphan-edge'
+import { REANCHOR_EVERY_N_INVOCATIONS } from './facilitation-agent'
 import type { GraphState } from '../state'
+
+// ---------------------------------------------------------------------------
+// Mock @langfuse/tracing (COST-03 Generation-wrap, Phase 14 Plan 06) — mirrors
+// langfuse-generation.test.ts's mock so streamWithGeneration's startObservation
+// call never hits a real Langfuse SDK during these unit tests.
+// ---------------------------------------------------------------------------
+
+const mockUpdate = vi.fn()
+const mockEnd = vi.fn()
+const mockStartObservation = vi.fn()
+
+vi.mock('@langfuse/tracing', () => ({
+  startObservation: (...args: unknown[]) => mockStartObservation(...args),
+}))
+
+beforeEach(() => {
+  mockStartObservation.mockClear()
+  mockUpdate.mockClear()
+  mockEnd.mockClear()
+  mockStartObservation.mockReturnValue({ update: mockUpdate, end: mockEnd })
+})
+
+// Import AFTER vi.mock() declaration — hoisting ensures the mock is applied.
+import { buildAnalyticsSystemPrompt, analyticsAgentNode } from './analytics-agent'
 
 function createMockAdapter(
   events: AIStreamEvent[],
@@ -127,6 +152,7 @@ function makeState(overrides: Partial<GraphState> = {}): GraphState {
     skillMeta: null,
     triggerGateComplete: null,
     phaseGateProgress: null,
+    roleInvocationCounts: {},
     ...overrides,
   }
 }
@@ -407,5 +433,126 @@ describe('analyticsAgentNode — fail-silent + routing', () => {
       },
     })
     expect(chunks.join('')).toBe('Según Ana, la propuesta es viable.')
+  })
+})
+
+describe('buildAnalyticsSystemPrompt — SPEECH-01 prompt discipline (Phase 14 Plan 06)', () => {
+  it('always contains a SPEECH-01 discipline instruction naming the artifact strings', () => {
+    const system = buildAnalyticsSystemPrompt(debateBlueprint, undefined, emptyArgGraph, false)
+    expect(system).toContain('Never emit literal system artifact strings')
+    for (const artifact of SPEECH_ARTIFACT_BLOCKLIST) {
+      expect(system).toContain(artifact)
+    }
+  })
+
+  it('appends the re-anchor reminder AFTER the Personality voice step when shouldReanchor is true', () => {
+    const system = buildAnalyticsSystemPrompt(debateBlueprint, neutralPersonality, emptyArgGraph, false, undefined, true)
+    const voiceIdx = system.indexOf(neutralPersonality.definition.voice_instructions)
+    const reanchorIdx = system.indexOf('REMINDER')
+    expect(voiceIdx).toBeGreaterThanOrEqual(0)
+    expect(reanchorIdx).toBeGreaterThan(voiceIdx)
+    expect(system).toContain('cite a specific prior message')
+  })
+
+  it('omits the re-anchor reminder when shouldReanchor is false/undefined', () => {
+    const system = buildAnalyticsSystemPrompt(debateBlueprint, neutralPersonality, emptyArgGraph, false)
+    expect(system).not.toContain('REMINDER')
+  })
+})
+
+describe('analyticsAgentNode — PERSONA-04 re-anchor counter (Phase 14 Plan 06, D-06/D-07)', () => {
+  it('computes shouldReanchor=true at the cadence boundary and returns the incremented analyst count', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ roleInvocationCounts: { analyst: REANCHOR_EVERY_N_INVOCATIONS - 1 } })
+    const result = await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts?.analyst).toBe(REANCHOR_EVERY_N_INVOCATIONS)
+    expect(captured.system).toContain('REMINDER')
+  })
+
+  it('does not re-anchor on the next invocation after a re-anchor', async () => {
+    const captured: { system?: string } = {}
+    const adapter = createMockAdapter(
+      [{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }],
+      (options) => {
+        captured.system = options.system
+      }
+    )
+    const state = makeState({ roleInvocationCounts: { analyst: REANCHOR_EVERY_N_INVOCATIONS } })
+    const result = await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts?.analyst).toBe(REANCHOR_EVERY_N_INVOCATIONS + 1)
+    expect(captured.system).not.toContain('REMINDER')
+  })
+
+  it('increments the analyst counter independently of the coach counter within the same branch', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }])
+    const state = makeState({ roleInvocationCounts: { coach: 9 } })
+    const result = await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(result.roleInvocationCounts).toEqual({ coach: 9, analyst: 1 })
+  })
+})
+
+describe('analyticsAgentNode — COST-03 Generation wrap (Phase 14 Plan 06)', () => {
+  it('routes adapter.stream() through the langfuse-generation helper with tier:"capable" and a trigger tag', async () => {
+    const adapter = createMockAdapter([{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }])
+    const state = makeState({ firingSkillId: 'fact-check' })
+    await analyticsAgentNode(state, {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(mockStartObservation).toHaveBeenCalledWith(
+      'analytics-analyst',
+      expect.objectContaining({
+        model: TASK_MODELS.anthropic.analysis,
+        metadata: { trigger: 'fact-check', tier: 'capable' },
+      }),
+      { asType: 'generation' },
+    )
+    expect(mockEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('still parses a canvas_mutation tool_use event into agentOutput when Generation-wrapped', async () => {
+    const adapter = createMockAdapter([
+      {
+        type: 'tool_use',
+        name: 'canvas_mutation',
+        input: { op: 'ADD_NODE', node_type_id: 'hypothesis', label: 'Nueva evidencia', confidence: 0.75 },
+      },
+      { type: 'done' },
+    ])
+    const result = await analyticsAgentNode(makeState(), {
+      configurable: { blueprint: debateBlueprint, providerName: 'anthropic', analyticsAdapter: adapter },
+    })
+    expect(result.agentOutput).toMatchObject({ op: 'ADD_NODE', label: 'Nueva evidencia', confidence: 0.75 })
+    expect(result.agentConfidence).toBe(0.75)
+    expect(mockEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('never throws when the Langfuse SDK fails — preserves fail-silent turn output', async () => {
+    mockStartObservation.mockImplementation(() => {
+      throw new Error('Langfuse SDK boom')
+    })
+    const chunks: string[] = []
+    const adapter = createMockAdapter([{ type: 'text_delta', text: 'Según Miguel...' }, { type: 'done' }])
+    const result = await analyticsAgentNode(makeState(), {
+      configurable: {
+        blueprint: debateBlueprint,
+        providerName: 'anthropic',
+        analyticsAdapter: adapter,
+        streamWriter: (text: string) => chunks.push(text),
+      },
+    })
+    expect(chunks.join('')).toBe('Según Miguel...')
+    expect(result.roleInvocationCounts?.analyst).toBe(1)
   })
 })

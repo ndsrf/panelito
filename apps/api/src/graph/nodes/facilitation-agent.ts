@@ -30,13 +30,20 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { SPEECH_ARTIFACT_BLOCKLIST } from '@panelito/types'
 import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
 import { summarizeArgGraph, summarizeParticipant, CONTEXT_WINDOWS } from '../../lib/bot-context'
 import { getParticipantProfile } from '../../lib/participant-profile'
 import { COACH_SKILLS } from '../../lib/skills'
+import { streamWithGeneration } from '../../lib/langfuse-generation'
 import type { GraphState } from '../state'
+
+/** PERSONA-04 (D-06/D-07): re-anchor cadence — every 15th invocation of a Role node
+ *  appends an extra-emphasized reminder of its discipline rules near the generation
+ *  point (recency boost against lost-in-the-middle). Prompt-only, no extra LLM call. */
+export const REANCHOR_EVERY_N_INVOCATIONS = 15
 
 /**
  * Build the Coach system prompt. Role rules are structurally dominant (D-03):
@@ -48,6 +55,7 @@ export function buildCoachSystemPrompt(
   personality: Personality | undefined,
   argGraph: { nodes: ArgNode[]; edges: ArgEdge[] },
   skillGuidance?: string,
+  shouldReanchor?: boolean,
 ): string {
   // Step 1: Role behavioral contract — non-negotiable, overrides all other instructions.
   const roleRules = [
@@ -60,6 +68,9 @@ export function buildCoachSystemPrompt(
     '- Never give conclusions, verdicts, or answers. Only ask questions.',
     '- Keep responses to 1-3 sentences. Reference specific content from the conversation —',
     '  never ask a generic question mark that could apply to any state of the world.',
+    `- Never emit literal system artifact strings (e.g. ${SPEECH_ARTIFACT_BLOCKLIST.map((s) => `"${s}"`).join(', ')})`,
+    '  in your response. All output must be conversational and natural — canvas/graph updates',
+    '  are shown visually in the panel, never described as a system event in chat (SPEECH-01).',
     '',
     'Examples (Spanish, informal tú per project convention):',
     '- BAD: "La conversación se ha estancado. Sigamos adelante." (statement — violates contract)',
@@ -96,7 +107,19 @@ export function buildCoachSystemPrompt(
       ].join('\n')
     : ''
 
-  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice
+  // Step 5 (PERSONA-04, D-06/D-07): periodic re-anchor — appended AFTER Personality voice,
+  // close to the generation point, as a "recency boost" reminder of the discipline rules.
+  // Prompt-only reinforcement, never a self-check/regenerate LLM call. Static/hardcoded text.
+  const reanchorReminder = shouldReanchor
+    ? [
+        '',
+        'REMINDER — you have been active for a while in this conversation; re-read the',
+        'BEHAVIORAL CONTRACT above before responding:',
+        '- Every response MUST end with a question mark. Never give conclusions, verdicts, or answers.',
+      ].join('\n')
+    : ''
+
+  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice + reanchorReminder
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,30 +183,48 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
       : participantSummary
   }
 
+  // Step 2.6 (PERSONA-04, D-06/D-07): per-role, per-branch invocation counter — persisted in
+  // PostgresSaver thread state (roleInvocationCounts), never JS process memory. Branch scoping
+  // already comes from the bot thread_id, so only role-keying ('coach') is needed here.
+  const currentCount = (state.roleInvocationCounts?.coach ?? 0) + 1
+  const shouldReanchor = currentCount % REANCHOR_EVERY_N_INVOCATIONS === 0
+
   // Step 3: build system prompt — Role rules FIRST (D-03), Skill guidance (if any, now
   // including participant profile context) spliced after argGraph context, Personality
-  // voice appended last.
-  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph, combinedSkillGuidance)
+  // voice appended last, periodic re-anchor reminder appended last of all (step 5).
+  const system = buildCoachSystemPrompt(blueprint, personality, state.argGraph, combinedSkillGuidance, shouldReanchor)
 
-  // Step 4: stream response; forward tokens to streamWriter (undefined = no-op, e.g. proactive
-  // fire without a capturing closure supplied by the caller)
+  // Step 4 (COST-03): stream response through the Generation-wrap helper so a manual Langfuse
+  // Generation observation captures model/trigger/tier + real usageDetails; forwards tokens to
+  // streamWriter (undefined = no-op, e.g. proactive fire without a capturing closure supplied
+  // by the caller). streamWithGeneration never throws internally, but the underlying adapter's
+  // own stream() can still throw mid-iteration — the outer try/catch preserves the existing
+  // fail-silent convention.
+  const model = TASK_MODELS[providerName ?? 'anthropic'].facilitation
+  const trigger = state.triggerType ?? state.firingSkillId ?? 'human-reactive'
   try {
-    for await (const event of adapter.stream(
-      state.messages.slice(-CONTEXT_WINDOWS.facilitation),
-      [], // no tools — Coach emits plain text only
-      { model: TASK_MODELS[providerName ?? 'anthropic'].facilitation, maxTokens: 256, system },
-    )) {
-      if (event.type === 'text_delta') {
-        config?.configurable?.streamWriter?.(event.text)
-      }
-    }
+    await streamWithGeneration(
+      adapter.stream(
+        state.messages.slice(-CONTEXT_WINDOWS.facilitation),
+        [], // no tools — Coach emits plain text only
+        { model, maxTokens: 256, system },
+      ),
+      {
+        name: 'facilitation-coach',
+        model,
+        metadata: { trigger, tier: 'fast' },
+        input: system,
+        streamWriter: config?.configurable?.streamWriter,
+      },
+    )
   } catch (err) {
     console.error('[facilitation] adapter.stream error — returning no output', err)
     return {}
   }
 
   // Step 5: return partial state — node does NOT write to DB (D-16: caller inserts message).
-  // Update triggerMetadata to record firing time (cooldown enforcement reads this).
+  // Update triggerMetadata to record firing time (cooldown enforcement reads this), and
+  // roleInvocationCounts.coach with the incremented, checkpoint-persisted count (D-07).
   const previous = state.triggerMetadata?.silence_gate
   return {
     triggerMetadata: {
@@ -192,6 +233,10 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
         last_fired_at: new Date().toISOString(),
         cooldown_until: previous?.cooldown_until ?? null,
       },
+    },
+    roleInvocationCounts: {
+      ...state.roleInvocationCounts,
+      coach: currentCount,
     },
   }
 }

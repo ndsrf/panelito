@@ -100,6 +100,7 @@ function baseGraphState(overrides: Partial<GraphState> = {}): GraphState {
     skillMeta: null,
     triggerGateComplete: null,
     phaseGateProgress: null,
+    roleInvocationCounts: {},
     ...overrides,
   }
 }
