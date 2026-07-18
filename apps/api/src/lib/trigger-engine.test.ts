@@ -513,6 +513,39 @@ describe('trigger-engine', () => {
     expect(guidanceMessage?.role).toBe('user')
   })
 
+  it('CR-02-followup: coupling call forces min_messages_after to 0 on the active phase (node-count-only gate), leaves min_nodes and the original Blueprint untouched', async () => {
+    // debateBlueprint fixture's 'opening' phase has phase_readiness_gate: { min_nodes: 3,
+    // min_messages_after: 5 } — zero prior messages recorded is exactly the scenario CR-02
+    // originally left permanently unreachable (0 < 5 forever). Assert the Blueprint object
+    // phaseReadinessSkill.detect() actually receives on this silence-triggered call site has
+    // min_messages_after forced to 0 (so detect() is no longer blocked by message count),
+    // while min_nodes is preserved from the real Blueprint and the original Blueprint
+    // reference/array is never mutated in place.
+    const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
+    const originalGate = coupledBlueprint.phase_sequence[0]!.phase_readiness_gate
+    mockLoadBlueprint.mockResolvedValue(coupledBlueprint)
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: false, confidence: 0 })
+
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockPhaseReadinessDetect).toHaveBeenCalledTimes(1)
+    const detectContext = mockPhaseReadinessDetect.mock.calls[0]![0]
+    const effectivePhase = detectContext.blueprint.phase_sequence.find((p) => p.id === 'opening')
+    expect(effectivePhase?.phase_readiness_gate).toEqual({ min_nodes: 3, min_messages_after: 0 })
+
+    // Non-mutating: the original Blueprint object (as loaded/held by the caller) must be
+    // untouched — same reference passed to loadBlueprint's mock, gate config unchanged.
+    expect(coupledBlueprint.phase_sequence[0]!.phase_readiness_gate).toEqual(originalGate)
+    expect(coupledBlueprint.phase_sequence[0]!.phase_readiness_gate.min_messages_after).toBe(5)
+  })
+
   it('phase-readiness coupling toggle ON but Skill does not fire — no guidance is spliced into graph.invoke messages', async () => {
     const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
     mockLoadBlueprint.mockResolvedValue(coupledBlueprint)

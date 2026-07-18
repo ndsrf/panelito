@@ -422,9 +422,46 @@ async function applyPhaseReadinessCoupling(
     )
   }
 
+  // CR-02-followup fix (REVIEW.md addendum): this coupling call is silence-triggered — the
+  // group has been quiet, so "N messages since gate open" is a signal that structurally cannot
+  // accrue on THIS call site, regardless of which thread persists phaseGateProgress (the
+  // human-reactive path that increments messagesSinceGateOpen only runs when
+  // context.state.triggerType == null, i.e. on the genuine human-message path on the
+  // `${branchId}:human` thread — phase-readiness.ts:186-187 — never on this `:bot`-thread,
+  // triggerType:'silence_gate' call site). Gating this call on message count would therefore
+  // make it permanently unsatisfiable no matter what phaseGateProgress holds. Since silence
+  // itself already establishes "the group is idle", gate this call purely on committed
+  // canvas-node count (min_nodes) by passing a non-mutating, shallow-cloned Blueprint whose
+  // active phase has phase_readiness_gate.min_messages_after forced to 0 — min_nodes is left
+  // untouched so the coverage-judgment call still only fires once real canvas content exists.
+  // detect()'s own N/M gate logic (phase-readiness.ts) and the reactive/human-path gate
+  // behavior are NOT touched by this — only this call site's effective gate config changes.
+  const currentPhaseId = session.current_phase ?? blueprint.phase_sequence[0]?.id ?? ''
+  const activePhaseIndex = blueprint.phase_sequence.findIndex((p) => p.id === currentPhaseId)
+  const effectiveBlueprint: Blueprint =
+    activePhaseIndex === -1
+      ? blueprint
+      : {
+          ...blueprint,
+          phase_sequence: blueprint.phase_sequence.map((phase, index) =>
+            index === activePhaseIndex
+              ? {
+                  ...phase,
+                  phase_readiness_gate: {
+                    // Fallback mirrors phase-readiness.ts's DEFAULT_GATE_CONFIG.min_nodes (3) —
+                    // in practice always defined post-Zod-parse (Blueprint schema `.default(...)`),
+                    // this is defensive belt-and-suspenders only.
+                    min_nodes: phase.phase_readiness_gate?.min_nodes ?? 3,
+                    min_messages_after: 0,
+                  },
+                }
+              : phase
+          ),
+        }
+
   const skillContext: SkillContext = {
     state: buildPhaseReadinessState(session, blueprint, recentMessages, existingProgress),
-    blueprint,
+    blueprint: effectiveBlueprint,
     config: {
       configurable: {
         serviceClient: supabase,
