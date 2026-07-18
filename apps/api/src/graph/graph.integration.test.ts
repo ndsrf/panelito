@@ -9,7 +9,11 @@
  * Test B (OBS smoke): CallbackHandler + forceFlush against Langfuse.
  *   - Creates a per-request new CallbackHandler (NO module-level singleton — REQUIREMENTS.md)
  *   - Invokes graph and calls getLangfuseTracerProvider().forceFlush()
- *   - Requires LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY — skipped otherwise
+ *   - Requires LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY, AND requires
+ *     RUN_LANGFUSE_SMOKE_TEST=true — skipped otherwise. This test flushes a REAL
+ *     trace to the configured Langfuse project (network side effect), so it must
+ *     NOT run on ordinary test invocations just because Langfuse creds are present
+ *     in a normal dev .env — it is a deliberate one-off opt-in verification.
  *   - Full dashboard verification is the human-verify checkpoint (OBS-01, OBS-02)
  *
  * All Claude API calls use mock adapters (classifierAdapter + agentAdapter seams from
@@ -33,6 +37,11 @@ import { TASK_MODELS } from '../lib/model-config'
 
 const HAS_SUPABASE = !!process.env.SUPABASE_DIRECT_URL
 const HAS_LANGFUSE = !!(process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY)
+// Test B below flushes a REAL trace to the configured Langfuse project — it must
+// never fire just because LANGFUSE_PUBLIC_KEY/SECRET_KEY happen to be present in
+// normal dev .env. Require an explicit opt-in so ordinary `pnpm vitest run` never
+// pollutes the user's live Langfuse dashboard.
+const RUN_LANGFUSE_SMOKE = process.env.RUN_LANGFUSE_SMOKE_TEST === 'true'
 
 // ---------------------------------------------------------------------------
 // Mock AIProvider factory — reused from graph.test.ts pattern (D-11)
@@ -214,9 +223,16 @@ describe.skipIf(!HAS_SUPABASE)('Test A: PostgresSaver resume (D-12)', () => {
 
 // ---------------------------------------------------------------------------
 // Test B: Langfuse OTel smoke test (OBS-01, OBS-02)
+//
+// Requires RUN_LANGFUSE_SMOKE_TEST=true to run — this test flushes a REAL
+// trace to the configured Langfuse project (network side effect), so it must
+// NOT run on ordinary test invocations. It is a deliberate one-off OBS-01/02
+// verification whose full dashboard confirmation is the human-verify
+// checkpoint. Run explicitly with:
+//   RUN_LANGFUSE_SMOKE_TEST=true pnpm vitest run src/graph/graph.integration.test.ts
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OBS-01/02)', () => {
+describe.skipIf(!RUN_LANGFUSE_SMOKE || !HAS_SUPABASE || !HAS_LANGFUSE)('Test B: Langfuse OTel smoke (OBS-01/02)', () => {
   // DO NOT create a module-level CallbackHandler — banned in REQUIREMENTS.md.
   // Per-request CallbackHandler created inside each test.
 

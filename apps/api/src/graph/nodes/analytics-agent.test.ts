@@ -515,6 +515,7 @@ describe('analyticsAgentNode — COST-03 Generation wrap (Phase 14 Plan 06)', ()
       expect.objectContaining({
         model: TASK_MODELS.anthropic.analysis,
         metadata: { trigger: 'fact-check', tier: 'capable' },
+        input: expect.objectContaining({ system: expect.any(String), messages: expect.any(Array) }),
       }),
       { asType: 'generation' },
     )
