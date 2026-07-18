@@ -225,11 +225,17 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
   // Step 5: return partial state — node does NOT write to DB (D-16: caller inserts message).
   // Update triggerMetadata to record firing time (cooldown enforcement reads this), and
   // roleInvocationCounts.coach with the incremented, checkpoint-persisted count (D-07).
-  const previous = state.triggerMetadata?.silence_gate
+  // Key by the actual firing trigger (WR-01 fix — REVIEW.md), mirroring analytics-agent.ts's
+  // own WR-01/WR-02 fix: writing unconditionally to 'silence_gate' would let a moderation or
+  // drift-redirect firing (COACH_SKILLS also includes moderationSkill/driftRedirectSkill)
+  // clobber the cooldown timestamp that trigger-engine.ts's readCooldownUntil reads to decide
+  // whether to suppress a proactive silence-gate Coach fire.
+  const metaKey = state.firingSkillId ?? state.triggerType ?? 'silence_gate'
+  const previous = state.triggerMetadata?.[metaKey]
   return {
     triggerMetadata: {
       ...state.triggerMetadata,
-      silence_gate: {
+      [metaKey]: {
         last_fired_at: new Date().toISOString(),
         cooldown_until: previous?.cooldown_until ?? null,
       },
