@@ -500,6 +500,7 @@ describe('facilitationAgentNode — COST-03 Generation wrap (Phase 14 Plan 06)',
       expect.objectContaining({
         model: TASK_MODELS.anthropic.facilitation,
         metadata: { trigger: 'silence_gate', tier: 'fast' },
+        input: expect.objectContaining({ system: expect.any(String), messages: expect.any(Array) }),
       }),
       { asType: 'generation' },
     )

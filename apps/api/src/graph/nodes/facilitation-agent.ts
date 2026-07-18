@@ -213,7 +213,7 @@ export async function facilitationAgentNode(state: GraphState, config?: any): Pr
         name: 'facilitation-coach',
         model,
         metadata: { trigger, tier: 'fast' },
-        input: system,
+        input: { system, messages: state.messages.slice(-CONTEXT_WINDOWS.facilitation) },
         streamWriter: config?.configurable?.streamWriter,
       },
     )

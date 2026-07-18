@@ -252,7 +252,7 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
         name: 'analytics-analyst',
         model,
         metadata: { trigger, tier: 'capable' },
-        input: system,
+        input: { system, messages: state.messages.slice(-CONTEXT_WINDOWS.analytics) },
         streamWriter: config?.configurable?.streamWriter,
         onEvent: (event) => {
           if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
