@@ -10,11 +10,31 @@
  *   via setLangfuseTracerProvider(). Without this setup, the tracer is a no-op
  *   and zero traces reach Langfuse. See RESEARCH.md Pitfall 1.
  *
+ * ContextManager registration (OBS-USER-01 fix — debug session
+ * langfuse-traces-missing-userid): a TracerProvider alone is NOT enough.
+ * @opentelemetry/api defaults to a NoopContextManager when no context manager is
+ * registered — its with(ctx, fn) DISCARDS ctx and just calls fn() directly, and its
+ * active() always returns ROOT_CONTEXT. @langfuse/core's propagateAttributes()
+ * (used by CallbackHandler.handleChainStart to inject userId/sessionId/tags onto
+ * root traces, and relied on by any nested @langfuse/tracing startObservation()
+ * call to inherit the active trace context) depends entirely on context.with()/
+ * context.active() actually propagating values across the async call chain. Without
+ * registering AsyncLocalStorageContextManager (the standard Node.js OTel context
+ * manager, backed by node:async_hooks' AsyncLocalStorage), every userId/sessionId/
+ * tag propagated via context is silently dropped — confirmed by direct source
+ * inspection of NoopContextManager plus an executable reproduction showing
+ * context.active().getValue(key) returns undefined even synchronously inside
+ * with(). This is why userId was previously invisible on every Langfuse trace.
+ *
  * Initialization pattern:
  *   - LangfuseSpanProcessor reads LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY
  *     automatically from process.env (no explicit constructor params needed).
  *   - BasicTracerProvider wraps the processor; setLangfuseTracerProvider() sets
  *     it as the isolated tracer provider for all @langfuse/tracing calls.
+ *   - AsyncLocalStorageContextManager is registered as the global OTel context
+ *     manager so context.with()/context.active() (used by propagateAttributes for
+ *     userId/sessionId/tags, and by nested startObservation() calls to inherit the
+ *     active trace) actually propagate across awaits.
  *   - If credentials are absent, setupLangfuseOtel() warns and returns early —
  *     allowing unit tests to pass without a Langfuse account.
  *
@@ -34,6 +54,7 @@ import { LangfuseSpanProcessor } from '@langfuse/otel'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { setLangfuseTracerProvider } from '@langfuse/tracing'
 import * as otelApi from '@opentelemetry/api'
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks'
 
 // Use globalThis so the guard survives hot-reloads (tsx watch / Next.js HMR re-evaluate
 // module-level variables, but globalThis persists for the lifetime of the process).
@@ -77,6 +98,14 @@ export function setupLangfuseOtel(): void {
   const provider = new BasicTracerProvider({ spanProcessors: [processor] })
   otelApi.trace.setGlobalTracerProvider(provider)
   setLangfuseTracerProvider(provider)
+
+  // OBS-USER-01 fix: register the AsyncLocalStorage-backed ContextManager. Without
+  // this, @opentelemetry/api's default NoopContextManager makes context.with()/
+  // context.active() a no-op, silently dropping the userId/sessionId/tags that
+  // @langfuse/core's propagateAttributes() (via CallbackHandler) attaches to
+  // context — see the module doc comment above for the full mechanism.
+  otelApi.context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable())
+
   ;(globalThis as Record<symbol, unknown>)[_GLOBAL_KEY] = { processor }
 }
 
