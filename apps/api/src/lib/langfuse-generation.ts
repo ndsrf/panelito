@@ -28,6 +28,7 @@
  */
 
 import { startObservation } from '@langfuse/tracing'
+import type { LangfuseGeneration } from '@langfuse/tracing'
 import type { AIStreamEvent } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ import type { AIStreamEvent } from '@panelito/types'
 export interface GenerationMetadata {
   trigger: string
   tier: string
+  [key: string]: unknown
 }
 
 export interface StreamWithGenerationParams {
@@ -77,8 +79,7 @@ export async function streamWithGeneration(
 ): Promise<StreamWithGenerationResult> {
   const { name, model, metadata, input, streamWriter } = params
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ReturnType of startObservation's generation overload
-  let generation: ReturnType<typeof startObservation> | undefined
+  let generation: LangfuseGeneration | undefined
   try {
     generation = startObservation(name, { model, input, metadata }, { asType: 'generation' })
   } catch (err) {
