@@ -119,6 +119,14 @@ export class GeminiAdapter implements AIProvider {
           inputTokens: lastUsageMetadata.promptTokenCount,
           outputTokens: lastUsageMetadata.candidatesTokenCount,
         }
+      } else if (lastUsageMetadata) {
+        // WR-03 fix (REVIEW.md): log when usageMetadata is present but incomplete (only one of
+        // the two token counts populated), so a future "why is COST-03 usage data missing for
+        // this Gemini call" investigation is as diagnosable as the OpenAI/Anthropic adapters.
+        console.warn(
+          '[gemini] usageMetadata present but incomplete — omitting usage event',
+          lastUsageMetadata
+        )
       }
     } finally {
       // Emit done exactly once regardless of success or error (Pitfall 4)
