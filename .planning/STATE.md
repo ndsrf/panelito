@@ -97,6 +97,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 | 260718-cto | Fix BYOK onboarding: verifying an API key never activates it as the active provider | 2026-07-18 |
 | 260718-spc | Add session creator to Langfuse as the tracked user (email if available, else username) for user tracking | 2026-07-18 |
 | 260718-sxn | Gate Langfuse OTel smoke test behind RUN_LANGFUSE_SMOKE_TEST opt-in; include conversation messages (not just system prompt) in Coach/Analyst Langfuse Generation input | 2026-07-18 |
+| 260718-t3h | Fix session freeze/reactivation control notices being tagged role='user' — now role='system', excluded from LLM context and Langfuse traces (both human /invoke and proactive-bot paths) | 2026-07-18 |
 
 ---
 
@@ -111,4 +112,4 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 Phase: 14 (polish-triggerengine-wiring) — COMPLETE
 Plan: 7 of 7 (all plans complete)
 Status: Phase 14 complete — v3.0 milestone (Phases 10-14) fully executed — ready for `/gsd:transition`
-Last activity: 2026-07-18 - Completed quick task 260718-sxn: Gate Langfuse OTel smoke test behind RUN_LANGFUSE_SMOKE_TEST opt-in; include conversation messages in Coach/Analyst Langfuse Generation input
+Last activity: 2026-07-18 - Completed quick task 260718-t3h: Fix session freeze/reactivation control notices being tagged role='user' — now role='system', excluded from LLM context and Langfuse traces
