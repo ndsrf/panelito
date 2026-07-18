@@ -2,7 +2,7 @@
  * bot-registration.test.ts — Unit tests for the Phase 12 (D-06) analystScorer extension.
  *
  * Covers:
- *   1. analystScorer returns 0 when firingSkillRole is absent (existing silence-scan.ts call
+ *   1. analystScorer returns 0 when firingSkillRole is absent (existing trigger-engine.ts call
  *      site behavior, unchanged)
  *   2. analystScorer returns a positive affinity when firingSkillRole === 'analyst'
  *   3. analystScorer returns 0 when firingSkillRole === 'coach' (not an Analyst-Skill context)
@@ -43,7 +43,7 @@ function makeContext(overrides: Partial<ArbContext> = {}): ArbContext {
 }
 
 describe('analystScorer (Phase 12, D-06)', () => {
-  it('returns 0 when firingSkillRole is absent (existing silence-scan.ts call site — unchanged)', () => {
+  it('returns 0 when firingSkillRole is absent (existing trigger-engine.ts call site — unchanged)', () => {
     expect(analystScorer(makeContext())).toBe(0)
   })
 
@@ -85,7 +85,7 @@ describe('registerBots() + runArbitration() — Analyst wins when firingSkillRol
 
     // runArbitration constructs its own ArbContext internally (branchId, blueprint, supabase)
     // and does not currently thread firingSkillRole through its own signature — this proves
-    // the *existing* silence-scan.ts call shape still yields Coach as the winner (analystScorer
+    // the *existing* trigger-engine.ts call shape still yields Coach as the winner (analystScorer
     // reads firingSkillRole as undefined here, scoring 0), confirming Phase 11 behavior is
     // preserved unless a future caller explicitly threads the field through a scorer-level
     // context (see the direct analystScorer unit tests above for that Phase 12 case).

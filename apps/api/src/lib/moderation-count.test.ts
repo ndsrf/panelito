@@ -3,7 +3,7 @@
  *
  * Covers: happy-path read returns the stored count; increment returns count+1;
  * a query/RPC error returns 0 (fail-closed, T-12-05) and does not throw.
- * Mocked SupabaseClient follows the bot-arbitrator.test.ts / silence-scan.test.ts
+ * Mocked SupabaseClient follows the bot-arbitrator.test.ts / trigger-engine.test.ts
  * chain-mock convention.
  *
  * Phase 13 (D-02, 13-02-PLAN.md Task 2): getModerationCount now reads

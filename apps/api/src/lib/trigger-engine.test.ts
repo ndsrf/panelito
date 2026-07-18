@@ -1,17 +1,17 @@
 /**
- * silence-scan.test.ts — Unit tests for the interim silence-scan trigger loop (D-15, TRIGGER-01).
+ * trigger-engine.test.ts — Unit tests for the generalized TriggerEngine loop (TRIGGER-07,
+ * inherited from Phase 11's D-15 interim single-trigger scan-loop module).
  *
  * Tests runSilenceScan's orchestration logic in isolation: mocks the Phase 10 chain
  * (checkSilenceGate/runArbitration/checkBotBudget/releaseBotLock), blueprint-loader, crypto,
- * and a fake compiled graph (invoke/getState/updateState) — mirrors ai.test.ts's mocking
- * pattern (loadBlueprint, crypto, createGraph all mocked; no real DB/LLM). Covers the six
- * behaviors from the plan:
+ * Langfuse's CallbackHandler (mirrors ai.test.ts's mocking pattern), and a fake compiled graph
+ * (invoke/getState/updateState) — no real DB/LLM. Covers the six behaviors from the plan:
  *   1. frozen-session skip (status !== 'active')
  *   2. typing/gate-not-passed skip
  *   3. cooldown-active skip
  *   4. arbitration-loss / budget-open skip
  *   5. single-insert-on-success + release-in-finally
- *   6. async setInterval callback awaits runSilenceScan (no overlapping ticks)
+ *   6. startTriggerEngine returns a stop function; calling it aborts the loop (no further ticks)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -46,7 +46,41 @@ vi.mock('./bot-registration', () => ({
   registerBots: vi.fn(),
 }))
 
-import { runSilenceScan, startSilenceScanLoop, COACH_AUTHOR_ID } from './silence-scan'
+// Mirrors ai.test.ts's own mocking of @langfuse/langchain — CallbackHandler is a real SDK
+// class that reaches out to Langfuse config; tests never construct a real one.
+vi.mock('@langfuse/langchain', () => ({
+  CallbackHandler: vi.fn().mockImplementation(() => ({})),
+}))
+
+// Deterministic, controllable replacement for node:timers/promises' async-iterator setInterval
+// (Behavior 6): yields exactly ONE tick immediately, then awaits forever until the AbortSignal
+// fires, at which point it throws an AbortError — matching the real module's documented
+// behavior closely enough to exercise startTriggerEngine's loop/stop-function contract without
+// depending on real timer delays or sinon fake-timer support for node:timers/promises.
+vi.mock('node:timers/promises', () => ({
+  setInterval: async function* (
+    _delay: number,
+    _value: unknown,
+    options?: { signal?: AbortSignal }
+  ) {
+    const signal = options?.signal
+    yield undefined
+    await new Promise<never>((_resolve, reject) => {
+      const onAbort = (): void => {
+        const err = new Error('The operation was aborted')
+        err.name = 'AbortError'
+        reject(err)
+      }
+      if (signal?.aborted) {
+        onAbort()
+        return
+      }
+      signal?.addEventListener('abort', onAbort)
+    })
+  },
+}))
+
+import { runSilenceScan, startTriggerEngine, COACH_AUTHOR_ID } from './trigger-engine'
 import { loadBlueprint } from './blueprint-loader'
 import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
@@ -205,7 +239,7 @@ const defaultCreatorSettings = {
   active_provider: 'anthropic',
 }
 
-describe('silence-scan', () => {
+describe('trigger-engine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLoadBlueprint.mockResolvedValue(debateBlueprint)
@@ -381,19 +415,27 @@ describe('silence-scan', () => {
     expect(mockReleaseBotLock).toHaveBeenCalledWith('branch-1', supabase)
   })
 
-  it('Behavior 6: startSilenceScanLoop registers bots once and schedules an async setInterval that awaits runSilenceScan', async () => {
-    vi.useFakeTimers()
+  it('Behavior 6: startTriggerEngine registers bots once, returns a callable stop function, and calling it aborts the loop (a subsequent tick does not run)', async () => {
     const supabase = buildSupabaseMock({ sessions: [], branches: [] })
+    const sessionsFrom = (supabase as unknown as { from: ReturnType<typeof vi.fn> }).from
     const graph = buildFakeGraph()
 
-    await startSilenceScanLoop(supabase, graph as never)
+    const stop = await startTriggerEngine(supabase, graph as never)
 
     expect(mockRegisterBots).toHaveBeenCalledTimes(1)
+    expect(typeof stop).toBe('function')
 
-    // Advance past one scan interval — the callback must run without throwing
-    // (i.e. it is a real async function that awaits runSilenceScan, not fire-and-forget).
-    await vi.advanceTimersByTimeAsync(20_000)
+    // The mocked node:timers/promises setInterval yields exactly ONE tick immediately, then
+    // awaits forever until aborted — allow that first tick's runSilenceScan to complete.
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const callsAfterFirstTick = sessionsFrom.mock.calls.filter((call) => call[0] === 'sessions').length
+    expect(callsAfterFirstTick).toBeGreaterThanOrEqual(1)
 
-    vi.useRealTimers()
+    stop()
+
+    // Allow the abort to propagate through the loop's outer try/catch (AbortError swallowed).
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const callsAfterStop = sessionsFrom.mock.calls.filter((call) => call[0] === 'sessions').length
+    expect(callsAfterStop).toBe(callsAfterFirstTick) // no further ticks ran after stop()
   })
 })

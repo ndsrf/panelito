@@ -7,13 +7,13 @@
  * gate logic, which is already exhaustively tested in silence-gate.test.ts.
  *
  * Per D-03, this Skill's delivery mechanism is explicitly NOT changed by this wrapper:
- * silence-break still fires via silence-scan.ts's setInterval loop + direct-DB-insert.
+ * silence-break still fires via trigger-engine.ts's setInterval loop + direct-DB-insert.
  * This module is purely the detect()/buildPromptGuidance() contract adapter that lets
  * silence-break be listed alongside the other Coach Skills (drift-redirect, moderation)
  * in COACH_SKILLS — it is not a new call site for checkSilenceGate().
  *
  * config.configurable seam (mirrors orchestrator.ts/facilitation-agent.ts): the caller
- * (silence-scan.ts, or a future TriggerGateNode-driven caller) supplies supabase,
+ * (trigger-engine.ts, or a future TriggerGateNode-driven caller) supplies supabase,
  * branchId, silenceThresholdMs, and an optional getPresenceTyping callback — this Skill
  * never reaches into a module-level global.
  */

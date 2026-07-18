@@ -9,10 +9,10 @@
  * (11-PATTERNS.md "Shared Patterns — registration at module load"): those node modules are
  * imported directly by graph.test.ts, and an import-time registerBot() side effect there would
  * silently pollute the shared arbitration registry for unrelated tests. Registration is
- * centralized here and invoked explicitly by the caller (silence-scan.ts's
- * startSilenceScanLoop) instead.
+ * centralized here and invoked explicitly by the caller (trigger-engine.ts's
+ * startTriggerEngine) instead.
  *
- * Scoring model (Phase 11 D-15, extended Phase 12 D-06): Phase 11's silence-scan loop is the
+ * Scoring model (Phase 11 D-15, extended Phase 12 D-06): Phase 11's trigger-engine loop is the
  * only caller of runArbitration() that never sets ArbContext.firingSkillRole — coachScorer's
  * fixed affinity (7) guarantees Coach always wins that call site, exactly as before.
  *
@@ -21,7 +21,7 @@
  * context.firingSkillRole === 'analyst' (i.e. TriggerGateNode's orphan-edge or fact-check
  * Analyst Skill fired), 0 otherwise. This is the first mechanism by which the Analyst can
  * actually outscore the Coach in arbitration — but only when an Analyst Skill's own context
- * is threaded in; the existing silence-scan.ts call site never sets firingSkillRole, so its
+ * is threaded in; the existing trigger-engine.ts call site never sets firingSkillRole, so its
  * behavior is byte-for-byte unchanged (analystScorer still returns 0 there).
  *
  * Phase 14's TriggerEngine will generalize this into a richer, trigger-type-aware scoring
@@ -54,7 +54,7 @@ let _registered = false
 /**
  * registerBots — registers 'coach' and 'analyst' scorers with the arbitrator.
  *
- * Idempotent: safe to call more than once (e.g. from repeated startSilenceScanLoop calls
+ * Idempotent: safe to call more than once (e.g. from repeated startTriggerEngine calls
  * in tests) — registerBot() itself is a Map.set(), so re-registration would just overwrite
  * with the same scorer, but the _registered guard avoids redundant registry writes.
  */

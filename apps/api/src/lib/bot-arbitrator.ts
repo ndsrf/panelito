@@ -27,7 +27,7 @@ export interface ArbContext {
   supabase: SupabaseClient
   /** Phase 12 (D-06) additive extension point: role of the Skill that fired via
    *  TriggerGateNode, when arbitration is invoked in response to a live Skill firing rather
-   *  than the Phase 11 silence-scan loop (which never sets this field — runArbitration's own
+   *  than the Phase 11 trigger-engine loop (which never sets this field — runArbitration's own
    *  context construction below omits it, so every EXISTING call site's behavior is
    *  unchanged). Optional and additive: bot-registration.ts's analystScorer is the only
    *  reader in this phase; a future Phase 14 TriggerEngine caller can thread a real value in
@@ -118,7 +118,7 @@ export async function runArbitration(
   // `new Date(Date.now() + NaN).toISOString()` throws "RangeError: Invalid time value" —
   // reproduced and confirmed against the real seeded debate-strategy-v1 Blueprint shape.
   // window_minutes (PERSONA-03: Coach 3/15, Analyst 2/15) is converted to seconds here;
-  // this is also the correct semantic for Phase 11's interim silence-scan loop, which
+  // this is also the correct semantic for Phase 11's interim trigger-engine loop, which
   // treats the arbitration lock window as "fire at most once per cooldown window"
   // (TRIGGER-01 success criterion 3), not a fine-grained N-per-window rate limiter.
   const windowMinutes = blueprint.bot_cooldowns?.[winnerId]?.window_minutes

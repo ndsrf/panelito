@@ -1,16 +1,20 @@
 /**
- * silence-scan.ts — interim single-trigger (silence-gate only) scan loop (D-15, TRIGGER-01).
+ * trigger-engine.ts — persistent, drift-aware, cancellable TriggerEngine loop (TRIGGER-07).
  *
- * Phase 11 ships the first LIVE trigger: an async setInterval loop that, per active branch
- * of every active session, runs the Phase 10 chain (checkSilenceGate -> runArbitration ->
- * checkBotBudget) and — when all three pass and the Coach bot is enabled for the session —
- * invokes the graph on the BOT thread (`${branchId}:bot`, never the human thread — BOT-04)
- * and inserts a content-aware Coach message directly into `messages` (D-16: no SSE, there is
- * no active HTTP request to stream a proactively-fired message over).
+ * Generalized from Phase 11's interim single-trigger scan-loop module (D-15, TRIGGER-01). Five of the six
+ * trigger types already fire reactively (Phases 12-13, synchronous Skills evaluated inline
+ * during a human /invoke turn); this module is the ONE timer-based trigger — the silence-window
+ * re-evaluation (D-01) — because silence, by definition, has no inbound event to react to.
  *
- * This is deliberately minimal (D-15): a single trigger type, no persistent multi-trigger
- * TriggerEngine. Phase 14 (TRIGGER-07) generalizes this into the full 6-trigger engine; some
- * rework here is expected and accepted.
+ * Per active branch of every active session, runs the Phase 10 chain (checkSilenceGate ->
+ * runArbitration -> checkBotBudget) and — when all three pass and the Coach bot is enabled for
+ * the session — invokes the graph on the BOT thread (`${branchId}:bot`, never the human thread
+ * — BOT-04) and inserts a content-aware Coach message directly into `messages` (D-16: no SSE,
+ * there is no active HTTP request to stream a proactively-fired message over).
+ *
+ * Loop mechanics (D-02, Pattern 1): a `node:timers/promises` async-iterator `setInterval` driven
+ * by an `AbortController`, so each tick is awaited before the next fires (no overlap hazard) and
+ * `startTriggerEngine` returns a stop function for graceful shutdown (server.ts SIGTERM/SIGINT).
  *
  * Frozen-session guard (Critical Failure Mode 6): none of the three reused Phase 10 primitives
  * (checkSilenceGate/runArbitration/checkBotBudget) check session.status — this loop owns that
@@ -20,11 +24,24 @@
  * window): read from the BOT thread's own checkpoint (triggerMetadata.silence_gate.cooldown_
  * until), not from application memory — memory does not survive a server restart, PostgresSaver
  * checkpoints do (BOT-05).
+ *
+ * Langfuse tracing (D-14 inherited fix): a per-request CallbackHandler (never module-level) is
+ * constructed inside scanBranch() and passed to graph.invoke()'s callbacks array, tagged
+ * `trigger:silence_gate` — this closes the previously-confirmed tracing gap on the proactive
+ * path (COST-03), mirroring ai.ts's own per-request CallbackHandler construction.
+ *
+ * Phase-readiness coupling (D-03/D-04): when the Blueprint opts in via
+ * `silence_phase_readiness_coupling_enabled`, a silence fire also invokes the existing
+ * `phaseReadinessSkill.detect()`/`buildPromptGuidance()` (never duplicated) so the Coach can
+ * weigh "redirect" (existing content-aware silence question) vs "suggest advancing" (advisory
+ * only — HUMAN-02/T-13-11, never auto-advances the phase).
  */
 
+import { setInterval as asyncInterval } from 'node:timers/promises'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Blueprint, Personality, ProviderMessage, ProviderName } from '@panelito/types'
 import { PersonalitySchema, ProviderSchema } from '@panelito/types'
+import { CallbackHandler } from '@langfuse/langchain'
 import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
 import { checkBotBudget } from './bot-budget'
@@ -42,12 +59,12 @@ type CompiledGraph = ReturnType<typeof createGraph>
 // Constants — env-var overrides, min-floor warnings (auto-freeze.ts pattern)
 // ---------------------------------------------------------------------------
 
-/** How often the scan tick runs. Default 15s. */
-const SCAN_INTERVAL_MS = parseInt(process.env.SCAN_INTERVAL_MS ?? '15000', 10)
+/** How often the scan tick runs. Default 60s (D-02) — decoupled from auto-freeze. */
+const SCAN_INTERVAL_MS = parseInt(process.env.SCAN_INTERVAL_MS ?? '60000', 10)
 const SCAN_INTERVAL_FLOOR_MS = 5_000
 if (SCAN_INTERVAL_MS < SCAN_INTERVAL_FLOOR_MS) {
   console.warn(
-    `[silence-scan] WARNING: SCAN_INTERVAL_MS=${SCAN_INTERVAL_MS} is below the recommended minimum of ${SCAN_INTERVAL_FLOOR_MS}. ` +
+    `[trigger-engine] WARNING: SCAN_INTERVAL_MS=${SCAN_INTERVAL_MS} is below the recommended minimum of ${SCAN_INTERVAL_FLOOR_MS}. ` +
     'This should only be set in test environments.'
   )
 }
@@ -57,7 +74,7 @@ const SILENCE_THRESHOLD_MS = parseInt(process.env.SILENCE_THRESHOLD_MS ?? '60000
 const SILENCE_THRESHOLD_FLOOR_MS = 10_000
 if (SILENCE_THRESHOLD_MS < SILENCE_THRESHOLD_FLOOR_MS) {
   console.warn(
-    `[silence-scan] WARNING: SILENCE_THRESHOLD_MS=${SILENCE_THRESHOLD_MS} is below the recommended minimum of ${SILENCE_THRESHOLD_FLOOR_MS}. ` +
+    `[trigger-engine] WARNING: SILENCE_THRESHOLD_MS=${SILENCE_THRESHOLD_MS} is below the recommended minimum of ${SILENCE_THRESHOLD_FLOOR_MS}. ` +
     'This should only be set in test environments.'
   )
 }
@@ -110,36 +127,51 @@ interface ProviderContext {
 // ---------------------------------------------------------------------------
 
 /**
- * startSilenceScanLoop — run once at API boot (server.ts, alongside startAutoFreezeTracker).
+ * startTriggerEngine — run once at API boot (server.ts, alongside startAutoFreezeTracker).
  *
  * Registers the Coach/Analyst bots with the arbitrator, resolves a default graph (PostgresSaver
- * checkpointer) if none is supplied, then starts an async setInterval loop. The callback MUST
- * be async and MUST await runSilenceScan (Failure Mode 3 / AI-SPEC 4b.2) — an un-awaited call
- * would allow overlapping ticks, racing the cooldown check.
+ * checkpointer) if none is supplied, then starts a drift-aware async-iterator setInterval loop
+ * (Pattern 1: `node:timers/promises`, AbortController-driven — no manual Date.now() drift
+ * bookkeeping, no overlap hazard since each tick is awaited before the next fires). Per-tick
+ * `try/catch` isolation ensures one bad tick never kills the loop.
  *
  * @param supabase - Service-role Supabase client.
  * @param graph - Optional pre-built compiled graph (test seam). Defaults to
  *   createGraph(await getCheckpointer()), matching how ai.ts constructs graph+checkpointer.
+ * @returns A stop function — calling it aborts the loop; a subsequent tick never runs.
  */
-export async function startSilenceScanLoop(
+export async function startTriggerEngine(
   supabase: SupabaseClient,
   graph?: CompiledGraph
-): Promise<void> {
+): Promise<() => void> {
   registerBots()
 
   const resolvedGraph = graph ?? createGraph(await getCheckpointer())
 
-  setInterval(async () => {
+  const controller = new AbortController()
+
+  void (async () => {
     try {
-      await runSilenceScan(supabase, resolvedGraph)
+      for await (const _tick of asyncInterval(SCAN_INTERVAL_MS, undefined, { signal: controller.signal })) {
+        try {
+          await runSilenceScan(supabase, resolvedGraph)
+        } catch (err) {
+          // Per-tick error isolation — one bad tick must never kill the loop.
+          console.error('[trigger-engine] uncaught error in scan tick', err)
+        }
+      }
     } catch (err) {
-      console.error('[silence-scan] uncaught error in scan tick', err)
+      if ((err as Error).name !== 'AbortError') {
+        console.error('[trigger-engine] loop terminated unexpectedly', err)
+      }
     }
-  }, SCAN_INTERVAL_MS)
+  })()
 
   console.log(
-    `[silence-scan] scan loop started (interval: ${SCAN_INTERVAL_MS}ms, silence threshold: ${SILENCE_THRESHOLD_MS}ms)`
+    `[trigger-engine] scan loop started (interval: ${SCAN_INTERVAL_MS}ms, silence threshold: ${SILENCE_THRESHOLD_MS}ms)`
   )
+
+  return () => controller.abort()
 }
 
 /**
@@ -155,7 +187,7 @@ export async function runSilenceScan(supabase: SupabaseClient, graph: CompiledGr
     .eq('status', 'active')
 
   if (sessionsError) {
-    console.error('[silence-scan] sessions query error:', sessionsError.message)
+    console.error('[trigger-engine] sessions query error:', sessionsError.message)
     return
   }
 
@@ -183,7 +215,7 @@ async function scanSession(
   try {
     blueprint = await loadBlueprint(session.blueprint_id)
   } catch (err) {
-    console.error('[silence-scan] blueprint load failed for session', session.id, (err as Error).message)
+    console.error('[trigger-engine] blueprint load failed for session', session.id, (err as Error).message)
     return
   }
 
@@ -203,7 +235,7 @@ async function scanSession(
     .eq('is_archived', false)
 
   if (branchesError) {
-    console.error('[silence-scan] branches query error for session', session.id, branchesError.message)
+    console.error('[trigger-engine] branches query error for session', session.id, branchesError.message)
     return
   }
 
@@ -232,7 +264,7 @@ async function scanBranch(
 
   const cooldownUntil = await readCooldownUntil(graph, botThreadId)
   if (cooldownUntil && new Date(cooldownUntil).getTime() > Date.now()) {
-    console.info('[silence-scan] cooldown active for', branch.id, 'until', cooldownUntil)
+    console.info('[trigger-engine] cooldown active for', branch.id, 'until', cooldownUntil)
     return
   }
 
@@ -242,7 +274,7 @@ async function scanBranch(
   try {
     const budget = await checkBotBudget(supabase, branch.id, ESTIMATED_COACH_FIRE_TOKENS)
     if (!budget.allowed) {
-      console.warn('[silence-scan] budget guard denied Coach fire for branch', branch.id, {
+      console.warn('[trigger-engine] budget guard denied Coach fire for branch', branch.id, {
         circuit_open: budget.circuit_open,
       })
       return
@@ -254,6 +286,13 @@ async function scanBranch(
     const streamWriter = (text: string): void => {
       accumulatedText += text
     }
+
+    // Per-request Langfuse CallbackHandler (D-14 inherited fix, OBS-01) — instantiated per
+    // invocation, never module-level, mirrors ai.ts's own per-request construction. Closes the
+    // previously-confirmed tracing gap on this proactive path (COST-03).
+    const callbackHandler = new CallbackHandler({
+      tags: [`session:${session.id}`, `branch:${branch.id}`, 'trigger:silence_gate'],
+    })
 
     await graph.invoke(
       {
@@ -270,12 +309,22 @@ async function scanBranch(
           plaintextKey: providerCtx.plaintextKey,
           personality,
           streamWriter,
+          // Pitfall 5: reachability config keys ai.ts sets that this proactive path lacked —
+          // required so Coach participant-profile personalization (Phase 13 D-12/D-13) and any
+          // Skill reading serviceClient/branchId can reach this invocation. Deliberately NOT
+          // adding botOverrides here (Pitfall 6): routeFromStart sends 'silence_gate' straight to
+          // 'facilitation', bypassing TriggerGateNode's gate entirely — botOverrides would be a
+          // dead key on this call site.
+          supabase,
+          serviceClient: supabase,
+          branchId: branch.id,
         },
+        callbacks: [callbackHandler],
       }
     )
 
     if (accumulatedText.trim().length === 0) {
-      console.warn('[silence-scan] Coach produced no text for branch', branch.id, '- skipping insert')
+      console.warn('[trigger-engine] Coach produced no text for branch', branch.id, '- skipping insert')
       return
     }
 
@@ -296,12 +345,12 @@ async function scanBranch(
       .single()
 
     if (insertError || !row) {
-      console.error('[silence-scan] message insert error for branch', branch.id, insertError?.message)
+      console.error('[trigger-engine] message insert error for branch', branch.id, insertError?.message)
     } else {
       supabase
         .channel(`session:${session.id}`)
         .httpSend('new_message', row)
-        .catch((err: unknown) => console.error('[silence-scan] broadcast failed', err))
+        .catch((err: unknown) => console.error('[trigger-engine] broadcast failed', err))
     }
 
     await recordCooldown(graph, botThreadId, blueprint)
@@ -343,7 +392,7 @@ async function resolveProviderContext(
     const plaintextKey = decryptKey(encryptedKey, env.KEY_ENCRYPTION_SECRET)
     return { providerName, plaintextKey }
   } catch (err) {
-    console.error('[silence-scan] key decrypt error:', (err as Error).constructor.name)
+    console.error('[trigger-engine] key decrypt error:', (err as Error).constructor.name)
     return null
   }
 }
@@ -379,7 +428,7 @@ async function fetchRecentMessages(supabase: SupabaseClient, branchId: string): 
   // silently degraded to an empty message list, letting the Coach run with zero conversational
   // context with no log line to diagnose why.
   if (error) {
-    console.error('[silence-scan] fetchRecentMessages error for branch', branchId, error.message)
+    console.error('[trigger-engine] fetchRecentMessages error for branch', branchId, error.message)
     return []
   }
 
@@ -400,7 +449,7 @@ async function readCooldownUntil(graph: CompiledGraph, threadId: string): Promis
     return snapshot?.values?.triggerMetadata?.silence_gate?.cooldown_until ?? null
   } catch (err) {
     console.warn(
-      '[silence-scan] getState failed for cooldown check (treating as no cooldown)',
+      '[trigger-engine] getState failed for cooldown check (treating as no cooldown)',
       threadId,
       (err as Error).message
     )
@@ -435,6 +484,6 @@ async function recordCooldown(graph: CompiledGraph, threadId: string, blueprint:
       }
     )
   } catch (err) {
-    console.error('[silence-scan] failed to record cooldown for', threadId, (err as Error).message)
+    console.error('[trigger-engine] failed to record cooldown for', threadId, (err as Error).message)
   }
 }
