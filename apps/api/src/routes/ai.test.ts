@@ -320,12 +320,13 @@ function makeMessagesChain(insertSpy: ReturnType<typeof vi.fn>) {
     select: vi.fn(),
     eq: vi.fn(),
     in: vi.fn(),
+    neq: vi.fn(),
     order: vi.fn(),
     limit: vi.fn().mockReturnValue(limitResult),
     range: vi.fn().mockResolvedValue({ data: [], error: null }),
     insert: insertSpy,
   }
-  ;['select', 'eq', 'in', 'order'].forEach((m) => {
+  ;['select', 'eq', 'in', 'neq', 'order'].forEach((m) => {
     self[m]!.mockReturnValue(self)
   })
   return self
