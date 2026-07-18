@@ -77,6 +77,7 @@ const debateBlueprint: Blueprint = {
   bot_defaults: { coach: true, analyst: true },
   role_personalities: { coach: 'coach_default', analyst: 'analyst_default' },
   bot_cooldowns: { coach: { max: 3, window_minutes: 15 }, analyst: { max: 2, window_minutes: 15 } },
+  silence_phase_readiness_coupling_enabled: false,
 }
 
 function makeSessionRow(overrides: Record<string, unknown> = {}) {

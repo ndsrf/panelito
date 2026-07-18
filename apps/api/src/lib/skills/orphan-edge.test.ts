@@ -105,6 +105,7 @@ const blueprintStub: Blueprint = {
   drift_detection_enabled: true,
   bot_defaults: {},
   role_personalities: {},
+  silence_phase_readiness_coupling_enabled: false,
 }
 
 function makeContext(supabase: unknown, stateOverrides: Partial<GraphState> = {}): SkillContext {
