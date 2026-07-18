@@ -287,7 +287,7 @@ async function scanBranch(
 
     // D-03/D-04: Blueprint-opt-in phase-readiness coupling — advisory only, never auto-advances
     // the phase (HUMAN-02/T-13-11). No-op (zero added cost) for the default-off Blueprint.
-    await applyPhaseReadinessCoupling(supabase, session, blueprint, branch, providerCtx, recentMessages)
+    await applyPhaseReadinessCoupling(supabase, graph, botThreadId, session, blueprint, branch, providerCtx, recentMessages)
 
     let accumulatedText = ''
     const streamWriter = (text: string): void => {
@@ -390,6 +390,8 @@ async function scanBranch(
  */
 async function applyPhaseReadinessCoupling(
   supabase: SupabaseClient,
+  graph: CompiledGraph,
+  botThreadId: string,
   session: ActiveSessionRow,
   blueprint: Blueprint,
   branch: ActiveBranchRow,
@@ -398,8 +400,30 @@ async function applyPhaseReadinessCoupling(
 ): Promise<void> {
   if (!blueprint.silence_phase_readiness_coupling_enabled) return
 
+  // CR-02 fix (REVIEW.md): the bot thread's own checkpoint is the sole durable home for
+  // phaseGateProgress on this call site (the silence_gate route bypasses TriggerGateNode
+  // entirely, Pitfall 6, so there is no live GraphState to read the counter from otherwise).
+  // Without threading this through, buildPhaseReadinessState always constructed a
+  // phaseGateProgress: null object, which phase-readiness.ts treats as "gate freshly opened"
+  // on every single tick — the M-message threshold (default 5) then became permanently
+  // unsatisfiable because triggerType: 'silence_gate' (not null) means the silence path never
+  // increments messagesSinceGateOpen either (by design, WR-01). Reading and persisting the
+  // real counter here closes that gap.
+  let existingProgress: GraphState['phaseGateProgress'] = null
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const snapshot: any = await graph.getState({ configurable: { thread_id: botThreadId } })
+    existingProgress = snapshot?.values?.phaseGateProgress ?? null
+  } catch (err) {
+    console.warn(
+      '[trigger-engine] getState failed for phase-readiness coupling (treating as no progress)',
+      botThreadId,
+      (err as Error).message
+    )
+  }
+
   const skillContext: SkillContext = {
-    state: buildPhaseReadinessState(session, blueprint, recentMessages),
+    state: buildPhaseReadinessState(session, blueprint, recentMessages, existingProgress),
     blueprint,
     config: {
       configurable: {
@@ -413,6 +437,24 @@ async function applyPhaseReadinessCoupling(
 
   try {
     const result = await phaseReadinessSkill.detect(skillContext)
+
+    // Persist the updated gate progress back onto the bot thread's checkpoint regardless of
+    // fires/no-fires (mirrors recordCooldown's existing merge-and-writeback pattern, and
+    // trigger-gate.ts's own phaseGateProgress-surfacing convention), so the next silence tick
+    // reads the advanced counter instead of a fresh reset.
+    if (result.meta && 'phaseGateProgress' in result.meta) {
+      const phaseGateProgress = result.meta.phaseGateProgress as GraphState['phaseGateProgress']
+      try {
+        await graph.updateState({ configurable: { thread_id: botThreadId } }, { phaseGateProgress })
+      } catch (err) {
+        console.error(
+          '[trigger-engine] failed to persist phaseGateProgress for',
+          botThreadId,
+          (err as Error).message
+        )
+      }
+    }
+
     if (!result.fires) return
 
     const guidance = phaseReadinessSkill.buildPromptGuidance(skillContext)
@@ -430,11 +472,14 @@ async function applyPhaseReadinessCoupling(
 /** Minimal GraphState-shaped object for the phase-readiness Skill's detect()/buildPromptGuidance()
  *  — called OUTSIDE the graph (the silence_gate route bypasses TriggerGateNode entirely, Pitfall
  *  6), so there is no live GraphState to read from; this constructs the fields the Skill actually
- *  reads (currentPhaseId, messages, triggerType) with safe defaults for the rest. */
+ *  reads (currentPhaseId, messages, triggerType) with safe defaults for the rest.
+ *  `phaseGateProgress` (CR-02 fix) is threaded through from the bot thread's own checkpoint by
+ *  the caller, rather than always resetting to null. */
 function buildPhaseReadinessState(
   session: ActiveSessionRow,
   blueprint: Blueprint,
-  recentMessages: ProviderMessage[]
+  recentMessages: ProviderMessage[],
+  phaseGateProgress: GraphState['phaseGateProgress'] = null
 ): GraphState {
   return {
     blueprintId: blueprint.id,
@@ -454,7 +499,7 @@ function buildPhaseReadinessState(
     firingSkillRole: null,
     skillMeta: null,
     triggerGateComplete: null,
-    phaseGateProgress: null,
+    phaseGateProgress,
     roleInvocationCounts: {},
   }
 }
