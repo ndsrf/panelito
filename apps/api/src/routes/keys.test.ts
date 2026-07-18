@@ -43,8 +43,19 @@ vi.mock('../lib/anthropic', async () => {
   }
 })
 
+vi.mock('../lib/verify-key', async () => {
+  const actual = await vi.importActual<typeof import('../lib/verify-key')>('../lib/verify-key')
+  return {
+    ...actual,
+    verifyOpenAIKey: vi.fn(),
+    verifyGeminiKey: vi.fn(),
+  }
+})
+
 import { verifyApiKey } from '../lib/anthropic'
+import { verifyOpenAIKey } from '../lib/verify-key'
 const mockVerify = vi.mocked(verifyApiKey)
+const mockVerifyOpenAI = vi.mocked(verifyOpenAIKey)
 
 // ---------------------------------------------------------------------------
 // App setup
@@ -100,6 +111,9 @@ beforeAll(async () => {
       title: 'BYOK Test Session',
       status: 'active',
       short_code: validCode,
+      // blueprint_id is NOT NULL (FK -> domain_blueprints) as of migration 0008 —
+      // pre-existing test-infra drift (Rule 3 blocking fix, unrelated to BYOK-FIX-ACTIVATE).
+      blueprint_id: 'debate-strategy-v1',
     })
     .select('id')
     .single()
@@ -265,6 +279,106 @@ describe('DELETE /api/keys', () => {
     expect(statusRes.status).toBe(200)
     const statusBody = await jsonAs<{ has_api_key: boolean; last4: string | null }>(statusRes)
     expect(statusBody).toEqual({ has_api_key: false, last4: null })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// BYOK-FIX-ACTIVATE regression tests (260718-cto)
+// ---------------------------------------------------------------------------
+
+// NOTE 1: creator_settings has no DELETE RLS policy (DELETE is intentionally
+// denied — migration 0001, "Owner can create/read/update their own settings;
+// DELETE denied"). Rows can only be removed via the ON DELETE CASCADE from
+// auth.users. So these tests each mint their own dedicated test user (via the
+// existing mintTestUser/getJwtForUser/deleteTestUser helpers) instead of
+// trying to delete/reset the shared `testUser`'s creator_settings row —
+// mirrors the cleanup pattern already used in the outer beforeAll/afterAll.
+//
+// NOTE 2: the module-level `supabase` const is mutated by any call to
+// `getJwtForUser` — supabase-js's `signInWithPassword` on a shared client
+// instance swaps its PostgREST Authorization header from the service-role
+// key to that user's session token, so subsequent `supabase.from(...)` calls
+// on the SAME instance run as that authenticated user (subject to RLS), not
+// as service-role. To seed/read rows for a DIFFERENT user reliably regardless
+// of test order, use a fresh `createServiceClient()` instance (exactly what
+// the route itself does per-request) instead of the shared `supabase` const.
+describe('POST /api/keys/verify — active_provider activation', () => {
+  it('Test A: fresh creator verifying openai sets active_provider to openai', async () => {
+    const email = `byok-activate-a-${Date.now()}@example.com`
+    const user = await mintTestUser(email)
+    try {
+      mockVerifyOpenAI.mockResolvedValueOnce({ ok: true })
+      const jwt = await getJwtForUser(email)
+
+      // No creator_settings row exists yet for this brand-new user.
+      const res = await app.fetch(
+        new Request('http://localhost/api/keys/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ provider: 'openai', key: 'sk-' + 'x'.repeat(40) }),
+        })
+      )
+
+      expect(res.status).toBe(200)
+      const body = await jsonAs<{ success: boolean }>(res)
+      expect(body).toEqual({ success: true })
+
+      const { data } = await createServiceClient()
+        .from('creator_settings')
+        .select('active_provider, openai_api_key')
+        .eq('user_id', user.id)
+        .single()
+      expect(data?.active_provider).toBe('openai')
+      expect(data?.openai_api_key).not.toBeNull()
+    } finally {
+      await deleteTestUser(user.id)
+    }
+  })
+
+  it('Test B: returning user with anthropic already keyed keeps active_provider on openai verify', async () => {
+    const email = `byok-activate-b-${Date.now()}@example.com`
+    const user = await mintTestUser(email)
+    try {
+      // Seed a row with anthropic already keyed and active — the "returning user" case.
+      const { error: seedErr } = await createServiceClient().from('creator_settings').insert({
+        user_id: user.id,
+        anthropic_api_key: 'placeholder-encrypted-blob',
+        active_provider: 'anthropic',
+        api_response_cap: 150,
+      })
+      expect(seedErr).toBeNull()
+
+      mockVerifyOpenAI.mockResolvedValueOnce({ ok: true })
+      const jwt = await getJwtForUser(email)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/keys/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ provider: 'openai', key: 'sk-' + 'y'.repeat(40) }),
+        })
+      )
+
+      expect(res.status).toBe(200)
+      const body = await jsonAs<{ success: boolean }>(res)
+      expect(body).toEqual({ success: true })
+
+      const { data } = await createServiceClient()
+        .from('creator_settings')
+        .select('active_provider, openai_api_key')
+        .eq('user_id', user.id)
+        .single()
+      expect(data?.active_provider).toBe('anthropic')
+      expect(data?.openai_api_key).not.toBeNull()
+    } finally {
+      await deleteTestUser(user.id)
+    }
   })
 })
 

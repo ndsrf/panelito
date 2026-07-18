@@ -127,19 +127,37 @@ keysRouter.post('/verify', verifyRateLimit, async (c) => {
   // Cap-preserving upsert to the provider-specific column:
   // If a row exists -> only update the matching key column (preserve custom cap).
   // If no row -> insert with the default cap (150).
+  //
+  // BYOK-FIX-ACTIVATE: also auto-activate the verified provider when this is
+  // effectively the creator's first-ever key — either no row exists yet, or a
+  // row exists but no OTHER provider column is populated. A returning creator
+  // who already has a different provider keyed keeps their deliberate
+  // active_provider choice untouched (T-BYOK-02).
   const supabase = createServiceClient()
   const { data: existing } = await supabase
     .from('creator_settings')
-    .select('user_id')
+    .select('user_id, anthropic_api_key, openai_api_key, gemini_api_key')
     .eq('user_id', user.id)
     .maybeSingle()
 
   const keyColumn = `${provider}_api_key`
 
   if (existing) {
+    const otherProviderColumns = (
+      ['anthropic_api_key', 'openai_api_key', 'gemini_api_key'] as const
+    ).filter((col) => col !== keyColumn)
+    const hasOtherProviderKey = otherProviderColumns.some(
+      (col) => existing[col as keyof typeof existing] != null,
+    )
+
+    const updatePayload: Record<string, string> = { [keyColumn]: encrypted }
+    if (!hasOtherProviderKey) {
+      updatePayload.active_provider = provider
+    }
+
     const { error: updateErr } = await supabase
       .from('creator_settings')
-      .update({ [keyColumn]: encrypted })
+      .update(updatePayload)
       .eq('user_id', user.id)
     if (updateErr) {
       console.error('[keys/verify] DB update error:', updateErr.code)
@@ -148,7 +166,12 @@ keysRouter.post('/verify', verifyRateLimit, async (c) => {
   } else {
     const { error: insertErr } = await supabase
       .from('creator_settings')
-      .insert({ user_id: user.id, [keyColumn]: encrypted, api_response_cap: 150 })
+      .insert({
+        user_id: user.id,
+        [keyColumn]: encrypted,
+        active_provider: provider,
+        api_response_cap: 150,
+      })
     if (insertErr) {
       console.error('[keys/verify] DB insert error:', insertErr.code)
       return c.json({ success: false, error: 'server_error' }, 500)
