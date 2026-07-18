@@ -36,13 +36,15 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { canvasMutationTool, CanvasOpSchema } from '@panelito/types'
+import { canvasMutationTool, CanvasOpSchema, SPEECH_ARTIFACT_BLOCKLIST } from '@panelito/types'
 import type { Blueprint, ProviderName, Personality, ArgNode, ArgEdge } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
 import { summarizeArgGraph, summarizeParticipant, CONTEXT_WINDOWS } from '../../lib/bot-context'
 import { getParticipantProfile } from '../../lib/participant-profile'
 import { ANALYST_SKILLS } from '../../lib/skills'
+import { streamWithGeneration } from '../../lib/langfuse-generation'
+import { REANCHOR_EVERY_N_INVOCATIONS } from './facilitation-agent'
 import type { GraphState } from '../state'
 
 /**
@@ -56,6 +58,7 @@ export function buildAnalyticsSystemPrompt(
   argGraph: { nodes: ArgNode[]; edges: ArgEdge[] },
   factCheckFraming: boolean,
   skillGuidance?: string,
+  shouldReanchor?: boolean,
 ): string {
   // Step 1: Role behavioral contract — non-negotiable, overrides all other instructions.
   const roleRulesLines = [
@@ -67,6 +70,9 @@ export function buildAnalyticsSystemPrompt(
     '  saying anything else. Never speak without an anchor to something someone actually said.',
     '- You are an observer, not a debater: never invent a new counter-argument of your own.',
     '  Report and connect what has already been said.',
+    `- Never emit literal system artifact strings (e.g. ${SPEECH_ARTIFACT_BLOCKLIST.map((s) => `"${s}"`).join(', ')})`,
+    '  in your response. All output must be conversational and natural — canvas/graph updates',
+    '  are shown visually in the panel, never described as a system event in chat (SPEECH-01).',
     '',
     'Examples (Spanish, informal tú per project convention):',
     '- BAD: "Eso no tiene sentido." (no citation, and it is a new counter-argument — violates contract)',
@@ -119,7 +125,20 @@ export function buildAnalyticsSystemPrompt(
       ].join('\n')
     : ''
 
-  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice
+  // Step 5 (PERSONA-04, D-06/D-07): periodic re-anchor — appended AFTER Personality voice,
+  // close to the generation point, as a "recency boost" reminder of the citation discipline.
+  // Prompt-only reinforcement, never a self-check/regenerate LLM call. Static/hardcoded text.
+  const reanchorReminder = shouldReanchor
+    ? [
+        '',
+        'REMINDER — you have been active for a while in this conversation; re-read the',
+        'BEHAVIORAL CONTRACT above before responding:',
+        '- Always cite a specific prior message by speaker name and a paraphrased claim before',
+        '  saying anything else. Never invent a new counter-argument of your own.',
+      ].join('\n')
+    : ''
+
+  return roleRules + blueprintContext + argGraphContext + skillGuidanceBlock + personalityVoice + reanchorReminder
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -188,45 +207,70 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
       : participantSummary
   }
 
+  // Step 2.6 (PERSONA-04, D-06/D-07): per-role, per-branch invocation counter — persisted in
+  // PostgresSaver thread state (roleInvocationCounts), never JS process memory. Independent of
+  // the Coach's counter within the same branch-scoped field (D-07) — only role-keying ('analyst')
+  // is needed here since branch scoping already comes from the bot thread_id.
+  const currentCount = (state.roleInvocationCounts?.analyst ?? 0) + 1
+  const shouldReanchor = currentCount % REANCHOR_EVERY_N_INVOCATIONS === 0
+
   // Step 3: build system prompt — Role rules (+ conditional fact-check framing) FIRST (D-03),
   // Skill guidance (if any, now including participant profile context) spliced after argGraph
-  // context, Personality voice appended last.
+  // context, Personality voice appended last, periodic re-anchor reminder appended last of all
+  // (step 5).
   const system = buildAnalyticsSystemPrompt(
     blueprint,
     personality,
     state.argGraph,
     factCheckFraming,
     combinedSkillGuidance,
+    shouldReanchor,
   )
 
   let agentOutput: import('@panelito/types').CanvasOp | null = null
   let agentConfidence: number | null = null
 
-  // Step 4: stream response; forward tokens to streamWriter (undefined = no-op); the Analyst
-  // may also emit a canvas_mutation tool call (reusing canvasMutationTool, same as agentNode) —
-  // the citation contract itself is enforced via the system prompt, not a separate tool schema.
+  // Step 4 (COST-03): stream response through the Generation-wrap helper so a manual Langfuse
+  // Generation observation captures model/trigger/tier + real usageDetails; forwards tokens to
+  // streamWriter (undefined = no-op). The Analyst may also emit a canvas_mutation tool call
+  // (reusing canvasMutationTool, same as agentNode) — the helper's onEvent passthrough forwards
+  // every raw stream event (including tool_use) so that parsing is unaffected by the Generation
+  // wrap. The citation contract itself is enforced via the system prompt, not a separate tool
+  // schema. streamWithGeneration never throws internally, but the underlying adapter's own
+  // stream() can still throw mid-iteration — the outer try/catch preserves the existing
+  // fail-silent convention.
+  const model = TASK_MODELS[providerName ?? 'anthropic'].analysis
+  const trigger = state.firingSkillId ?? state.triggerType ?? 'human-reactive'
   try {
-    for await (const event of adapter.stream(
-      state.messages.slice(-CONTEXT_WINDOWS.analytics),
-      [canvasMutationTool],
-      { model: TASK_MODELS[providerName ?? 'anthropic'].analysis, maxTokens: 512, system },
-    )) {
-      if (event.type === 'text_delta') {
-        config?.configurable?.streamWriter?.(event.text)
-      } else if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
-        const parsed = CanvasOpSchema.safeParse(event.input)
-        if (parsed.success) {
-          agentOutput = parsed.data
-          agentConfidence = 'confidence' in parsed.data ? (parsed.data.confidence ?? null) : null
-        } else {
-          console.error(
-            '[analytics] CanvasOpSchema.safeParse failed — dropping malformed tool output',
-            parsed.error.flatten(),
-          )
-          // fail-silent: do not throw, do not set agentOutput
-        }
-      }
-    }
+    await streamWithGeneration(
+      adapter.stream(
+        state.messages.slice(-CONTEXT_WINDOWS.analytics),
+        [canvasMutationTool],
+        { model, maxTokens: 512, system },
+      ),
+      {
+        name: 'analytics-analyst',
+        model,
+        metadata: { trigger, tier: 'capable' },
+        input: system,
+        streamWriter: config?.configurable?.streamWriter,
+        onEvent: (event) => {
+          if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
+            const parsed = CanvasOpSchema.safeParse(event.input)
+            if (parsed.success) {
+              agentOutput = parsed.data
+              agentConfidence = 'confidence' in parsed.data ? (parsed.data.confidence ?? null) : null
+            } else {
+              console.error(
+                '[analytics] CanvasOpSchema.safeParse failed — dropping malformed tool output',
+                parsed.error.flatten(),
+              )
+              // fail-silent: do not throw, do not set agentOutput
+            }
+          }
+        },
+      },
+    )
   } catch (err) {
     console.error('[analytics] adapter.stream error — returning no output', err)
     return {}
@@ -262,6 +306,10 @@ export async function analyticsAgentNode(state: GraphState, config?: any): Promi
         last_fired_at: new Date().toISOString(),
         cooldown_until: previous?.cooldown_until ?? null,
       },
+    },
+    roleInvocationCounts: {
+      ...state.roleInvocationCounts,
+      analyst: currentCount,
     },
   }
 }

@@ -55,6 +55,15 @@ export interface StreamWithGenerationParams {
   input?: unknown
   /** Forwards each text_delta's text immediately, same contract as config.configurable.streamWriter. */
   streamWriter?: (text: string) => void
+  /**
+   * Optional passthrough invoked for EVERY event on the wrapped stream (text_delta,
+   * tool_use, usage, done), BEFORE this helper's own text_delta/usage handling runs.
+   * Needed by callers that must still observe event types this helper doesn't itself
+   * forward — e.g. AnalyticsAgentNode's canvas_mutation tool_use parsing (Phase 14 Plan
+   * 06) — without duplicating the stream iteration at the call site. Never called for
+   * callers that omit it (backward-compatible, no change to existing behavior).
+   */
+  onEvent?: (event: AIStreamEvent) => void
 }
 
 export interface StreamWithGenerationResult {
@@ -77,7 +86,7 @@ export async function streamWithGeneration(
   stream: AsyncIterable<AIStreamEvent>,
   params: StreamWithGenerationParams
 ): Promise<StreamWithGenerationResult> {
-  const { name, model, metadata, input, streamWriter } = params
+  const { name, model, metadata, input, streamWriter, onEvent } = params
 
   let generation: LangfuseGeneration | undefined
   try {
@@ -90,6 +99,7 @@ export async function streamWithGeneration(
   let usage: { inputTokens: number; outputTokens: number } | undefined
 
   for await (const event of stream) {
+    onEvent?.(event)
     if (event.type === 'text_delta') {
       text += event.text
       streamWriter?.(event.text)
