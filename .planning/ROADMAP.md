@@ -375,9 +375,9 @@ Plans:
 **Plans**: 7 plans in 4 waves
 - [x] 14-01-PLAN.md — Shared contracts: AIStreamEvent usage member, speech-artifact blocklist, Blueprint coupling toggle (wave 1)
 - [x] 14-02-PLAN.md — ai.ts route: trigger-tag human-reactive Langfuse call + remove '[canvas updated]' fallback (wave 1)
-- [ ] 14-03-PLAN.md — Cost infra: Langfuse Generation helper + adapter usage events + environment field (wave 2)
-- [ ] 14-04-PLAN.md — TriggerEngine generalization + phase-readiness coupling + graceful shutdown + 5-min auto-freeze (wave 2)
-- [ ] 14-05-PLAN.md — Frontend speech filtering: MessageBubble drop + MessageList zero-row suppression (wave 2)
+- [x] 14-03-PLAN.md — Cost infra: Langfuse Generation helper + adapter usage events + environment field (wave 2)
+- [x] 14-04-PLAN.md — TriggerEngine generalization + phase-readiness coupling + graceful shutdown + 5-min auto-freeze (wave 2)
+- [x] 14-05-PLAN.md — Frontend speech filtering: MessageBubble drop + MessageList zero-row suppression (wave 2)
 - [ ] 14-06-PLAN.md — Role nodes: persona re-anchor counter + Generation wrap + SPEECH-01 prompt discipline (wave 3)
 - [ ] 14-07-PLAN.md — Phase verification: synthetic-session harness + live/Langfuse human-verify checkpoint (wave 4)
 **UI hint**: yes
@@ -403,7 +403,7 @@ Plans:
 | 11. Personality + Basic Triggers | v3.0 | 7/7 | Complete   | 2026-07-14 |
 | 12. Graph Coherence + Extended Triggers | v3.0 | 6/6 | Complete    | 2026-07-16 |
 | 13. User Profiles + Phase Signal | v3.0 | 7/7 | Complete   | 2026-07-17 |
-| 14. Polish + TriggerEngine Wiring | v3.0 | 2/7 | In Progress|  |
+| 14. Polish + TriggerEngine Wiring | v3.0 | 5/7 | In Progress|  |
 
 ---
 
