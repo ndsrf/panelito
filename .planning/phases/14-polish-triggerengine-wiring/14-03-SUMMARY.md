@@ -124,6 +124,10 @@ None - no external service configuration required. Existing `LANGFUSE_PUBLIC_KEY
 - All three adapters now surface real usage data; the Langfuse dashboard's "Generations" tab will populate cost once `streamWithGeneration()` is actually called from a node (this plan built the infrastructure, not the wiring — confirmed in-scope per plan objective).
 - No blockers identified for 14-06.
 
+## Self-Check: PASSED
+
+All 9 created/modified files verified present on disk; all 5 commit hashes (7bc1869, 1b68d11, 4b6d052, 6017ea1, befe8ee) verified in git log.
+
 ---
 *Phase: 14-polish-triggerengine-wiring*
 *Completed: 2026-07-18*
