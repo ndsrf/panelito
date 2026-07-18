@@ -98,26 +98,34 @@ export async function streamWithGeneration(
   let text = ''
   let usage: { inputTokens: number; outputTokens: number } | undefined
 
-  for await (const event of stream) {
-    onEvent?.(event)
-    if (event.type === 'text_delta') {
-      text += event.text
-      streamWriter?.(event.text)
-    } else if (event.type === 'usage') {
-      usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+  // WR-02 fix (REVIEW.md): the iteration and the update/end call are wrapped in a single
+  // try/finally so generation.end() always runs — including when the wrapped adapter's
+  // stream() throws mid-iteration (a real, documented possibility per every adapter's own
+  // try/finally doc comments) — rather than leaving the Langfuse Generation observation open
+  // forever. The original error is re-thrown after the finally block runs so the caller's
+  // existing fail-silent try/catch (Role nodes) is unaffected.
+  try {
+    for await (const event of stream) {
+      onEvent?.(event)
+      if (event.type === 'text_delta') {
+        text += event.text
+        streamWriter?.(event.text)
+      } else if (event.type === 'usage') {
+        usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+      }
     }
-  }
-
-  if (generation) {
-    try {
-      generation.update({
-        usageDetails: usage ? { input: usage.inputTokens, output: usage.outputTokens } : undefined,
-        model,
-        metadata,
-      })
-      generation.end()
-    } catch (err) {
-      console.warn('[langfuse-generation] update/end failed (non-fatal):', (err as Error).message)
+  } finally {
+    if (generation) {
+      try {
+        generation.update({
+          usageDetails: usage ? { input: usage.inputTokens, output: usage.outputTokens } : undefined,
+          model,
+          metadata,
+        })
+        generation.end()
+      } catch (err) {
+        console.warn('[langfuse-generation] update/end failed (non-fatal):', (err as Error).message)
+      }
     }
   }
 
