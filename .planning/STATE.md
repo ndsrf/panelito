@@ -93,6 +93,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 | 260703-la6 | Provider-aware default LLM models — replace hardcoded claude-sonnet-4-6 with TASK_MODELS registry | 2026-07-03 |
 | 260703-lmx | Fix Langfuse forceFlush crash and WSL chat no-refresh after AI response | 2026-07-03 |
 | 260703-t00 | WSL chat: refresh after user sends; Langfuse: log trace ID for diagnostics | 2026-07-03 |
+| 260718-cto | Fix BYOK onboarding: verifying an API key never activates it as the active provider | 2026-07-18 |
 
 ---
 
