@@ -371,7 +371,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
       toast.error(
         botId === 'coach'
           ? 'No se pudo cambiar el Facilitador. Inténtalo de nuevo.'
-          : 'No se pudo cambiar el Analista/Verificador. Inténtalo de nuevo.'
+          : 'No se pudo cambiar el Verificador. Inténtalo de nuevo.'
       )
     } finally {
       setBotToggling((prev) => ({ ...prev, [botId]: false }))
@@ -479,7 +479,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
     </div>
   )
 
-  // Analista/Verificador (Analyst/Fact-Checker) toggle card — same personaCard JSX shape (D-09)
+  // Verificador (Analyst/Fact-Checker) toggle card — same personaCard JSX shape (D-09)
   const isVerificadorChecked = isBotChecked('analyst')
   const analistaVerificadorCard = (
     <div className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3 text-left">
@@ -497,7 +497,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
           <SearchCheck size={20} className={isVerificadorChecked ? "text-indigo-400" : "text-zinc-400"} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-semibold text-foreground">Analista/Verificador</div>
+          <div className="text-[15px] font-semibold text-foreground">Verificador</div>
           <div className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-tight">
             Cita mensajes concretos del grupo y señala afirmaciones que conviene verificar.
           </div>
@@ -507,7 +507,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
         checked={isVerificadorChecked}
         disabled={botToggling.analyst ?? false}
         onCheckedChange={(checked) => handleBotToggle('analyst', checked)}
-        aria-label={isVerificadorChecked ? 'Desactivar Analista/Verificador' : 'Activar Analista/Verificador'}
+        aria-label={isVerificadorChecked ? 'Desactivar Verificador' : 'Activar Verificador'}
       />
     </div>
   )
@@ -521,7 +521,7 @@ export function CreatorControls({ session, shortCode, sessionTitle, phaseSignal 
     <p className="text-[13px] text-muted-foreground">
       {coachCooldown ? `Facilitador: máx. ${coachCooldown.max} mensajes cada ${coachCooldown.window_minutes} min` : null}
       {coachCooldown && analystCooldown ? ' · ' : null}
-      {analystCooldown ? `Analista/Verificador: máx. ${analystCooldown.max} mensajes cada ${analystCooldown.window_minutes} min` : null}
+      {analystCooldown ? `Verificador: máx. ${analystCooldown.max} mensajes cada ${analystCooldown.window_minutes} min` : null}
     </p>
   )
 
