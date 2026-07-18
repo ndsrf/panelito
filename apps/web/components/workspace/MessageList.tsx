@@ -27,7 +27,7 @@ import { useSessionChannel } from '@/hooks/use-session-channel'
 import { usePanelStore } from '@/store/panel-store'
 import { useReactions } from '@/hooks/use-reactions'
 import { apiFetch } from '@/lib/api'
-import { PanelWidgetSchema } from '@panelito/types'
+import { PanelWidgetSchema, containsSpeechArtifact } from '@panelito/types'
 import { MessageBubble } from './MessageBubble'
 import type { Message, PanelWidget } from '@panelito/types'
 
@@ -247,6 +247,12 @@ export function MessageList({
               msg.author_id === SYSTEM_AUTHOR_ID
             if (isSystemMessage) {
               return <SystemMessageBubble key={msg.id} message={msg} />
+            }
+            // SPEECH-03/D-11: canvas-only assistant turns get zero chat-stream presence —
+            // no bubble, no icon, no row. Scoped to role === 'assistant' only; human/system
+            // messages are never suppressed by this filter.
+            if (msg.role === 'assistant' && containsSpeechArtifact(msg.content)) {
+              return null
             }
             const isAI = msg.role === 'assistant'
             const hasSnapshot = isAI && msg.canvas_snapshot_state != null

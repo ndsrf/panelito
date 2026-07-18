@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge'
 import { QuickReactionPopover } from './QuickReactionPopover'
 import { MessageActionMenu } from './MessageActionMenu'
 import type { Message, ReactionCount } from '@panelito/types'
+import { containsSpeechArtifact } from '@panelito/types'
 
 interface MessageBubbleProps {
   message: Message
@@ -234,16 +235,16 @@ export function MessageBubble({
                 </span>
               )}
 
-              {/* Streaming text with blinking cursor */}
+              {/* Streaming text with blinking cursor — SPEECH-02 defense-in-depth: artifact-matching text renders empty (silent drop) */}
               {isStreaming && streamingText && (
                 <>
-                  {streamingText}
+                  {containsSpeechArtifact(streamingText) ? '' : streamingText}
                   <span className="text-primary animate-pulse ml-0.5">▋</span>
                 </>
               )}
 
-              {/* Final completed content (not streaming) */}
-              {!isStreaming && message.content}
+              {/* Final completed content (not streaming) — SPEECH-02 defense-in-depth: artifact-matching content renders empty (silent drop) */}
+              {!isStreaming && (containsSpeechArtifact(message.content) ? '' : message.content)}
 
               {/* Restore-chart affordance — shown when message has a saved widget snapshot */}
               {!isStreaming && hasSnapshot && onChartRestore && (
@@ -279,7 +280,7 @@ export function MessageBubble({
                   Bifurcando...
                 </div>
               )}
-              {message.content}
+              {containsSpeechArtifact(message.content) ? '' : message.content}
             </div>
           )}
         </div>
