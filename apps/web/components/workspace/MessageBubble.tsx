@@ -72,7 +72,7 @@ interface MessageBubbleProps {
 const BOT_PERSONA_DISPLAY: Record<string, { icon: LucideIcon; badgeLabel: string; authorName: string }> = {
   'Analista Científico': { icon: FlaskConical, badgeLabel: 'Analista', authorName: 'Analista Científico' },
   Facilitador: { icon: MessageCircleQuestion, badgeLabel: 'Facilitador', authorName: 'Facilitador' },
-  'Analista/Verificador': { icon: SearchCheck, badgeLabel: 'Verificador', authorName: 'Analista/Verificador' },
+  'Verificador': { icon: SearchCheck, badgeLabel: 'Verificador', authorName: 'Verificador' },
 }
 
 /** Fallback for an unknown display_name: Bot icon + badge label truncated to 12 chars. Never crashes, never empty. */
