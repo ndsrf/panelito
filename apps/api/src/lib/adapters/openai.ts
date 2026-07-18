@@ -70,10 +70,13 @@ export class OpenAIAdapter implements AIProvider {
 
       // Use .stream() for the streaming interface (returns a stream iterable)
       // DO NOT call stream.finalMessage() — kills first-token latency (anti-pattern)
+      // stream_options.include_usage: true (COST-03) makes a terminal chunk carry
+      // chunk.usage — read off the streamed chunk only, no finalMessage() call.
       const stream = client.chat.completions.stream({
         model: options.model,
         max_completion_tokens: options.maxTokens,
         messages: oaiMessages,
+        stream_options: { include_usage: true },
         ...(oaiTools.length > 0 ? { tools: oaiTools } : {}),
       })
 
@@ -83,6 +86,16 @@ export class OpenAIAdapter implements AIProvider {
         {}
 
       for await (const chunk of stream) {
+        // COST-03: the terminal chunk carries chunk.usage (stream_options.include_usage);
+        // all other chunks carry usage: null. Never estimate from char counts — omit if absent.
+        if (chunk.usage) {
+          yield {
+            type: 'usage',
+            inputTokens: chunk.usage.prompt_tokens,
+            outputTokens: chunk.usage.completion_tokens,
+          }
+        }
+
         const delta = chunk.choices[0]?.delta
         if (!delta) continue
 

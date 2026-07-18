@@ -21,6 +21,7 @@ type FunctionCall = { name?: string; args?: Record<string, unknown> }
 type GeminiChunk = {
   text?: string
   functionCalls?: FunctionCall[]
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
 }
 
 // Captured config from the last generateContentStream call
@@ -69,12 +70,21 @@ async function collectEvents(
     messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
     system?: string
   }
-): Promise<Array<{ type: string; text?: string; name?: string; input?: unknown }>> {
+): Promise<
+  Array<{ type: string; text?: string; name?: string; input?: unknown; inputTokens?: number; outputTokens?: number }>
+> {
   mockChunks = chunks
   capturedConfig = {}
   const adapter = new GeminiAdapter('test-key')
   const messages = options?.messages ?? [{ role: 'user' as const, content: 'hello' }]
-  const events: Array<{ type: string; text?: string; name?: string; input?: unknown }> = []
+  const events: Array<{
+    type: string
+    text?: string
+    name?: string
+    input?: unknown
+    inputTokens?: number
+    outputTokens?: number
+  }> = []
   for await (const event of adapter.stream(messages, [], {
     model: 'gemini-2.5-flash',
     maxTokens: 100,
@@ -237,5 +247,50 @@ describe('GeminiAdapter.stream() — functionCalls accumulation', () => {
     ]
     const events = await collectEvents(chunks)
     expect(events[events.length - 1]!.type).toBe('done')
+  })
+})
+
+describe('GeminiAdapter.stream() — usage events (COST-03)', () => {
+  it('yields a usage event with numeric fields when the final chunk carries usageMetadata', async () => {
+    const chunks: GeminiChunk[] = [
+      { text: 'hello' },
+      { usageMetadata: { promptTokenCount: 88, candidatesTokenCount: 33 } },
+    ]
+    const events = await collectEvents(chunks)
+    const usageEvents = events.filter((e) => e.type === 'usage')
+    expect(usageEvents).toHaveLength(1)
+    expect(usageEvents[0]!.inputTokens).toBe(88)
+    expect(usageEvents[0]!.outputTokens).toBe(33)
+  })
+
+  it('emits usage BEFORE the final done event', async () => {
+    const chunks: GeminiChunk[] = [
+      { text: 'hello' },
+      { usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } },
+    ]
+    const events = await collectEvents(chunks)
+    const usageIdx = events.findIndex((e) => e.type === 'usage')
+    const doneIdx = events.findIndex((e) => e.type === 'done')
+    expect(usageIdx).toBeGreaterThanOrEqual(0)
+    expect(doneIdx).toBe(events.length - 1)
+    expect(usageIdx).toBeLessThan(doneIdx)
+  })
+
+  it('omits usage when no chunk carries usageMetadata (never fabricated)', async () => {
+    const chunks: GeminiChunk[] = [{ text: 'hello' }]
+    const events = await collectEvents(chunks)
+    expect(events.filter((e) => e.type === 'usage')).toHaveLength(0)
+  })
+
+  it('uses the last seen usageMetadata when multiple chunks carry it', async () => {
+    const chunks: GeminiChunk[] = [
+      { text: 'hello' },
+      { usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 2 } },
+      { usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 7 } },
+    ]
+    const events = await collectEvents(chunks)
+    const usageEvents = events.filter((e) => e.type === 'usage')
+    expect(usageEvents).toHaveLength(1)
+    expect(usageEvents[0]!.outputTokens).toBe(7)
   })
 })

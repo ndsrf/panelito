@@ -27,6 +27,7 @@ type Chunk = {
     }
     finish_reason?: string | null
   }>
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null
 }
 
 // We expose a factory so each test can inject its own chunk sequence
@@ -65,11 +66,20 @@ async function collectEvents(
     messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
     system?: string
   }
-): Promise<Array<{ type: string; text?: string; name?: string; input?: unknown }>> {
+): Promise<
+  Array<{ type: string; text?: string; name?: string; input?: unknown; inputTokens?: number; outputTokens?: number }>
+> {
   mockChunks = chunks
   const adapter = new OpenAIAdapter('test-key')
   const messages = options?.messages ?? [{ role: 'user' as const, content: 'hello' }]
-  const events: Array<{ type: string; text?: string; name?: string; input?: unknown }> = []
+  const events: Array<{
+    type: string
+    text?: string
+    name?: string
+    input?: unknown
+    inputTokens?: number
+    outputTokens?: number
+  }> = []
   for await (const event of adapter.stream(messages, [], {
     model: 'gpt-5.4',
     maxTokens: 100,
@@ -311,6 +321,73 @@ describe('OpenAIAdapter.stream() — tool call accumulation', () => {
     ]
     const events = await collectEvents(chunks)
     expect(events[events.length - 1]!.type).toBe('done')
+  })
+})
+
+describe('OpenAIAdapter.stream() — usage events (COST-03)', () => {
+  it('yields a usage event with numeric fields when the terminal chunk carries chunk.usage', async () => {
+    const chunks: Chunk[] = [
+      { choices: [{ delta: { content: 'hi' }, finish_reason: null }] },
+      { choices: [{ delta: {}, finish_reason: 'stop' }] },
+      {
+        choices: [],
+        usage: { prompt_tokens: 123, completion_tokens: 45, total_tokens: 168 },
+      },
+    ]
+    const events = await collectEvents(chunks)
+    const usageEvents = events.filter((e) => e.type === 'usage')
+    expect(usageEvents).toHaveLength(1)
+    expect(usageEvents[0]!.inputTokens).toBe(123)
+    expect(usageEvents[0]!.outputTokens).toBe(45)
+  })
+
+  it('emits usage BEFORE the final done event', async () => {
+    const chunks: Chunk[] = [
+      { choices: [{ delta: { content: 'hi' }, finish_reason: null }] },
+      { choices: [], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } },
+    ]
+    const events = await collectEvents(chunks)
+    const usageIdx = events.findIndex((e) => e.type === 'usage')
+    const doneIdx = events.findIndex((e) => e.type === 'done')
+    expect(usageIdx).toBeGreaterThanOrEqual(0)
+    expect(doneIdx).toBe(events.length - 1)
+    expect(usageIdx).toBeLessThan(doneIdx)
+  })
+
+  it('omits usage when no chunk carries chunk.usage (never fabricated)', async () => {
+    const chunks: Chunk[] = [
+      { choices: [{ delta: { content: 'hi' }, finish_reason: null }] },
+      { choices: [{ delta: {}, finish_reason: 'stop' }] },
+    ]
+    const events = await collectEvents(chunks)
+    expect(events.filter((e) => e.type === 'usage')).toHaveLength(0)
+  })
+
+  it('sets stream_options.include_usage: true on the client.chat.completions.stream() call', async () => {
+    mockChunks = [{ choices: [{ delta: {}, finish_reason: 'stop' }] }]
+
+    const adapter = new OpenAIAdapter('test-key')
+    for await (const _event of adapter.stream([{ role: 'user', content: 'hello' }], [], {
+      model: 'gpt-5.4',
+      maxTokens: 100,
+    })) {
+      // drain — constructing the OpenAI client and calling .stream() happens lazily
+      // inside the async generator body, so mock.results is only populated once
+      // iteration begins.
+    }
+
+    const { default: MockOpenAI } = await import('openai')
+    const MockCtor = MockOpenAI as unknown as ReturnType<typeof vi.fn>
+    const lastResult = MockCtor.mock.results[MockCtor.mock.results.length - 1]
+    const mockInstance = lastResult?.value as
+      | { chat: { completions: { stream: ReturnType<typeof vi.fn> } } }
+      | undefined
+
+    const streamFn = mockInstance?.chat?.completions?.stream
+    const callArgs = streamFn?.mock.calls[streamFn.mock.calls.length - 1] as
+      | [{ stream_options?: { include_usage: boolean } }]
+      | undefined
+    expect(callArgs?.[0]?.stream_options).toEqual({ include_usage: true })
   })
 })
 
