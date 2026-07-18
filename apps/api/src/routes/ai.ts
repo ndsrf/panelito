@@ -216,6 +216,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     .select('role, content')
     .eq('session_id', sessionId)
     .in('path_id', ancestorPaths)  // AI-06 / T-02-08: branch isolation
+    .neq('role', 'system')  // exclude freeze/unfreeze/close control notices from LLM + Langfuse context (260718-t3h)
     .order('created_at', { ascending: false })
     .limit(8)
 
@@ -230,6 +231,7 @@ aiRouter.post('/:id/invoke', async (c) => {
     .select('role, content')
     .eq('session_id', sessionId)
     .in('path_id', ancestorPaths)
+    .neq('role', 'system')  // exclude freeze/unfreeze/close control notices from LLM + Langfuse context (260718-t3h)
     .order('created_at', { ascending: false })
     .range(8, 58)  // up to 50 older messages to compress
 
@@ -311,6 +313,9 @@ aiRouter.post('/:id/invoke', async (c) => {
   // very first turn on a branch) — this keeps participantId always non-null for
   // moderation/personalization consumers (T-13-07-01, T-13-07-02).
   // -------------------------------------------------------------------------
+  // Note: this .eq('role', 'user') filter now depends on control-plane notices
+  // being tagged role='system' at insertion (260718-t3h) — previously a freeze
+  // notice could be mis-selected as the "last human message" here.
   const { data: lastHumanMessage } = await supabase
     .from('messages')
     .select('author_id')

@@ -610,6 +610,7 @@ async function fetchRecentMessages(supabase: SupabaseClient, branchId: string): 
     .from('messages')
     .select('role, content')
     .eq('branch_id', branchId)
+    .neq('role', 'system')  // exclude freeze/unfreeze/close control notices from bot LLM + Langfuse context (260718-t3h)
     .order('created_at', { ascending: false })
     .limit(CONTEXT_WINDOWS.facilitation)
 
