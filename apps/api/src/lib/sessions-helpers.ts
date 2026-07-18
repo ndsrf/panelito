@@ -53,6 +53,7 @@ export async function freezeSession(
       display_name: SYSTEM_DISPLAY_NAME,
       parent_id: null,
       path_id: 'main',
+      role: 'system',
       content: systemContent,
       canvas_snapshot_state: null,
     })
@@ -126,6 +127,7 @@ export async function unfreezeSession(
       display_name: SYSTEM_DISPLAY_NAME,
       parent_id: null,
       path_id: 'main',
+      role: 'system',
       content: unfreezeReasonMessage(reason),
       canvas_snapshot_state: null,
     })
@@ -194,6 +196,7 @@ export async function closeSession(
       display_name: SYSTEM_DISPLAY_NAME,
       parent_id: null,
       path_id: 'main',
+      role: 'system',
       content: 'La sesion ha finalizado.',
       canvas_snapshot_state: null,
     })
