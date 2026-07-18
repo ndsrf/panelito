@@ -84,6 +84,9 @@ export class GeminiAdapter implements AIProvider {
       // Gemini: functionCalls returns COMPLETE objects (not partial JSON strings)
       // Accumulate across chunks, emit tool_use events AFTER the loop (Pitfall 4)
       const accumulatedFunctionCalls: Array<{ name: string; args: unknown }> = []
+      // COST-03: usageMetadata appears on the final streamed chunk — capture the last
+      // seen value, emit once after the loop. Never estimate from char counts.
+      let lastUsageMetadata: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined
 
       for await (const chunk of responseStream) {
         // Yield text deltas immediately
@@ -95,11 +98,27 @@ export class GeminiAdapter implements AIProvider {
         for (const fc of chunk.functionCalls ?? []) {
           accumulatedFunctionCalls.push({ name: fc.name ?? '', args: fc.args ?? {} })
         }
+
+        if (chunk.usageMetadata) {
+          lastUsageMetadata = chunk.usageMetadata
+        }
       }
 
       // Emit tool_use events AFTER the loop (all function calls accumulated)
       for (const fc of accumulatedFunctionCalls) {
         yield { type: 'tool_use', name: fc.name, input: fc.args }
+      }
+
+      // Emit usage AFTER tool_use events, still before the outer finally's done (Pitfall 4)
+      if (
+        lastUsageMetadata?.promptTokenCount !== undefined &&
+        lastUsageMetadata?.candidatesTokenCount !== undefined
+      ) {
+        yield {
+          type: 'usage',
+          inputTokens: lastUsageMetadata.promptTokenCount,
+          outputTokens: lastUsageMetadata.candidatesTokenCount,
+        }
       }
     } finally {
       // Emit done exactly once regardless of success or error (Pitfall 4)

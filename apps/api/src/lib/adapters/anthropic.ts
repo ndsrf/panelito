@@ -137,8 +137,20 @@ export class AnthropicAdapter implements AIProvider {
         }
       })
 
-      // Start the done resolution in parallel
-      const donePromise = apiStream.done().then(() => {
+      // Start the done resolution in parallel. Also captures the final message so we
+      // can enqueue a `usage` event (COST-03) — this is free: finalMessage() is already
+      // awaited here for donePromise, no extra network round-trip.
+      const donePromise = apiStream.done().then(async () => {
+        try {
+          const finalMessage = await apiStream.finalMessage()
+          enqueue({
+            type: 'usage',
+            inputTokens: finalMessage.usage.input_tokens,
+            outputTokens: finalMessage.usage.output_tokens,
+          })
+        } catch {
+          // Usage not available on this response — omit the event (never fabricate, RESEARCH Don't-Hand-Roll)
+        }
         isDone = true
         if (resolve) {
           const r = resolve
