@@ -1,17 +1,17 @@
 /**
- * silence-scan.test.ts — Unit tests for the interim silence-scan trigger loop (D-15, TRIGGER-01).
+ * trigger-engine.test.ts — Unit tests for the generalized TriggerEngine loop (TRIGGER-07,
+ * inherited from Phase 11's D-15 interim single-trigger scan-loop module).
  *
  * Tests runSilenceScan's orchestration logic in isolation: mocks the Phase 10 chain
  * (checkSilenceGate/runArbitration/checkBotBudget/releaseBotLock), blueprint-loader, crypto,
- * and a fake compiled graph (invoke/getState/updateState) — mirrors ai.test.ts's mocking
- * pattern (loadBlueprint, crypto, createGraph all mocked; no real DB/LLM). Covers the six
- * behaviors from the plan:
+ * Langfuse's CallbackHandler (mirrors ai.test.ts's mocking pattern), and a fake compiled graph
+ * (invoke/getState/updateState) — no real DB/LLM. Covers the six behaviors from the plan:
  *   1. frozen-session skip (status !== 'active')
  *   2. typing/gate-not-passed skip
  *   3. cooldown-active skip
  *   4. arbitration-loss / budget-open skip
  *   5. single-insert-on-success + release-in-finally
- *   6. async setInterval callback awaits runSilenceScan (no overlapping ticks)
+ *   6. startTriggerEngine returns a stop function; calling it aborts the loop (no further ticks)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -46,12 +46,60 @@ vi.mock('./bot-registration', () => ({
   registerBots: vi.fn(),
 }))
 
-import { runSilenceScan, startSilenceScanLoop, COACH_AUTHOR_ID } from './silence-scan'
+// D-03/D-04: phase-readiness Skill is reused as-is, never duplicated — mocked at the module
+// boundary so the coupling tests assert wiring (called/not-called, guidance splice) without
+// exercising the Skill's own internal N/M gate + coverage-judgment LLM logic (already covered
+// by phase-readiness.test.ts).
+vi.mock('./skills/phase-readiness', () => ({
+  phaseReadinessSkill: {
+    id: 'phase-readiness',
+    role: 'analyst',
+    detect: vi.fn(),
+    buildPromptGuidance: vi.fn(),
+  },
+}))
+
+// Mirrors ai.test.ts's own mocking of @langfuse/langchain — CallbackHandler is a real SDK
+// class that reaches out to Langfuse config; tests never construct a real one.
+vi.mock('@langfuse/langchain', () => ({
+  CallbackHandler: vi.fn().mockImplementation(() => ({})),
+}))
+
+// Deterministic, controllable replacement for node:timers/promises' async-iterator setInterval
+// (Behavior 6): yields exactly ONE tick immediately, then awaits forever until the AbortSignal
+// fires, at which point it throws an AbortError — matching the real module's documented
+// behavior closely enough to exercise startTriggerEngine's loop/stop-function contract without
+// depending on real timer delays or sinon fake-timer support for node:timers/promises.
+vi.mock('node:timers/promises', () => ({
+  setInterval: async function* (
+    _delay: number,
+    _value: unknown,
+    options?: { signal?: AbortSignal }
+  ) {
+    const signal = options?.signal
+    yield undefined
+    await new Promise<never>((_resolve, reject) => {
+      const onAbort = (): void => {
+        const err = new Error('The operation was aborted')
+        err.name = 'AbortError'
+        reject(err)
+      }
+      if (signal?.aborted) {
+        onAbort()
+        return
+      }
+      signal?.addEventListener('abort', onAbort)
+    })
+  },
+}))
+
+import { runSilenceScan, startTriggerEngine, COACH_AUTHOR_ID } from './trigger-engine'
 import { loadBlueprint } from './blueprint-loader'
 import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
 import { checkBotBudget } from './bot-budget'
 import { registerBots } from './bot-registration'
+import { phaseReadinessSkill } from './skills/phase-readiness'
 
 const mockLoadBlueprint = vi.mocked(loadBlueprint)
 const mockCheckSilenceGate = vi.mocked(checkSilenceGate)
@@ -59,6 +107,8 @@ const mockRunArbitration = vi.mocked(runArbitration)
 const mockReleaseBotLock = vi.mocked(releaseBotLock)
 const mockCheckBotBudget = vi.mocked(checkBotBudget)
 const mockRegisterBots = vi.mocked(registerBots)
+const mockPhaseReadinessDetect = vi.mocked(phaseReadinessSkill.detect)
+const mockPhaseReadinessBuildGuidance = vi.mocked(phaseReadinessSkill.buildPromptGuidance)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -205,13 +255,15 @@ const defaultCreatorSettings = {
   active_provider: 'anthropic',
 }
 
-describe('silence-scan', () => {
+describe('trigger-engine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLoadBlueprint.mockResolvedValue(debateBlueprint)
     mockCheckSilenceGate.mockResolvedValue({ passed: true, presence_fallback: false })
     mockRunArbitration.mockResolvedValue('coach')
     mockCheckBotBudget.mockResolvedValue({ allowed: true, circuit_open: false, tokens_used_window: 0 })
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: false, confidence: 0 })
+    mockPhaseReadinessBuildGuidance.mockReturnValue('')
   })
 
   it('Behavior 1: frozen session (status !== active) is skipped — no gate/arbitration/invoke call', async () => {
@@ -381,19 +433,104 @@ describe('silence-scan', () => {
     expect(mockReleaseBotLock).toHaveBeenCalledWith('branch-1', supabase)
   })
 
-  it('Behavior 6: startSilenceScanLoop registers bots once and schedules an async setInterval that awaits runSilenceScan', async () => {
-    vi.useFakeTimers()
+  it('Behavior 6: startTriggerEngine registers bots once, returns a callable stop function, and calling it aborts the loop (a subsequent tick does not run)', async () => {
     const supabase = buildSupabaseMock({ sessions: [], branches: [] })
+    const sessionsFrom = (supabase as unknown as { from: ReturnType<typeof vi.fn> }).from
     const graph = buildFakeGraph()
 
-    await startSilenceScanLoop(supabase, graph as never)
+    const stop = await startTriggerEngine(supabase, graph as never)
 
     expect(mockRegisterBots).toHaveBeenCalledTimes(1)
+    expect(typeof stop).toBe('function')
 
-    // Advance past one scan interval — the callback must run without throwing
-    // (i.e. it is a real async function that awaits runSilenceScan, not fire-and-forget).
-    await vi.advanceTimersByTimeAsync(20_000)
+    // The mocked node:timers/promises setInterval yields exactly ONE tick immediately, then
+    // awaits forever until aborted — allow that first tick's runSilenceScan to complete.
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const callsAfterFirstTick = sessionsFrom.mock.calls.filter((call) => call[0] === 'sessions').length
+    expect(callsAfterFirstTick).toBeGreaterThanOrEqual(1)
 
-    vi.useRealTimers()
+    stop()
+
+    // Allow the abort to propagate through the loop's outer try/catch (AbortError swallowed).
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const callsAfterStop = sessionsFrom.mock.calls.filter((call) => call[0] === 'sessions').length
+    expect(callsAfterStop).toBe(callsAfterFirstTick) // no further ticks ran after stop()
+  })
+
+  // -------------------------------------------------------------------------
+  // D-03/D-04: Blueprint-opt-in phase-readiness coupling on silence fires
+  // -------------------------------------------------------------------------
+
+  it('phase-readiness coupling toggle OFF (default) — phaseReadinessSkill.detect is NOT called on a silence fire', async () => {
+    // debateBlueprint fixture already has silence_phase_readiness_coupling_enabled: false
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(graph.invoke).toHaveBeenCalledTimes(1) // silence fire still happens normally
+    expect(mockPhaseReadinessDetect).not.toHaveBeenCalled()
+    expect(mockPhaseReadinessBuildGuidance).not.toHaveBeenCalled()
+  })
+
+  it('phase-readiness coupling toggle ON — phaseReadinessSkill.detect IS called, and its buildPromptGuidance() text reaches the fired prompt path (graph.invoke messages)', async () => {
+    const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
+    mockLoadBlueprint.mockResolvedValue(coupledBlueprint)
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: true, confidence: 0.9 })
+    mockPhaseReadinessBuildGuidance.mockReturnValue(
+      '¿Sienten que el grupo está listo para avanzar a la siguiente fase?'
+    )
+
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockPhaseReadinessDetect).toHaveBeenCalledTimes(1)
+    expect(mockPhaseReadinessBuildGuidance).toHaveBeenCalledTimes(1)
+
+    // Advisory-only invariant (HUMAN-02/T-13-11): the coupling call context never carries a
+    // Supabase client capable of writing sessions.current_phase — only serviceClient/branchId/
+    // providerName/plaintextKey are threaded through, matching phaseReadinessSkill's own
+    // read-only canvas_nodes count query contract.
+    const detectContext = mockPhaseReadinessDetect.mock.calls[0]![0]
+    expect(detectContext.config.configurable.branchId).toBe('branch-1')
+
+    expect(graph.invoke).toHaveBeenCalledTimes(1)
+    const [invokeInput] = graph.invoke.mock.calls[0] as [{ messages: Array<{ role: string; content: string }> }]
+    const guidanceMessage = invokeInput.messages.find((m) =>
+      m.content.includes('¿Sienten que el grupo está listo para avanzar a la siguiente fase?')
+    )
+    expect(guidanceMessage).toBeDefined()
+    expect(guidanceMessage?.role).toBe('user')
+  })
+
+  it('phase-readiness coupling toggle ON but Skill does not fire — no guidance is spliced into graph.invoke messages', async () => {
+    const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
+    mockLoadBlueprint.mockResolvedValue(coupledBlueprint)
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: false, confidence: 0.2 })
+
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockPhaseReadinessDetect).toHaveBeenCalledTimes(1)
+    expect(mockPhaseReadinessBuildGuidance).not.toHaveBeenCalled()
+    expect(graph.invoke).toHaveBeenCalledTimes(1)
+    const [invokeInput] = graph.invoke.mock.calls[0] as [{ messages: Array<{ role: string; content: string }> }]
+    expect(invokeInput.messages.some((m) => m.content.includes('Nota interna del sistema'))).toBe(false)
   })
 })

@@ -16,7 +16,7 @@
  * Text delivery mechanism (D-16 — node does NOT write to the DB): the node forwards every
  * streamed token via `config.configurable.streamWriter(text)`. The CALLER supplies this
  * closure and owns text delivery: for a human-invoked SSE request the closure forwards to
- * the SSE queue; for a future proactive invocation (silence-scan / TriggerEngine, Phase 14)
+ * the SSE queue; for a future proactive invocation (trigger-engine / TriggerEngine, Phase 14)
  * the caller supplies a closure that accumulates chunks into its own buffer, then inserts
  * the assembled message into `messages` after the node returns. The node itself never
  * returns response text as state — GraphState has no such field (Phase 11 Plan 01 scope).

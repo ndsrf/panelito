@@ -12,7 +12,10 @@
  *
  * Timer overrides (test-only):
  * - `AUTO_FREEZE_GRACE_MS` env var — default 30_000 (30s). Set to 200 in E2E tests.
- * - `AUTO_FREEZE_AFTER_MS` env var — default 900_000 (15min). Set to 500 in E2E tests.
+ * - `AUTO_FREEZE_AFTER_MS` env var — default 300_000 (5min, D-05). Set to 500 in E2E tests.
+ *   Lowered from 15min in Phase 14 (TRIGGER-07): the TriggerEngine now fires billable
+ *   proactive messages on a ~1-minute cadence, so an absent creator should accrue ~5 fires'
+ *   worth of spend, not ~20 — bounding the new proactive surface (T-14-04a).
  *
  * CAUTION: Production must NEVER set these below their defaults.
  * T-07-03: A startup warning is emitted if values are below production minimums.
@@ -30,7 +33,7 @@ import { freezeSession } from './sessions-helpers'
 // -----------------------------------------------------------------------
 
 const GRACE_MS = parseInt(process.env.AUTO_FREEZE_GRACE_MS ?? '30000', 10)
-const FREEZE_AFTER_MS = parseInt(process.env.AUTO_FREEZE_AFTER_MS ?? '900000', 10)
+const FREEZE_AFTER_MS = parseInt(process.env.AUTO_FREEZE_AFTER_MS ?? '300000', 10)
 
 // T-07-03: Warn if env overrides are suspiciously low (someone set them in prod)
 if (GRACE_MS < 30_000) {
@@ -39,9 +42,12 @@ if (GRACE_MS < 30_000) {
     'This should only be set in test environments.'
   )
 }
-if (FREEZE_AFTER_MS < 900_000) {
+// D-05 (Phase 14, TRIGGER-07): production minimum lowered from 900_000 (15min) to 300_000
+// (5min) alongside the new default — the TriggerEngine's ~1-minute proactive fire cadence
+// means 5 minutes is now the intended floor, not a suspiciously-low override.
+if (FREEZE_AFTER_MS < 300_000) {
   console.warn(
-    `[auto-freeze] WARNING: AUTO_FREEZE_AFTER_MS=${FREEZE_AFTER_MS} is below the production minimum of 900000. ` +
+    `[auto-freeze] WARNING: AUTO_FREEZE_AFTER_MS=${FREEZE_AFTER_MS} is below the production minimum of 300000. ` +
     'This should only be set in test environments.'
   )
 }

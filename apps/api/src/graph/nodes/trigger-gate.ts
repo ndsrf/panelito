@@ -13,7 +13,7 @@
  * any) and sets routing metadata for routeAfterTriggerGate (graph.ts) to read.
  *
  * D-07: Role-activation gate (`bot_overrides ?? bot_defaults ?? false`, the exact pattern
- * already used in silence-scan.ts:191) runs ONCE, BEFORE candidateSkills is assembled — a
+ * already used in trigger-engine.ts:191) runs ONCE, BEFORE candidateSkills is assembled — a
  * disabled Role's Skills are never detect()-ed at all (asserted with spies in
  * trigger-gate.test.ts).
  *
