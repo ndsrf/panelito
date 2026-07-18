@@ -92,3 +92,13 @@ None - no external service configuration required.
 ---
 *Phase: 14-polish-triggerengine-wiring*
 *Completed: 2026-07-18*
+
+## Self-Check: PASSED
+
+All created/modified files and task commits verified present:
+- FOUND: apps/web/components/workspace/MessageBubble.tsx
+- FOUND: apps/web/components/workspace/MessageList.tsx
+- FOUND: .planning/phases/14-polish-triggerengine-wiring/14-05-SUMMARY.md
+- FOUND commit: b7dcf1b (Task 1)
+- FOUND commit: 06b118f (Task 2)
+- FOUND commit: 91fe053 (plan metadata)
