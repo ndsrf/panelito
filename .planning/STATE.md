@@ -95,6 +95,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 | 260703-lmx | Fix Langfuse forceFlush crash and WSL chat no-refresh after AI response | 2026-07-03 |
 | 260703-t00 | WSL chat: refresh after user sends; Langfuse: log trace ID for diagnostics | 2026-07-03 |
 | 260718-cto | Fix BYOK onboarding: verifying an API key never activates it as the active provider | 2026-07-18 |
+| 260718-spc | Add session creator to Langfuse as the tracked user (email if available, else username) for user tracking | 2026-07-18 |
 
 ---
 
@@ -109,4 +110,4 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 Phase: 14 (polish-triggerengine-wiring) — COMPLETE
 Plan: 7 of 7 (all plans complete)
 Status: Phase 14 complete — v3.0 milestone (Phases 10-14) fully executed — ready for `/gsd:transition`
-Last activity: 2026-07-18 -- Phase 14 Plan 07 Task 2 (verification checkpoint) resolved and closed out
+Last activity: 2026-07-18 - Completed quick task 260718-spc: Add session creator to Langfuse as the tracked user (email if available, else username) for user tracking
