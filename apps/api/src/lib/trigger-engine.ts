@@ -455,6 +455,7 @@ function buildPhaseReadinessState(
     skillMeta: null,
     triggerGateComplete: null,
     phaseGateProgress: null,
+    roleInvocationCounts: {},
   }
 }
 

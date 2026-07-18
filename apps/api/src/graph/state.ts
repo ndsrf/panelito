@@ -104,6 +104,18 @@ export const GraphStateAnnotation = Annotation.Root({
     default: () => ({}),
   }),
 
+  /** Per-role invocation counter for PERSONA-04's periodic re-anchor (D-06/D-07, Phase 14
+   *  Plan 06). Keyed by role id ('coach' | 'analyst') — branch scoping already comes from
+   *  the bot thread_id (`${branchId}:bot`), so only role-keying is needed here. Each Role
+   *  node increments its own key and returns the full record as partial state so it
+   *  checkpoints via PostgresSaver (BOT-05) — this must NEVER be JS process memory (the
+   *  in-memory trackerMap pattern in auto-freeze.ts is explicitly NOT an acceptable
+   *  precedent for this field). Overwrite-style, default empty record. */
+  roleInvocationCounts: Annotation<Record<string, number>>({
+    reducer: (_: Record<string, number>, v: Record<string, number>) => v,
+    default: () => ({}),
+  }),
+
   /** Routing carrier read by the conditional START edge (Plan 05) BEFORE any node runs
    *  (Phase 11 Task 3). NOT the same as triggerMetadata (a per-trigger cooldown record
    *  with no trigger_type key) — this is a single overwrite-style field set by the
