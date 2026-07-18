@@ -46,6 +46,19 @@ vi.mock('./bot-registration', () => ({
   registerBots: vi.fn(),
 }))
 
+// D-03/D-04: phase-readiness Skill is reused as-is, never duplicated — mocked at the module
+// boundary so the coupling tests assert wiring (called/not-called, guidance splice) without
+// exercising the Skill's own internal N/M gate + coverage-judgment LLM logic (already covered
+// by phase-readiness.test.ts).
+vi.mock('./skills/phase-readiness', () => ({
+  phaseReadinessSkill: {
+    id: 'phase-readiness',
+    role: 'analyst',
+    detect: vi.fn(),
+    buildPromptGuidance: vi.fn(),
+  },
+}))
+
 // Mirrors ai.test.ts's own mocking of @langfuse/langchain — CallbackHandler is a real SDK
 // class that reaches out to Langfuse config; tests never construct a real one.
 vi.mock('@langfuse/langchain', () => ({
@@ -86,6 +99,7 @@ import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
 import { checkBotBudget } from './bot-budget'
 import { registerBots } from './bot-registration'
+import { phaseReadinessSkill } from './skills/phase-readiness'
 
 const mockLoadBlueprint = vi.mocked(loadBlueprint)
 const mockCheckSilenceGate = vi.mocked(checkSilenceGate)
@@ -93,6 +107,8 @@ const mockRunArbitration = vi.mocked(runArbitration)
 const mockReleaseBotLock = vi.mocked(releaseBotLock)
 const mockCheckBotBudget = vi.mocked(checkBotBudget)
 const mockRegisterBots = vi.mocked(registerBots)
+const mockPhaseReadinessDetect = vi.mocked(phaseReadinessSkill.detect)
+const mockPhaseReadinessBuildGuidance = vi.mocked(phaseReadinessSkill.buildPromptGuidance)
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -246,6 +262,8 @@ describe('trigger-engine', () => {
     mockCheckSilenceGate.mockResolvedValue({ passed: true, presence_fallback: false })
     mockRunArbitration.mockResolvedValue('coach')
     mockCheckBotBudget.mockResolvedValue({ allowed: true, circuit_open: false, tokens_used_window: 0 })
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: false, confidence: 0 })
+    mockPhaseReadinessBuildGuidance.mockReturnValue('')
   })
 
   it('Behavior 1: frozen session (status !== active) is skipped — no gate/arbitration/invoke call', async () => {
@@ -437,5 +455,82 @@ describe('trigger-engine', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
     const callsAfterStop = sessionsFrom.mock.calls.filter((call) => call[0] === 'sessions').length
     expect(callsAfterStop).toBe(callsAfterFirstTick) // no further ticks ran after stop()
+  })
+
+  // -------------------------------------------------------------------------
+  // D-03/D-04: Blueprint-opt-in phase-readiness coupling on silence fires
+  // -------------------------------------------------------------------------
+
+  it('phase-readiness coupling toggle OFF (default) — phaseReadinessSkill.detect is NOT called on a silence fire', async () => {
+    // debateBlueprint fixture already has silence_phase_readiness_coupling_enabled: false
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(graph.invoke).toHaveBeenCalledTimes(1) // silence fire still happens normally
+    expect(mockPhaseReadinessDetect).not.toHaveBeenCalled()
+    expect(mockPhaseReadinessBuildGuidance).not.toHaveBeenCalled()
+  })
+
+  it('phase-readiness coupling toggle ON — phaseReadinessSkill.detect IS called, and its buildPromptGuidance() text reaches the fired prompt path (graph.invoke messages)', async () => {
+    const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
+    mockLoadBlueprint.mockResolvedValue(coupledBlueprint)
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: true, confidence: 0.9 })
+    mockPhaseReadinessBuildGuidance.mockReturnValue(
+      '¿Sienten que el grupo está listo para avanzar a la siguiente fase?'
+    )
+
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockPhaseReadinessDetect).toHaveBeenCalledTimes(1)
+    expect(mockPhaseReadinessBuildGuidance).toHaveBeenCalledTimes(1)
+
+    // Advisory-only invariant (HUMAN-02/T-13-11): the coupling call context never carries a
+    // Supabase client capable of writing sessions.current_phase — only serviceClient/branchId/
+    // providerName/plaintextKey are threaded through, matching phaseReadinessSkill's own
+    // read-only canvas_nodes count query contract.
+    const detectContext = mockPhaseReadinessDetect.mock.calls[0]![0]
+    expect(detectContext.config.configurable.branchId).toBe('branch-1')
+
+    expect(graph.invoke).toHaveBeenCalledTimes(1)
+    const [invokeInput] = graph.invoke.mock.calls[0] as [{ messages: Array<{ role: string; content: string }> }]
+    const guidanceMessage = invokeInput.messages.find((m) =>
+      m.content.includes('¿Sienten que el grupo está listo para avanzar a la siguiente fase?')
+    )
+    expect(guidanceMessage).toBeDefined()
+    expect(guidanceMessage?.role).toBe('user')
+  })
+
+  it('phase-readiness coupling toggle ON but Skill does not fire — no guidance is spliced into graph.invoke messages', async () => {
+    const coupledBlueprint: Blueprint = { ...debateBlueprint, silence_phase_readiness_coupling_enabled: true }
+    mockLoadBlueprint.mockResolvedValue(coupledBlueprint)
+    mockPhaseReadinessDetect.mockResolvedValue({ fires: false, confidence: 0.2 })
+
+    const supabase = buildSupabaseMock({
+      sessions: [makeSessionRow()],
+      branches: [makeBranchRow()],
+      creatorSettings: defaultCreatorSettings,
+    })
+    const graph = buildFakeGraph()
+
+    await runSilenceScan(supabase, graph as never)
+
+    expect(mockPhaseReadinessDetect).toHaveBeenCalledTimes(1)
+    expect(mockPhaseReadinessBuildGuidance).not.toHaveBeenCalled()
+    expect(graph.invoke).toHaveBeenCalledTimes(1)
+    const [invokeInput] = graph.invoke.mock.calls[0] as [{ messages: Array<{ role: string; content: string }> }]
+    expect(invokeInput.messages.some((m) => m.content.includes('Nota interna del sistema'))).toBe(false)
   })
 })

@@ -52,6 +52,9 @@ import { env } from './env'
 import { CONTEXT_WINDOWS } from './bot-context'
 import { createGraph } from '../graph/graph'
 import { getCheckpointer } from './langgraph-checkpointer'
+import type { GraphState } from '../graph/state'
+import type { SkillContext } from './skills'
+import { phaseReadinessSkill } from './skills/phase-readiness'
 
 type CompiledGraph = ReturnType<typeof createGraph>
 
@@ -282,6 +285,10 @@ async function scanBranch(
 
     const recentMessages = await fetchRecentMessages(supabase, branch.id)
 
+    // D-03/D-04: Blueprint-opt-in phase-readiness coupling — advisory only, never auto-advances
+    // the phase (HUMAN-02/T-13-11). No-op (zero added cost) for the default-off Blueprint.
+    await applyPhaseReadinessCoupling(supabase, session, blueprint, branch, providerCtx, recentMessages)
+
     let accumulatedText = ''
     const streamWriter = (text: string): void => {
       accumulatedText += text
@@ -359,6 +366,95 @@ async function scanBranch(
     // (bot-arbitrator.ts releaseBotLock doc comment); otherwise the lock leaks until
     // locked_until expires.
     await releaseBotLock(branch.id, supabase)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Internal — phase-readiness coupling (D-03/D-04)
+// ---------------------------------------------------------------------------
+
+/**
+ * applyPhaseReadinessCoupling — when (and only when) the Blueprint opts in via
+ * `silence_phase_readiness_coupling_enabled` (default false — zero added cost for non-opted-in
+ * Blueprints, `detect()` is never called), invokes the existing `phaseReadinessSkill` (reused
+ * as-is — never duplicates its N/M gate or coverage-judgment logic, RESEARCH Don't-Hand-Roll)
+ * and, if it fires, appends its `buildPromptGuidance()` text to `recentMessages` (mutated in
+ * place) so the Coach's own graph.invoke() call — the very next step in scanBranch — sees it as
+ * part of the conversation it streams to the model (role 'user' — the only ProviderMessage role
+ * guaranteed to reach all three BYOK providers unfiltered; Anthropic maps 'system' to 'user'
+ * anyway and Gemini filters 'system' out of contents entirely, so 'user' is the only reliable
+ * cross-provider carrier for this advisory note). Advisory only (HUMAN-02/T-13-11): nothing
+ * here writes `sessions.current_phase` or otherwise auto-advances the phase — the Coach may at
+ * most ASK the group whether they feel ready to advance, exactly like phase-readiness's existing
+ * synchronous TriggerGateNode-driven path.
+ */
+async function applyPhaseReadinessCoupling(
+  supabase: SupabaseClient,
+  session: ActiveSessionRow,
+  blueprint: Blueprint,
+  branch: ActiveBranchRow,
+  providerCtx: ProviderContext,
+  recentMessages: ProviderMessage[]
+): Promise<void> {
+  if (!blueprint.silence_phase_readiness_coupling_enabled) return
+
+  const skillContext: SkillContext = {
+    state: buildPhaseReadinessState(session, blueprint, recentMessages),
+    blueprint,
+    config: {
+      configurable: {
+        serviceClient: supabase,
+        branchId: branch.id,
+        providerName: providerCtx.providerName,
+        plaintextKey: providerCtx.plaintextKey,
+      },
+    },
+  }
+
+  try {
+    const result = await phaseReadinessSkill.detect(skillContext)
+    if (!result.fires) return
+
+    const guidance = phaseReadinessSkill.buildPromptGuidance(skillContext)
+    recentMessages.push({
+      role: 'user',
+      content: `[Nota interna del sistema — orientación de fase, no es un mensaje de un participante] ${guidance}`,
+    })
+  } catch (err) {
+    // detect() already fails closed internally and never throws — this is defensive
+    // belt-and-suspenders so a coupling failure can never block the silence fire itself.
+    console.error('[trigger-engine] phase-readiness coupling error (advisory only, continuing)', (err as Error).message)
+  }
+}
+
+/** Minimal GraphState-shaped object for the phase-readiness Skill's detect()/buildPromptGuidance()
+ *  — called OUTSIDE the graph (the silence_gate route bypasses TriggerGateNode entirely, Pitfall
+ *  6), so there is no live GraphState to read from; this constructs the fields the Skill actually
+ *  reads (currentPhaseId, messages, triggerType) with safe defaults for the rest. */
+function buildPhaseReadinessState(
+  session: ActiveSessionRow,
+  blueprint: Blueprint,
+  recentMessages: ProviderMessage[]
+): GraphState {
+  return {
+    blueprintId: blueprint.id,
+    currentPhaseId: session.current_phase ?? blueprint.phase_sequence[0]?.id ?? '',
+    messages: recentMessages,
+    canvasOps: [],
+    guardrailResult: null,
+    agentConfidence: null,
+    driftAction: null,
+    agentOutput: null,
+    steeringTextEnabled: null,
+    phase_signal: null,
+    argGraph: { nodes: [], edges: [] },
+    triggerMetadata: {},
+    triggerType: 'silence_gate',
+    firingSkillId: null,
+    firingSkillRole: null,
+    skillMeta: null,
+    triggerGateComplete: null,
+    phaseGateProgress: null,
   }
 }
 
