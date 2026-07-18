@@ -44,6 +44,7 @@ import { getCheckpointer } from '../lib/langgraph-checkpointer'
 import { loadBlueprint } from '../lib/blueprint-loader'
 import { CallbackHandler } from '@langfuse/langchain'
 import { flushLangfuse } from '../lib/langfuse-otel'
+import { resolveCreatorLangfuseUserId } from '../lib/langfuse-user'
 import type { Blueprint } from '@panelito/types'
 
 // ---------------------------------------------------------------------------
@@ -364,7 +365,11 @@ aiRouter.post('/:id/invoke', async (c) => {
     // --- Per-request Langfuse CallbackHandler (D-15, D-16, OBS-01) ---
     // Instantiated inside SSE callback, never module-level — prevents trace context corruption.
     // D-16: early-exit paths (400/409/429) are not traced — only real invocations reach here.
+    // OBS-USER-01: userId attributes this trace to the session creator (email-first,
+    // never-throw resolver) so Langfuse Users can group cost/usage by person.
+    const langfuseUserId = await resolveCreatorLangfuseUserId(supabase, session.creator_id)
     const callbackHandler = new CallbackHandler({
+      userId: langfuseUserId,
       tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`, 'trigger:human-reactive'],
     })
 

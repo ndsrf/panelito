@@ -42,6 +42,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Blueprint, Personality, ProviderMessage, ProviderName } from '@panelito/types'
 import { PersonalitySchema, ProviderSchema } from '@panelito/types'
 import { CallbackHandler } from '@langfuse/langchain'
+import { resolveCreatorLangfuseUserId } from './langfuse-user'
 import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
 import { checkBotBudget } from './bot-budget'
@@ -229,6 +230,11 @@ async function scanSession(
   const providerCtx = await resolveProviderContext(supabase, session.creator_id)
   if (!providerCtx) return // no configured/decryptable API key — skip silently, no bot fires
 
+  // OBS-USER-01: resolved ONCE per session (not per branch) — runSilenceScan iterates many
+  // sessions/branches per tick, so a per-branch admin lookup would multiply auth calls.
+  // Never-throw resolver; reused for every branch of this session below.
+  const langfuseUserId = await resolveCreatorLangfuseUserId(supabase, session.creator_id)
+
   const personality = await resolveCoachPersonality(supabase, blueprint)
 
   const { data: branches, error: branchesError } = await supabase
@@ -243,7 +249,7 @@ async function scanSession(
   }
 
   for (const branch of (branches ?? []) as ActiveBranchRow[]) {
-    await scanBranch(supabase, graph, session, blueprint, personality, providerCtx, branch)
+    await scanBranch(supabase, graph, session, blueprint, personality, providerCtx, branch, langfuseUserId)
   }
 }
 
@@ -254,7 +260,8 @@ async function scanBranch(
   blueprint: Blueprint,
   personality: Personality | undefined,
   providerCtx: ProviderContext,
-  branch: ActiveBranchRow
+  branch: ActiveBranchRow,
+  langfuseUserId: string
 ): Promise<void> {
   const gateResult = await checkSilenceGate({
     supabase,
@@ -297,7 +304,10 @@ async function scanBranch(
     // Per-request Langfuse CallbackHandler (D-14 inherited fix, OBS-01) — instantiated per
     // invocation, never module-level, mirrors ai.ts's own per-request construction. Closes the
     // previously-confirmed tracing gap on this proactive path (COST-03).
+    // OBS-USER-01: userId attributes this trace to the session creator, resolved once per
+    // session in scanSession and reused for every branch (see langfuseUserId param above).
     const callbackHandler = new CallbackHandler({
+      userId: langfuseUserId,
       tags: [`session:${session.id}`, `branch:${branch.id}`, 'trigger:silence_gate'],
     })
 
