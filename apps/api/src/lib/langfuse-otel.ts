@@ -64,7 +64,16 @@ export function setupLangfuseOtel(): void {
     return
   }
 
-  const processor = new LangfuseSpanProcessor()
+  // D-13: environment is Langfuse's native first-class field (LangfuseSpanProcessor
+  // constructor option — confirmed against installed @langfuse/otel@5.9.1 .d.ts), set
+  // once at processor-level bootstrap here, NOT as a per-request CallbackHandler tag.
+  // LANGFUSE_TRACING_ENVIRONMENT (if set) is honored automatically by the SDK as a
+  // fallback when this option is omitted; we resolve explicitly so local/dev runs
+  // default sensibly without requiring deployment config.
+  const environment =
+    process.env.LANGFUSE_TRACING_ENVIRONMENT ??
+    (process.env.NODE_ENV === 'production' ? 'production' : 'development')
+  const processor = new LangfuseSpanProcessor({ environment })
   const provider = new BasicTracerProvider({ spanProcessors: [processor] })
   otelApi.trace.setGlobalTracerProvider(provider)
   setLangfuseTracerProvider(provider)
