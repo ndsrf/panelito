@@ -100,6 +100,7 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 | 260718-t3h | Fix session freeze/reactivation control notices being tagged role='user' — now role='system', excluded from LLM context and Langfuse traces (both human /invoke and proactive-bot paths) | 2026-07-18 |
 | 260718-u7k | Renamed analyst_default persona display name from "Analista/Verificador" to "Verificador" (migration 0018 + UI strings) so it's distinguishable from Analista Científico | 2026-07-18 |
 | 260719-dr9 | Add Langfuse's first-class sessionId (room id) to both per-request CallbackHandler instantiations so concurrently-running rooms group/distinguish under the Langfuse Sessions UI | 2026-07-19 |
+| 260719-e9x | Investigated why untagged messages produce no Langfuse activity — confirmed TriggerGateNode (moderation/fact-check Skills) is only reachable via @-tag or power-reaction, so untagged messages are never evaluated, not just untraced. User decided: evaluate + trace every message (cheap tier-1 heuristics gate the paid tiers) — escalated to a dedicated planned phase, not implemented in this quick task | 2026-07-19 |
 
 ---
 
@@ -114,4 +115,4 @@ See: .planning/PROJECT.md (updated 2026-07-09)
 Phase: 14 (polish-triggerengine-wiring) — COMPLETE
 Plan: 7 of 7 (all plans complete)
 Status: Phase 14 complete — v3.0 milestone (Phases 10-14) fully executed — ready for `/gsd:transition`
-Last activity: 2026-07-19 - Completed quick task 260719-dr9: Add Langfuse's first-class sessionId (room id) to both per-request CallbackHandler instantiations so concurrently-running rooms group/distinguish under the Langfuse Sessions UI
+Last activity: 2026-07-19 - Completed quick task 260719-e9x: Investigated untagged-message Langfuse gap (found it's an evaluation gap, not just a tracing gap); decision made to evaluate+trace every message, escalated to a dedicated planned phase
