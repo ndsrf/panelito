@@ -306,8 +306,11 @@ async function scanBranch(
     // previously-confirmed tracing gap on this proactive path (COST-03).
     // OBS-USER-01: userId attributes this trace to the session creator, resolved once per
     // session in scanSession and reused for every branch (see langfuseUserId param above).
+    // OBS-SESSION-01: sessionId groups traces per room (Langfuse Sessions) so concurrently
+    // running rooms can be distinguished/compared in the Langfuse Sessions UI.
     const callbackHandler = new CallbackHandler({
       userId: langfuseUserId,
+      sessionId: session.id,
       tags: [`session:${session.id}`, `branch:${branch.id}`, 'trigger:silence_gate'],
     })
 
