@@ -37,8 +37,8 @@ import { createAdapter } from '../lib/adapter-factory'
 import { TASK_MODELS } from '../lib/model-config'
 import { decryptKey } from '../lib/crypto'
 import { env } from '../lib/env'
-import { PERSONA_LIBRARY, ProviderSchema } from '@panelito/types'
-import type { ProviderName } from '@panelito/types'
+import { PERSONA_LIBRARY, ProviderSchema, PersonalitySchema } from '@panelito/types'
+import type { ProviderName, Personality } from '@panelito/types'
 import { createGraph } from '../graph/graph'
 import { getCheckpointer } from '../lib/langgraph-checkpointer'
 import { loadBlueprint } from '../lib/blueprint-loader'
@@ -46,6 +46,41 @@ import { CallbackHandler } from '@langfuse/langchain'
 import { flushLangfuse } from '../lib/langfuse-otel'
 import { resolveCreatorLangfuseUserId } from '../lib/langfuse-user'
 import type { Blueprint } from '@panelito/types'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// ---------------------------------------------------------------------------
+// Analyst personality resolution (analyst-personality-wiring debug session)
+// ---------------------------------------------------------------------------
+
+/**
+ * resolveAnalystPersonality — mirrors trigger-engine.ts's resolveCoachPersonality exactly
+ * (same personalities table query shape, same PersonalitySchema.safeParse validation), keyed to
+ * `role_personalities.analyst` instead of `.coach`. AnalyticsAgentNode (the Verificador bot) is
+ * reached from THIS route's graphConfig.configurable exclusively (routeAfterTriggerGate's
+ * 'analysis' branch on the human /invoke path — trigger-engine.ts's proactive silence-gate path
+ * only ever routes to 'facilitation'/Coach, never 'analysis') — analytics-agent.ts already reads
+ * config?.configurable?.personality (styling-only, step 4 of buildAnalyticsSystemPrompt) but
+ * nothing populated that key before this fix, so the analyst_default personality row's
+ * voice_instructions/catchphrases were silently never applied.
+ */
+async function resolveAnalystPersonality(
+  supabase: SupabaseClient,
+  blueprint: Blueprint
+): Promise<Personality | undefined> {
+  const personalityId = blueprint.role_personalities?.analyst
+  if (!personalityId) return undefined
+
+  const { data, error } = await supabase
+    .from('personalities')
+    .select('id, name, definition')
+    .eq('id', personalityId)
+    .maybeSingle()
+
+  if (error || !data) return undefined
+
+  const parsed = PersonalitySchema.safeParse(data)
+  return parsed.success ? parsed.data : undefined
+}
 
 // ---------------------------------------------------------------------------
 // Router
@@ -381,6 +416,11 @@ aiRouter.post('/:id/invoke', async (c) => {
       tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`, 'trigger:human-reactive'],
     })
 
+    // analyst-personality-wiring fix: resolve the analyst_default personality row (mirrors
+    // trigger-engine.ts's resolveCoachPersonality) so AnalyticsAgentNode's Verificador voice is
+    // no longer silently dropped on this, the only production call site that reaches it.
+    const analystPersonality = await resolveAnalystPersonality(supabase, blueprint)
+
     // --- graph.astream config (D-05, D-10, D-14, ORCH-05) ---
     // F2/D-12/D-13: supabase/serviceClient/branchId/participantId/botOverrides make
     // profileBuilder, phase-readiness, and moderation reachable on the real human
@@ -401,6 +441,7 @@ aiRouter.post('/:id/invoke', async (c) => {
         providerName,
         plaintextKey,
         activePersonas: activePersonaInstructions,  // D-10: string[] of persona systemPromptAddition values
+        personality: analystPersonality,             // analyst-personality-wiring: Verificador voice (analytics-agent.ts step 4, styling-only)
         streamWriter,                               // D-05: text token seam
         supabase,                                    // F2/D-12: moderation.ts's config.configurable.supabase seam
         serviceClient: supabase,                     // F2/D-12: profileBuilder/orphan-edge/phase-readiness seam
