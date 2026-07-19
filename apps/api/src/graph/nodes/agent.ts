@@ -16,6 +16,7 @@ import { canvasMutationTool, CanvasOpSchema } from '@panelito/types'
 import type { Blueprint, ProviderName } from '@panelito/types'
 import { createAdapter } from '../../lib/adapter-factory'
 import { TASK_MODELS } from '../../lib/model-config'
+import { streamWithGeneration } from '../../lib/langfuse-generation'
 import type { GraphState } from '../state'
 
 /**
@@ -137,38 +138,53 @@ export async function agentNode(state: GraphState, config?: any): Promise<Partia
   let agentOutput: import('@panelito/types').CanvasOp | null = null
   let agentConfidence: number | null = null
 
+  // COST-03: stream response through the Generation-wrap helper so a manual Langfuse Generation
+  // observation captures model/trigger/tier + real usageDetails — mirrors facilitation-agent.ts/
+  // analytics-agent.ts (D-08 fix: this node previously called adapter.stream() directly with no
+  // Langfuse wrap at all, so its LLM calls — including the user-visible active-persona replies,
+  // e.g. the "Analista Científico" PERSONA_LIBRARY persona, D-10 — never produced a Generation
+  // observation). onEvent passthrough forwards every raw stream event (including tool_use) so
+  // canvas_mutation parsing is unaffected by the Generation wrap, same shape as
+  // analytics-agent.ts's own canvasMutationTool handling.
+  const model = TASK_MODELS[providerName ?? 'anthropic'].analysis
   try {
-    for await (const event of adapter.stream(state.messages, [canvasMutationTool], {
-      model: TASK_MODELS[providerName ?? 'anthropic'].analysis,
-      maxTokens: 1024,
-      system,
-    })) {
-      if (event.type === 'text_delta') {
+    await streamWithGeneration(
+      adapter.stream(state.messages, [canvasMutationTool], {
+        model,
+        maxTokens: 1024,
+        system,
+      }),
+      {
+        name: 'agent-canvas-mutation',
+        model,
+        metadata: { trigger: 'human-reactive', tier: 'capable' },
+        input: { system, messages: state.messages },
         // D-05: Phase 7 streamWriter seam — routes tokens to SSE via route's async queue
-        config?.configurable?.streamWriter?.(event.text)
-      } else if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
-        // T-06-08: safeParse via CanvasOpSchema; parse failure logged and dropped (fail-silent)
-        const parsed = CanvasOpSchema.safeParse(event.input)
-        if (parsed.success) {
-          agentOutput = parsed.data
-          // Extract confidence from ADD_NODE and ADD_EDGE ops; NO_ACTION has none
-          agentConfidence =
-            'confidence' in parsed.data ? (parsed.data.confidence ?? null) : null
-        } else {
-          console.error(
-            '[agent] CanvasOpSchema.safeParse failed — dropping malformed tool output',
-            parsed.error.flatten()
-          )
-          // fail-silent: do not throw, do not set agentOutput
-        }
-        // Only process the first canvas_mutation tool call
-        // D-08 (Phase 13): the ad-hoc ready-to-advance flag extraction from the raw
-        // canvas_mutation tool input (formerly read/returned here) is deprecated/removed
-        // in favor of the phase-readiness Skill-driven path (analyticsAgentNode, Plan 05),
-        // which reuses the existing SSE -> UI -> PATCH advisory-signal plumbing as-is.
-        return { agentOutput, agentConfidence }
-      }
-    }
+        streamWriter: config?.configurable?.streamWriter,
+        onEvent: (event) => {
+          if (event.type === 'tool_use' && event.name === 'canvas_mutation') {
+            // T-06-08: safeParse via CanvasOpSchema; parse failure logged and dropped (fail-silent)
+            const parsed = CanvasOpSchema.safeParse(event.input)
+            if (parsed.success) {
+              agentOutput = parsed.data
+              // Extract confidence from ADD_NODE and ADD_EDGE ops; NO_ACTION has none
+              agentConfidence =
+                'confidence' in parsed.data ? (parsed.data.confidence ?? null) : null
+            } else {
+              console.error(
+                '[agent] CanvasOpSchema.safeParse failed — dropping malformed tool output',
+                parsed.error.flatten()
+              )
+              // fail-silent: do not throw, do not set agentOutput
+            }
+            // D-08 (Phase 13): the ad-hoc ready-to-advance flag extraction from the raw
+            // canvas_mutation tool input (formerly read/returned here) is deprecated/removed
+            // in favor of the phase-readiness Skill-driven path (analyticsAgentNode, Plan 05),
+            // which reuses the existing SSE -> UI -> PATCH advisory-signal plumbing as-is.
+          }
+        },
+      },
+    )
   } catch (err) {
     console.error('[agent] adapter.stream error — returning no output', err)
     return {}
