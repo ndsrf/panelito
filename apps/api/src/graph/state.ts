@@ -25,11 +25,19 @@ export const GraphStateAnnotation = Annotation.Root({
    *  NULL/undefined falls back to blueprint.phase_sequence[0].id in OrchestratorNode. */
   currentPhaseId: Annotation<string>,
 
-  /** Conversation history. Custom concat reducer — ProviderMessage is a plain object,
-   *  not BaseMessage; MessagesAnnotation is incompatible (RESEARCH Pitfall 6). */
+  /** Conversation history for the CURRENT turn only. Overwrite-style reducer (D-12,
+   *  10-CONTEXT.md: Supabase's `messages` table — not this checkpoint — is the source of
+   *  truth for conversation history). Every live caller (apps/api/src/routes/ai.ts human
+   *  path, apps/api/src/lib/trigger-engine.ts bot path) recomputes a fresh, already-bounded
+   *  window from the DB on EVERY invocation and passes the FULL window here, never a delta
+   *  — so this must replace, not accumulate. A concat reducer previously caused the
+   *  checkpointed array to grow unboundedly (each turn's full window appended on top of
+   *  every prior turn's), langgraph-message-history-growth debug session. No graph node
+   *  ever returns a partial `{ messages: ... }` update mid-run, so overwrite semantics are
+   *  safe within a single invocation. ProviderMessage is a plain object, not BaseMessage;
+   *  MessagesAnnotation is incompatible (RESEARCH Pitfall 6). */
   messages: Annotation<ProviderMessage[]>({
-    reducer: (left: ProviderMessage[], right: ProviderMessage | ProviderMessage[]) =>
-      left.concat(Array.isArray(right) ? right : [right]),
+    reducer: (_: ProviderMessage[], v: ProviderMessage[]) => v,
     default: () => [],
   }),
 

@@ -1,9 +1,19 @@
 /**
  * graph.integration.test.ts — PostgresSaver + Langfuse integration tests
  *
- * Test A (D-12): PostgresSaver resume test against real Supabase.
+ * Test A (D-12, 10-CONTEXT.md): PostgresSaver resume test against real Supabase.
  *   - Proves state is stored in langgraph.checkpoints after first invocation
- *   - Proves second invocation on same thread_id resumes from checkpoint (state accumulates)
+ *   - Proves second invocation on same thread_id resumes from checkpoint for
+ *     overwrite-style fields (currentPhaseId) and accumulates for genuinely
+ *     cumulative fields (canvasOps — the argument graph legitimately grows over a
+ *     branch's lifetime)
+ *   - `messages` is OVERWRITE-style, not accumulating (langgraph-message-history-growth
+ *     debug session, fixed 2026-07-19): Supabase's `messages` table, not this checkpoint,
+ *     is the source of truth for conversation history (D-12). Every live caller
+ *     (ai.ts, trigger-engine.ts) recomputes a fresh, already-bounded window from the DB
+ *     on EVERY invocation and passes the FULL window each time, never a delta — a concat
+ *     reducer on `messages` previously caused the checkpoint to grow unboundedly by
+ *     duplicating each turn's window on top of every prior turn's.
  *   - Requires SUPABASE_DIRECT_URL in .env — skipped otherwise (safe for CI without DB)
  *
  * Test B (OBS smoke): CallbackHandler + forceFlush against Langfuse.
@@ -173,7 +183,9 @@ describe.skipIf(!HAS_SUPABASE)('Test A: PostgresSaver resume (D-12)', () => {
     expect(checkpoint?.channel_values).toBeDefined()
 
     // --- Second invocation on same thread_id ---
-    // Add a second message — the accumulated state should reflect both
+    // Mirrors how ai.ts/trigger-engine.ts really call the graph: a FULL fresh window each
+    // turn, not a delta. `messages` is overwrite-style, so the second invocation's window
+    // replaces (does not merge with) the first invocation's.
     const secondConfig = {
       configurable: {
         ...config.configurable,
@@ -193,17 +205,28 @@ describe.skipIf(!HAS_SUPABASE)('Test A: PostgresSaver resume (D-12)', () => {
       },
     }
 
+    // Second invocation sends a FULL fresh window (mirroring ai.ts/trigger-engine.ts —
+    // both messages this "turn" would see, not just the newest one) — proves overwrite
+    // semantics: the checkpoint must end up with EXACTLY this window, not the first
+    // invocation's message plus this one concatenated on top (which would be length 3
+    // and would silently reintroduce the unbounded-growth bug).
+    const secondTurnMessages = [
+      { role: 'user' as const, content: 'Water is essential for life.' },
+      { role: 'user' as const, content: 'Indeed, life requires water.' },
+    ]
     const secondResult = await graph.invoke(
       {
-        // Only send the delta — LangGraph resumes from checkpoint and merges state
-        messages: [{ role: 'user' as const, content: 'Indeed, life requires water.' }],
+        messages: secondTurnMessages,
       },
       secondConfig
     )
 
-    // Assert messages accumulated across invocations (D-12b: state accumulates, not resets)
-    // The messages reducer appends, so after 2 invocations we should have > 1 message
-    expect(secondResult.messages.length).toBeGreaterThan(1)
+    // Assert messages are OVERWRITTEN, not accumulated, across invocations
+    // (langgraph-message-history-growth fix): the checkpoint reflects exactly the
+    // second invocation's window (length 2), never the first invocation's window
+    // concatenated on top (which would make this length 3).
+    expect(secondResult.messages.length).toBe(2)
+    expect(secondResult.messages).toEqual(secondTurnMessages)
 
     // Assert canvasOps accumulated from both invocations
     expect(secondResult.canvasOps.length).toBeGreaterThanOrEqual(2)
