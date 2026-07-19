@@ -94,6 +94,7 @@ vi.mock('node:timers/promises', () => ({
 }))
 
 import { runSilenceScan, startTriggerEngine, COACH_AUTHOR_ID } from './trigger-engine'
+import { CallbackHandler } from '@langfuse/langchain'
 import { loadBlueprint } from './blueprint-loader'
 import { checkSilenceGate } from './silence-gate'
 import { runArbitration, releaseBotLock } from './bot-arbitrator'
@@ -435,6 +436,12 @@ describe('trigger-engine', () => {
 
     // Lock released in finally regardless of success
     expect(mockReleaseBotLock).toHaveBeenCalledWith('branch-1', supabase)
+
+    // OBS-SESSION-01: CallbackHandler receives the scanned session's id as the first-class
+    // sessionId field so this room's traces group under Langfuse's Sessions UI.
+    expect(vi.mocked(CallbackHandler)).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' })
+    )
   })
 
   it('Behavior 6: startTriggerEngine registers bots once, returns a callable stop function, and calling it aborts the loop (a subsequent tick does not run)', async () => {

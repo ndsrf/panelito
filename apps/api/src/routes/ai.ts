@@ -372,9 +372,12 @@ aiRouter.post('/:id/invoke', async (c) => {
     // D-16: early-exit paths (400/409/429) are not traced — only real invocations reach here.
     // OBS-USER-01: userId attributes this trace to the session creator (email-first,
     // never-throw resolver) so Langfuse Users can group cost/usage by person.
+    // OBS-SESSION-01: sessionId groups traces per room (Langfuse Sessions) so concurrently
+    // running rooms can be distinguished/compared in the Langfuse Sessions UI.
     const langfuseUserId = await resolveCreatorLangfuseUserId(supabase, session.creator_id)
     const callbackHandler = new CallbackHandler({
       userId: langfuseUserId,
+      sessionId: sessionId,
       tags: [`session:${sessionId}`, `branch:${activeBranchId ?? 'main'}`, 'trigger:human-reactive'],
     })
 

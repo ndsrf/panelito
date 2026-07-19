@@ -148,6 +148,7 @@ vi.mock('@langfuse/tracing', () => ({
 import { createServiceClient } from '../lib/supabase'
 import { loadBlueprint } from '../lib/blueprint-loader'
 import { getCheckpointer } from '../lib/langgraph-checkpointer'
+import { CallbackHandler } from '@langfuse/langchain'
 import aiRouter from './ai'
 
 const mockCreateServiceClient = vi.mocked(createServiceClient)
@@ -601,5 +602,14 @@ describe('POST /api/sessions/:id/invoke — canvas-only turn skip-insert (SPEECH
     // No messages INSERT was attempted — canvas-only turns write zero chat rows.
     expect(_messagesInsertSpy).not.toBeNull()
     expect(_messagesInsertSpy).not.toHaveBeenCalled()
+
+    // OBS-SESSION-01: CallbackHandler receives the room id as the first-class sessionId
+    // field so this room's traces group under Langfuse's Sessions UI. Asserted here (rather
+    // than in the SC-2 test) because this is the only currently-passing happy-path test that
+    // reaches CallbackHandler construction — SC-2/SC-3 fail on a pre-existing, unrelated
+    // 404 (see deferred-items.md).
+    expect(vi.mocked(CallbackHandler)).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: TEST_SESSION_ID })
+    )
   })
 })
