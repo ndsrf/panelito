@@ -201,3 +201,137 @@ citations above were re-opened and re-read live during this task's execution (no
 from the pre-dispatch planning brief) and two additional details were confirmed beyond the
 original brief: the power-reaction reactive path (`use-reactions.ts` / `reactions.ts:104`)
 and the budget-guard early return (`trigger-engine.ts:284-291`).
+
+---
+
+## 7. Correction: moderation/fact-check evaluation is also gated, not just tracing
+
+**This section corrects and extends Section 3's "core finding."** The original writeup
+correctly identified WHY nothing traces for untagged messages, but undersold what's actually
+missing: it is not merely an observability gap on an existing evaluation — the moderation and
+fact-check Skills are **never evaluated at all** for untagged, unreacted messages, because the
+node that runs them is unreachable without a full graph invocation.
+
+### 7.1 TriggerGateNode consolidates all Skill detection onto the human-message path
+
+- `apps/api/src/graph/nodes/trigger-gate.ts:1-12` (own top-of-file doc comment, re-verified):
+  ```
+  Consolidates ALL 4 new Skills' detect() calls (plus the retrofitted silence-break Skill,
+  D-03) into ONE LangGraph node... TriggerGateNode is inserted into BOTH the primary
+  human-message path (after mutationGate) AND the proactive analysis_request path...
+  ```
+  (Note: the phrase "Five of the six trigger types already fire reactively... synchronous
+  Skills evaluated inline during a human /invoke turn" — quoted in the corrected finding this
+  section is based on — is actually the `trigger-engine.ts:4-7` header comment, already cited
+  correctly in Section 2 Path D of this document, not `trigger-gate.ts`'s own comment. The
+  substance is the same and independently confirmed here from `trigger-gate.ts`'s own text:
+  TriggerGateNode is the ONE node where every reactive Skill — moderation, fact-check,
+  phase-readiness, orphan-edge, silence-break — gets its `detect()` called.)
+- `apps/api/src/graph/graph.ts` edge wiring (re-verified, lines 220-293): for the human-message
+  path (`triggerType === null`), the route is
+  `orchestrator → agent → mutationGate → (routeAfterMutationGate, triggerGateComplete !== true,
+  triggerType null) → argGraphBuilder → (routeAfterArgGraphBuilder, not analysis_request) →
+  profileBuilder → (fixed edge) → triggerGate`. `TriggerGateNode` is reached on **every**
+  human-message graph invocation that gets this far — but the graph is only invoked in the
+  first place via the two gated entry points below (Section 7.3).
+
+### 7.2 The heuristic tiers already exist and already fail cheap/safe
+
+- `apps/api/src/lib/skills/moderation.ts:70` — `checkModerationHeuristic()` is confirmed as a
+  **pure, zero-I/O, zero-adapter-call** function (own doc comment: "zero I/O, zero
+  adapter/LLM calls"). It only reads `moderation_count` from the DB when the heuristic itself
+  flags content — no LLM call at all for a message that isn't rude/insulting.
+- `apps/api/src/lib/skills/fact-check.ts:59` — `looksLikeCheckableClaim()` is confirmed as tier
+  1 of a three-tier escalation gate, also **pure, zero-I/O** (own doc comment: "A non-match
+  makes ZERO adapter calls (COST-01)"). Tier 2 (`classifyTier2`, :93) — a cheap
+  classification-tier model call — only runs when tier 1 matched. Tier 3 (the expensive
+  `analyticsAgentNode` call) is not invoked by `detect()` at all; TriggerGateNode is
+  detection-only and only routes to `analysis` on a confirmed tier-2 positive
+  (`routeAfterTriggerGate`, `graph.ts`).
+- **Confirmed implication:** the cost-safety infrastructure for cheap message-level evaluation
+  already exists in the codebase today. The missing piece is not a new evaluator — it's a
+  reactive invocation path that reaches `TriggerGateNode` for every message, not just
+  tagged/reacted ones.
+
+### 7.3 Confirmed exhaustive: only two reactive graph-invocation entry points exist
+
+Re-grepped the entire codebase for every `createGraph(`, `graph.invoke(`/`graph.stream(`, and
+`/invoke` caller to confirm exhaustiveness (not just the two paths originally cited):
+
+- `createGraph(...)` is called in exactly two places: `apps/api/src/routes/ai.ts:284` (the
+  `/invoke` route) and `apps/api/src/lib/trigger-engine.ts:153` (the proactive silence-scan
+  loop, already covered in Section 2 Path D).
+- The graph itself is driven in exactly two places: `ai.ts` uses `graph.stream()` (SSE,
+  `:456`) and `trigger-engine.ts` uses `graph.invoke()` (`:317`). No other call site exists.
+- On the frontend, the only two paths that reach `POST /invoke` (and therefore `ai.ts`'s
+  `graph.stream()`) are: (1) `workspace.tsx:60,264-273` — the `@analista` tag match via
+  `ANALISTA_PATTERN`; and (2) `use-reactions.ts` → `reactions.ts:104` — a power-reaction emoji
+  (🔥📌🎯), surfaced through `QuickReactionPopover.tsx` / `MessageList.tsx` (already documented
+  in Section 2 Path A of this document).
+- Searched for any Supabase Database Webhook / `pg_net` / server-side trigger that might invoke
+  the graph independent of these two frontend paths — none found in `apps/api` or the
+  `supabase/` migrations directory.
+- **Confirmed exhaustive:** there is no third path. A plain untagged, unreacted message
+  literally never causes `createGraph`/`graph.stream`/`graph.invoke` to run, which means
+  `TriggerGateNode` — and therefore moderation, fact-check, and every other Skill's
+  `detect()` — never executes for that message. This is stronger than Section 3's original
+  framing: it is an **evaluation gap**, not merely a **tracing gap**.
+
+### 7.4 User's decision (resolves Task 2's checkpoint)
+
+The user has reviewed this corrected finding and decided: **evaluation AND a Langfuse entry
+on every single message — even when the heuristics fire on nothing and no Skill triggers.**
+
+This resolves Task 2's `checkpoint:decision` as a **refined version of `reactive-eval`**, NOT
+the original `reactive-eval` framing in Section 5 (which assumed full-cost LLM evaluation of
+every message from scratch). The refined version is cheaper than originally framed, because
+the zero-cost heuristic tiers (Section 7.2) already exist and already gate the expensive LLM
+tiers — the only missing piece is a per-message invocation path that reaches
+`TriggerGateNode` for every human message (not just tagged/reacted ones), plus a Langfuse
+span/trace emitted for that evaluation turn regardless of whether a Skill fired. "Heuristic
+ran, nothing triggered" becomes visible in Langfuse exactly like a fired Skill or a tagged
+reply is today.
+
+**Per the plan's own success criteria, this refined `reactive-eval` is still out of scope for
+a quick task** (it requires a new reactive graph-topology decision) and is escalated below to
+a dedicated planned phase — it is NOT implemented in this quick task.
+
+### 7.5 Handoff to planned phase
+
+A future `/gsd:plan-phase` can consume the following directly:
+
+**Shape of the change:**
+- A new reactive invocation path that reaches `TriggerGateNode` for every human message,
+  independent of the existing `@analista`-tag / power-reaction gate. This does not replace the
+  existing `/invoke` gate (tagged/reacted messages still get the full agent response as
+  today) — it adds a parallel evaluation path for the messages that currently skip `/invoke`
+  entirely.
+- A per-request Langfuse `CallbackHandler` on that new path, constructed and passed to the
+  graph invocation even when no Skill ultimately fires — mirroring the existing per-request
+  pattern in `ai.ts:378` and `trigger-engine.ts:311-317`, so "evaluated, nothing fired" is
+  visibly distinct in Langfuse from "evaluated, Skill X fired."
+
+**Cost safety already in place (do not rebuild):**
+- Tier-1 heuristics (`checkModerationHeuristic`, `looksLikeCheckableClaim`) are pure,
+  zero-I/O, zero-adapter-call functions that already gate every paid tier. Any new per-message
+  path should route through the *existing* `TriggerGateNode` (via `triggerGate`/Skills
+  registered in `skills.ts`) rather than duplicating detection logic, so the cost-safety
+  guarantees (Section 7.2) are inherited, not re-derived.
+- `apps/api/src/lib/skills/moderation.ts` T-12-09-style billing-surface threat-model notes in
+  `fact-check.ts` (tier-2/tier-3 model resolution as a BYOK billing surface) apply identically
+  to this new path and should be re-read by whoever plans the phase.
+
+**Explicitly NOT decided yet (planned phase must resolve):**
+1. **Inline-blocking vs. async/fire-and-forget:** should the new evaluation run inline,
+   blocking the message-send response, or should it run asynchronously after the message is
+   already stored (so message-send latency is unaffected)?
+2. **Endpoint/transport shape:** should this reuse the existing `/invoke` SSE endpoint (with a
+   new `triggerType` or flag that routes straight to `mutationGate`/`argGraphBuilder` →
+   `triggerGate` without the tag gate), or should it be a new lightweight endpoint / background
+   job (e.g., a queue consumer) separate from the SSE streaming path entirely?
+3. **Frontend wiring:** where does the "call this for every message" trigger live — inside
+   `handleAfterSend` unconditionally (replacing/supplementing the current `if
+   (ANALISTA_PATTERN.test(content))` gate), or server-side on message insert?
+4. **Rate/volume implications:** even at zero LLM cost for the common case, every message now
+   produces a Langfuse trace/span — the planned phase should size expected trace volume
+   against the user's Langfuse plan tier before implementation.
