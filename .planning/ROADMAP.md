@@ -405,6 +405,31 @@ Plans:
 | 13. User Profiles + Phase Signal | v3.0 | 7/7 | Complete   | 2026-07-17 |
 | 14. Polish + TriggerEngine Wiring | v3.0 | 7/7 | Complete   | 2026-07-18 |
 
+### Phase 15: Message Evaluation Pipeline
+
+**Goal:** Every message sent in a session — not only @-tagged or power-reaction messages — is evaluated and traced. Cheap tier-1 heuristics gate which messages escalate to paid-tier (LLM) evaluation, so TriggerGateNode's moderation/fact-check Skills become reachable on ordinary untagged messages instead of only the @-tag/power-reaction paths. Closes the gap confirmed in quick task 260719-e9x.
+**Requirements**: EVAL-01, EVAL-02, EVAL-03, EVAL-04 (derived during planning; no prior REQ-IDs existed for this phase)
+**Depends on:** Phase 14
+**Success Criteria** (what must be TRUE):
+
+  1. TriggerGateNode's moderation/fact-check Skills are evaluated on every human message, not only messages containing an @-tag or power reaction — observable via Langfuse trace entries appearing for untagged messages that match tier-1 heuristics.
+  2. A tier-1 heuristic pre-filter runs on every message with zero LLM token cost; only messages passing the heuristic escalate to a paid-tier LLM classifier — confirmed via unchanged Langfuse token/cost counts for messages that fail tier-1.
+  3. Existing @-tag/power-reaction-triggered evaluation paths continue to work unchanged (no regression) once the gate is widened to run on all messages.
+  4. A developer can tell, per message, whether tier-1 heuristics fired and whether the message escalated to tier-2 — via Langfuse trace tags or server logs.
+
+**Plans:** 4 plans in 3 waves
+
+Plans:
+**Wave 1** *(parallel — no file overlap)*
+- [ ] 15-01-PLAN.md — Graph topology: passive_eval START→triggerGate entry + routeAfterTriggerGate/routeAfterArgGraphBuilder branches, role-keyed personality fallback, runArbitration firingSkillRole param (EVAL-01, EVAL-02, EVAL-03)
+- [ ] 15-02-PLAN.md — Skill/Role decoupling refactor: makeModerationSkill/makeFactCheckSkill factories over shared detect() logic (D-07/D-08) (EVAL-01, EVAL-03)
+
+**Wave 2** *(blocked on 15-01)*
+- [ ] 15-03-PLAN.md — message-evaluation.ts fire-and-forget service + passive_eval detection invoke + D-11/D-12 budget/arbitration gate + messages.ts wiring (EVAL-01, EVAL-02, EVAL-04)
+
+**Wave 3** *(blocked on 15-01/15-02/15-03)*
+- [ ] 15-04-PLAN.md — Full integration regression + live human-verify checkpoint (untagged→trigger:passive-eval traces, tier-1 zero-cost, no @-tag/reaction regression) (EVAL-01..04)
+
 ---
 
 *Roadmap created: 2026-06-08*
